@@ -1,15 +1,17 @@
+'use strict';
+
 const { Module } = require('@nestjs/common');
 const { DocumentsController } = require('./documents.controller');
-const { DocumentsService } = require('./documents.service');
-const { PdfController } = require('./pdf.controller');
-const { AuditService } = require('../audit/audit.service');
-const { TemplatesService } = require('../templates/templates.service');
-const { TemplatesModule } = require('../templates/templates.module');
+const { DocumentsService }    = require('./documents.service');
+const { PdfController }       = require('./pdf.controller');
+const { AuditService }        = require('../audit/audit.service');
+const { TemplatesModule }     = require('../templates/template.module');
+const { TemplatesService }    = require('../templates/templates.service');
 
 class DocumentsModule {}
 
 Module({
-  imports: [TemplatesModule],
+  imports:     [TemplatesModule],
   controllers: [DocumentsController, PdfController],
   providers: [
     AuditService,
@@ -18,11 +20,6 @@ Module({
       useFactory: (auditService, templatesService) =>
         new DocumentsService(auditService, templatesService),
       inject: [AuditService, TemplatesService],
-    },
-    {
-      provide: PdfController,
-      useFactory: (templatesService) => new PdfController(templatesService),
-      inject: [TemplatesService],
     },
   ],
 })(DocumentsModule);

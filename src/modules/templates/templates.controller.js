@@ -1,17 +1,25 @@
-﻿const path = require('path');
+﻿'use strict';
+
+const path = require('path');
 const multer = require('multer');
 const {
   Controller, Get, Post, Put, Delete, Param, Query, Body,
-  Req, Res, HttpCode, HttpStatus, HttpException, UseInterceptors, UploadedFile,
+  Req, Res, HttpCode, HttpStatus, HttpException,
+  UseInterceptors, UploadedFile,
 } = require('@nestjs/common');
 const { FileInterceptor } = require('@nestjs/platform-express');
-const { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiConsumes, ApiBody } = require('@nestjs/swagger');
+const {
+  ApiTags, ApiOperation, ApiParam, ApiQuery,
+  ApiResponse, ApiConsumes, ApiBody,
+} = require('@nestjs/swagger');
 
 const { TemplatesService } = require('./templates.service');
-const { getActor, parsePagination, parseVersionOrThrow, readAndCleanupUpload } = require('../common/http.utils');
+const {
+  getActor, parsePagination, parseVersionOrThrow, readAndCleanupUpload,
+} = require('../common/http.utils');
 
-const UPLOAD_PATH = process.env.UPLOAD_PATH || './storage/uploads';
-const MAX_FILE_SIZE = (parseInt(process.env.MAX_FILE_SIZE_MB) || 10) * 1024 * 1024;
+const UPLOAD_PATH    = process.env.UPLOAD_PATH || './storage/uploads';
+const MAX_FILE_SIZE  = (parseInt(process.env.MAX_FILE_SIZE_MB, 10) || 10) * 1024 * 1024;
 
 const multerOptions = {
   dest: UPLOAD_PATH,
@@ -39,7 +47,7 @@ class TemplatesController {
   }
 
   // GET /templates
-  async findAll(query, req) {
+  async findAll(query) {
     try {
       const { limit, offset } = parsePagination(query);
       return this.templatesService.findAll({ status: query.status, limit, offset });
@@ -79,7 +87,7 @@ class TemplatesController {
     }).catch(throwHttp);
   }
 
-  // POST /templates (multipart)
+  // POST /templates/upload (multipart)
   async importFile(file, body, req) {
     if (!file) throw new HttpException('File mancante', 400);
     const content = readAndCleanupUpload(file);
@@ -126,7 +134,7 @@ class TemplatesController {
   async exportMd(id, res) {
     const template = await this.templatesService.findOne(id).catch(throwHttp);
     if (!template) throw new HttpException('Template non trovato', 404);
-    const content = this.templatesService.getExportContent(template);
+    const content  = this.templatesService.getExportContent(template);
     const safeName = template.name.replace(/[^a-z0-9_\-]/gi, '_');
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}_v${template.version}.md"`);
@@ -139,40 +147,49 @@ class TemplatesController {
   }
 }
 
-// ─── Applicazione decoratori NestJS (JS puro, senza TypeScript) ──────────────
-
-const { applyDecorators } = require('@nestjs/common');
+// ─── Decoratori di classe ─────────────────────────────────────────────────────
 
 ApiTags('templates')(TemplatesController);
 Controller('templates')(TemplatesController);
 
+// ─── Decoratori di metodo e parametro ────────────────────────────────────────
+
 const proto = TemplatesController.prototype;
 
-// findAll
+// GET /templates
 Get()(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiOperation({ summary: 'Lista template', description: 'Restituisce la lista paginata dei template.' })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiQuery({ name: 'status', required: false, enum: ['draft', 'published'] })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
-ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
-ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiQuery({ name: 'limit',  required: false, type: Number, example: 20 })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiQuery({ name: 'offset', required: false, type: Number, example: 0  })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+// ✅ param 0 = query
+Query()(proto, 'findAll', 0);
 
-// findOne
+// GET /templates/:id
 Get(':id')(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
 ApiOperation({ summary: 'Dettaglio template' })(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
 ApiResponse({ status: 404, description: 'Template non trovato' })(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
+// ✅ param 0 = id
+Param('id')(proto, 'findOne', 0);
 
-// getVersions
+// GET /templates/:id/versions
 Get(':id/versions')(proto, 'getVersions', Object.getOwnPropertyDescriptor(proto, 'getVersions'));
 ApiOperation({ summary: 'Cronologia versioni template' })(proto, 'getVersions', Object.getOwnPropertyDescriptor(proto, 'getVersions'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'getVersions', Object.getOwnPropertyDescriptor(proto, 'getVersions'));
+// ✅ param 0 = id
+Param('id')(proto, 'getVersions', 0);
 
-// getVersionContent
+// GET /templates/:id/versions/:version
 Get(':id/versions/:version')(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
 ApiOperation({ summary: 'Contenuto di una versione specifica del template' })(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
-ApiParam({ name: 'id', description: 'UUID template' })(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
+ApiParam({ name: 'id',      description: 'UUID template' })(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
 ApiParam({ name: 'version', description: 'Numero versione (intero positivo)' })(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
+// ✅ param 0 = id, param 1 = version
+Param('id')(proto, 'getVersionContent', 0);
+Param('version')(proto, 'getVersionContent', 1);
 
-// create (JSON)
+// POST /templates (JSON)
 Post()(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
 HttpCode(HttpStatus.CREATED)(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
 ApiOperation({ summary: 'Crea template (JSON)' })(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
@@ -180,15 +197,18 @@ ApiBody({
   schema: {
     required: ['name', 'content'],
     properties: {
-      name: { type: 'string', example: 'Template Contratto' },
+      name:        { type: 'string', example: 'Template Contratto' },
       description: { type: 'string' },
-      content: { type: 'string', example: '# {{titolo}}\n\nCliente: {{cliente}}' },
-      fields: { type: 'array', items: { type: 'object' } },
+      content:     { type: 'string', example: '# {{titolo}}\n\nCliente: {{cliente}}' },
+      fields:      { type: 'array', items: { type: 'object' } },
     },
   },
 })(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
+// ✅ param 0 = body, param 1 = req
+Body()(proto, 'create', 0);
+Req()(proto, 'create', 1);
 
-// importFile (multipart)
+// POST /templates/upload (multipart)
 Post('upload')(proto, 'importFile', Object.getOwnPropertyDescriptor(proto, 'importFile'));
 HttpCode(HttpStatus.CREATED)(proto, 'importFile', Object.getOwnPropertyDescriptor(proto, 'importFile'));
 UseInterceptors(FileInterceptor('file', multerOptions))(proto, 'importFile', Object.getOwnPropertyDescriptor(proto, 'importFile'));
@@ -203,8 +223,12 @@ ApiBody({
     },
   },
 })(proto, 'importFile', Object.getOwnPropertyDescriptor(proto, 'importFile'));
+// ✅ param 0 = file, param 1 = body, param 2 = req
+UploadedFile()(proto, 'importFile', 0);
+Body()(proto, 'importFile', 1);
+Req()(proto, 'importFile', 2);
 
-// validateMd
+// POST /templates/validate-md
 Post('validate-md')(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
 ApiOperation({ summary: 'Valida contenuto Markdown senza creare il template' })(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
 ApiBody({
@@ -213,8 +237,10 @@ ApiBody({
     properties: { content: { type: 'string' } },
   },
 })(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
+// ✅ param 0 = body
+Body()(proto, 'validateMd', 0);
 
-// validateFile
+// POST /templates/validate-file
 Post('validate-file')(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
 UseInterceptors(FileInterceptor('file', multerOptions))(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
 ApiOperation({ summary: 'Valida file .md caricato senza creare il template' })(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
@@ -222,32 +248,51 @@ ApiConsumes('multipart/form-data')(proto, 'validateFile', Object.getOwnPropertyD
 ApiBody({
   schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
 })(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
+// ✅ param 0 = file
+UploadedFile()(proto, 'validateFile', 0);
 
-// update
+// PUT /templates/:id
 Put(':id')(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
 ApiOperation({ summary: 'Aggiorna template (crea nuova versione)' })(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
+// ✅ param 0 = id, param 1 = body, param 2 = req
+Param('id')(proto, 'update', 0);
+Body()(proto, 'update', 1);
+Req()(proto, 'update', 2);
 
-// publish
+// POST /templates/:id/publish
 Post(':id/publish')(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
 ApiOperation({ summary: 'Pubblica il template' })(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
+// ✅ param 0 = id, param 1 = req
+Param('id')(proto, 'publish', 0);
+Req()(proto, 'publish', 1);
 
-// restore
+// POST /templates/:id/restore/:version
 Post(':id/restore/:version')(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));
 ApiOperation({ summary: 'Ripristina una versione precedente del template' })(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));
-ApiParam({ name: 'id', description: 'UUID template' })(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));
+ApiParam({ name: 'id',      description: 'UUID template' })(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));
 ApiParam({ name: 'version', description: 'Versione da ripristinare' })(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));
+// ✅ param 0 = id, param 1 = version, param 2 = req
+Param('id')(proto, 'restore', 0);
+Param('version')(proto, 'restore', 1);
+Req()(proto, 'restore', 2);
 
-// exportMd
+// GET /templates/:id/export
 Get(':id/export')(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
 ApiOperation({ summary: 'Scarica il template come file .md' })(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
 ApiResponse({ status: 200, description: 'File .md in download', content: { 'text/markdown': {} } })(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
+// ✅ param 0 = id, param 1 = res
+Param('id')(proto, 'exportMd', 0);
+Res()(proto, 'exportMd', 1);
 
-// remove
+// DELETE /templates/:id
 Delete(':id')(proto, 'remove', Object.getOwnPropertyDescriptor(proto, 'remove'));
 ApiOperation({ summary: 'Elimina template' })(proto, 'remove', Object.getOwnPropertyDescriptor(proto, 'remove'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'remove', Object.getOwnPropertyDescriptor(proto, 'remove'));
+// ✅ param 0 = id, param 1 = req
+Param('id')(proto, 'remove', 0);
+Req()(proto, 'remove', 1);
 
 module.exports = { TemplatesController };

@@ -1,4 +1,6 @@
-﻿const { Controller, Post, Param, HttpException } = require('@nestjs/common');
+﻿'use strict';
+
+const { Controller, Post, Param, HttpException } = require('@nestjs/common');
 const { ApiTags, ApiOperation, ApiParam, ApiResponse } = require('@nestjs/swagger');
 const { TemplatesService } = require('../templates/templates.service');
 
@@ -19,26 +21,30 @@ class PdfController {
     const isAvailable = template.status === 'published' || template.status === 'draft';
     return {
       templateId: template.id,
-      valid: isAvailable,
-      available: isAvailable,
-      status: template.status,
-      version: template.version,
-      fields: template.fields || [],
+      valid:      isAvailable,
+      available:  isAvailable,
+      status:     template.status,
+      version:    template.version,
+      fields:     template.fields || [],
     };
   }
 }
 
-// ─── Decoratori ──────────────────────────────────────────────────────────────
+// ─── Decoratori di classe ─────────────────────────────────────────────────────
 
 ApiTags('pdf')(PdfController);
 Controller('pdf')(PdfController);
 
+// ─── Decoratori di metodo e parametro ────────────────────────────────────────
+
 const proto = PdfController.prototype;
 
+// POST /pdf/templates/:templateId/validate
 Post('templates/:templateId/validate')(proto, 'validateTemplate', Object.getOwnPropertyDescriptor(proto, 'validateTemplate'));
 ApiOperation({ summary: 'Valida disponibilità template per generazione PDF' })(proto, 'validateTemplate', Object.getOwnPropertyDescriptor(proto, 'validateTemplate'));
 ApiParam({ name: 'templateId', description: 'UUID template' })(proto, 'validateTemplate', Object.getOwnPropertyDescriptor(proto, 'validateTemplate'));
 ApiResponse({ status: 200, description: 'Stato disponibilità template' })(proto, 'validateTemplate', Object.getOwnPropertyDescriptor(proto, 'validateTemplate'));
 ApiResponse({ status: 404, description: 'Template non trovato' })(proto, 'validateTemplate', Object.getOwnPropertyDescriptor(proto, 'validateTemplate'));
+Param('templateId')(proto, 'validateTemplate', 0);
 
 module.exports = { PdfController };

@@ -1,8 +1,10 @@
+'use strict';
+
 const { Module } = require('@nestjs/common');
-const { AuditModule } = require('./modules/audit/audit.model');
+const { AuditModule }     = require('./modules/audit/audit.module');
 const { TemplatesModule } = require('./modules/templates/template.module');
 const { DocumentsModule } = require('./modules/documents/document.module');
-const { DevModule } = require('./modules/dev/dev.module');
+const { DevModule }       = require('./modules/dev/dev.module');
 
 class AppModule {}
 

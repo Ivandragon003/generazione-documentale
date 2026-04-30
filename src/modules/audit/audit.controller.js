@@ -1,4 +1,6 @@
-﻿const { Controller, Get, Query, HttpException } = require('@nestjs/common');
+﻿'use strict';
+
+const { Controller, Get, Query, HttpException } = require('@nestjs/common');
 const { ApiTags, ApiOperation, ApiQuery } = require('@nestjs/swagger');
 const { AuditService } = require('./audit.service');
 const { parsePagination } = require('../common/http.utils');
@@ -13,26 +15,36 @@ class AuditController {
   }
 
   async findAll(query) {
-    const { entityType, actor, fromDate, toDate } = query;
     let pagination;
-    try { pagination = parsePagination(query, { limit: 50, offset: 0 }); }
-    catch (e) { throwHttp(e); }
+    try {
+      pagination = parsePagination(query, { limit: 50, offset: 0 });
+    } catch (e) {
+      throwHttp(e);
+    }
+    const { entityType, actor, fromDate, toDate } = query;
     return this.auditService.findAll({ entityType, actor, fromDate, toDate, ...pagination });
   }
 }
 
+// ─── Decoratori di classe ─────────────────────────────────────────────────────
+
 ApiTags('audit')(AuditController);
 Controller('audit')(AuditController);
 
+// ─── Decoratori di metodo e parametro ────────────────────────────────────────
+
 const proto = AuditController.prototype;
 
+// GET /audit
 Get()(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiOperation({ summary: 'Registro audit globale' })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiQuery({ name: 'entityType', required: false, enum: ['template', 'document'] })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
-ApiQuery({ name: 'actor', required: false, type: String })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiQuery({ name: 'actor',    required: false, type: String })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiQuery({ name: 'fromDate', required: false, description: 'ISO 8601 datetime' })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
-ApiQuery({ name: 'toDate', required: false, description: 'ISO 8601 datetime' })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
-ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
-ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiQuery({ name: 'toDate',   required: false, description: 'ISO 8601 datetime' })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiQuery({ name: 'limit',    required: false, type: Number, example: 50 })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiQuery({ name: 'offset',   required: false, type: Number, example: 0  })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+// ✅ parametro 0 = query object
+Query()(proto, 'findAll', 0);
 
 module.exports = { AuditController };

@@ -37,11 +37,6 @@ build/
 .cache
 .tmp
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
 # Uploads (keep samples for reference)
 storage/uploads/*
 !storage/uploads/.gitkeep

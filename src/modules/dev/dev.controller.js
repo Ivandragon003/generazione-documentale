@@ -1,11 +1,15 @@
-const fs = require('fs');
+'use strict';
+
+const fs   = require('fs');
 const path = require('path');
-const { Controller, Post, Body, Req, HttpException, HttpCode, HttpStatus } = require('@nestjs/common');
+const {
+  Controller, Post, Body, Req, HttpException, HttpCode, HttpStatus,
+} = require('@nestjs/common');
 const { ApiTags, ApiOperation, ApiResponse, ApiHeader } = require('@nestjs/swagger');
 
-const { getPool } = require('../../database/database');
-const q = require('./dev.queries');
-const apiRegressionService = require('./api-regression.service');
+const { getPool }             = require('../../database/database');
+const q                       = require('./dev.queries');
+const apiRegressionService    = require('./api-regression.service');
 
 const fsp = fs.promises;
 const STORAGE_PATH          = process.env.STORAGE_PATH          || './storage/pdf';
@@ -44,26 +48,36 @@ async function seedDevFixtures(pool) {
 
   const contentPath       = await writeFixtureTemplate(FIXTURE_TEMPLATE_ID, content);
   const deleteContentPath = await writeFixtureTemplate(FIXTURE_DELETE_TEMPLATE_ID, content);
-  const pdfPath = path.resolve(STORAGE_PATH, FIXTURE_PDF_FILENAME);
-  await fsp.writeFile(pdfPath, '%PDF-1.4\n% fixture pdf\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n', 'utf8');
+  const pdfPath           = path.resolve(STORAGE_PATH, FIXTURE_PDF_FILENAME);
+
+  await fsp.writeFile(
+    pdfPath,
+    '%PDF-1.4\n% fixture pdf\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n',
+    'utf8',
+  );
 
   await q.insertFixtureTemplate(pool, {
     id: FIXTURE_TEMPLATE_ID, name: 'Template Fixture',
     description: 'Template stabile per collection API', contentPath, fields,
   });
-  await q.insertFixtureTemplateVersion(pool, { templateId: FIXTURE_TEMPLATE_ID, contentPath, fields });
-
+  await q.insertFixtureTemplateVersion(pool, {
+    templateId: FIXTURE_TEMPLATE_ID, contentPath, fields,
+  });
   await q.insertFixtureTemplate(pool, {
     id: FIXTURE_DELETE_TEMPLATE_ID, name: 'Template Fixture Delete',
-    description: 'Template eliminabile per collection API', contentPath: deleteContentPath, fields,
+    description: 'Template eliminabile per collection API',
+    contentPath: deleteContentPath, fields,
   });
-  await q.insertFixtureTemplateVersion(pool, { templateId: FIXTURE_DELETE_TEMPLATE_ID, contentPath: deleteContentPath, fields });
-
+  await q.insertFixtureTemplateVersion(pool, {
+    templateId: FIXTURE_DELETE_TEMPLATE_ID, contentPath: deleteContentPath, fields,
+  });
   await q.insertFixtureDocument(pool, {
     id: FIXTURE_DOCUMENT_ID, name: 'Documento Fixture',
     templateId: FIXTURE_TEMPLATE_ID, content, fieldValues,
   });
-  await q.insertFixtureDocumentVersion(pool, { documentId: FIXTURE_DOCUMENT_ID, content, fieldValues });
+  await q.insertFixtureDocumentVersion(pool, {
+    documentId: FIXTURE_DOCUMENT_ID, content, fieldValues,
+  });
   await q.insertFixturePdfJob(pool, {
     id: FIXTURE_PDF_JOB_ID, documentId: FIXTURE_DOCUMENT_ID, filename: FIXTURE_PDF_FILENAME,
   });
@@ -71,18 +85,19 @@ async function seedDevFixtures(pool) {
 
 class DevController {
   // POST /dev/test-runs/execute
-  async executeTestRun(@Body() body, @Req() req) {
+  // ⚠️ NOTA: i parametri NON usano la sintassi @Decorator() inline (non valida in JS puro).
+  //          I decorator sono applicati manualmente nella sezione in fondo al file.
+  async executeTestRun(body, req) {
     if (process.env.NODE_ENV === 'production') {
       throw new HttpException('Test run non disponibili in produzione', 403);
     }
-
     const suite = body?.suite || 'api-regression';
     if (suite !== 'api-regression') throw new HttpException('Suite non supportata', 400);
 
     try {
       const result = await apiRegressionService.runApiRegressionSuite({
         baseUrl: body?.baseUrl,
-        reset: body?.reset !== false,
+        reset:   body?.reset !== false,
         req,
       });
       return result;
@@ -95,7 +110,7 @@ class DevController {
   }
 
   // POST /dev/reset
-  async reset(@Req() req) {
+  async reset(req) {
     if (process.env.NODE_ENV === 'production') {
       throw new HttpException('Reset non disponibile in produzione', 403);
     }
@@ -126,23 +141,37 @@ class DevController {
   }
 }
 
-// ─── Decoratori ──────────────────────────────────────────────────────────────
+// ─── Decoratori di classe ─────────────────────────────────────────────────────
 
 ApiTags('dev')(DevController);
 Controller('dev')(DevController);
 
+// ─── Decoratori di metodo e parametro ────────────────────────────────────────
+
 const proto = DevController.prototype;
 
+// POST /dev/test-runs/execute
 Post('test-runs/execute')(proto, 'executeTestRun', Object.getOwnPropertyDescriptor(proto, 'executeTestRun'));
+HttpCode(HttpStatus.OK)(proto, 'executeTestRun', Object.getOwnPropertyDescriptor(proto, 'executeTestRun'));
 ApiOperation({ summary: 'Esegue la suite di regression test API', description: 'Bloccato in NODE_ENV=production.' })(proto, 'executeTestRun', Object.getOwnPropertyDescriptor(proto, 'executeTestRun'));
 ApiResponse({ status: 200, description: 'Tutti i test superati' })(proto, 'executeTestRun', Object.getOwnPropertyDescriptor(proto, 'executeTestRun'));
 ApiResponse({ status: 500, description: 'Almeno un test fallito' })(proto, 'executeTestRun', Object.getOwnPropertyDescriptor(proto, 'executeTestRun'));
+// ✅ param 0 = body, param 1 = req
+Body()(proto, 'executeTestRun', 0);
+Req()(proto, 'executeTestRun', 1);
 
+// POST /dev/reset
 Post('reset')(proto, 'reset', Object.getOwnPropertyDescriptor(proto, 'reset'));
-ApiOperation({ summary: 'Reset dati e storage (solo dev/test)', description: 'Richiede header x-reset-confirm: true. Bloccato in produzione.' })(proto, 'reset', Object.getOwnPropertyDescriptor(proto, 'reset'));
+HttpCode(HttpStatus.OK)(proto, 'reset', Object.getOwnPropertyDescriptor(proto, 'reset'));
+ApiOperation({
+  summary:     'Reset dati e storage (solo dev/test)',
+  description: 'Richiede header x-reset-confirm: true. Bloccato in produzione.',
+})(proto, 'reset', Object.getOwnPropertyDescriptor(proto, 'reset'));
 ApiHeader({ name: 'x-reset-confirm', description: 'Deve essere "true"', required: true })(proto, 'reset', Object.getOwnPropertyDescriptor(proto, 'reset'));
 ApiResponse({ status: 200, description: 'Reset completato con fixture' })(proto, 'reset', Object.getOwnPropertyDescriptor(proto, 'reset'));
 ApiResponse({ status: 400, description: 'Header mancante' })(proto, 'reset', Object.getOwnPropertyDescriptor(proto, 'reset'));
 ApiResponse({ status: 403, description: 'Non disponibile in produzione' })(proto, 'reset', Object.getOwnPropertyDescriptor(proto, 'reset'));
+// ✅ param 0 = req
+Req()(proto, 'reset', 0);
 
 module.exports = { DevController };
