@@ -7,6 +7,8 @@ yarn.lock
 .env
 .env.local
 .env.*.local
+.env.test
+.env.production
 
 # IDE
 .vscode/
@@ -37,17 +39,20 @@ build/
 .cache
 .tmp
 
-# Uploads (keep samples for reference)
+# Storage — file generati a runtime (non tracciare contenuto, solo cartella)
 storage/uploads/*
 !storage/uploads/.gitkeep
-
-# PDFs
 storage/pdf/*
 !storage/pdf/.gitkeep
+storage/templates/*
+!storage/templates/.gitkeep
 
 # Test artifacts
 storage/test-runs/*.json
 
-# Environment files
-.env.test
-.env.production
+# ─── Database ─────────────────────────────────────────────────────────────────
+# I file SQL in db/ sono SEMPRE tracciati (schema, migration, seed).
+# NON aggiungere db/ o *.sql a questo file.
+# Fanno eccezione solo i dump produzione (mai nel repo):
+*.dump
+*.pgdump

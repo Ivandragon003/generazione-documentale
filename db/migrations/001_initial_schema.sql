@@ -1,19 +1,13 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
--- MAC-Documents  |  Schema pulito
+-- Migration 001 — Schema iniziale
+-- Creato:  2026-01-01
+-- Autore:  sistema
 -- ═══════════════════════════════════════════════════════════════════════════════
---
--- QUESTO FILE DESCRIVE LA STRUTTURA FINALE DEL DATABASE.
--- Non eseguire direttamente in produzione: usa le migration in db/migrations/.
--- Per un ambiente fresco puoi eseguirlo come bootstrap iniziale.
---
--- Ordine di esecuzione:
---   1. db/schema.sql                    ← questo file (ambienti nuovi)
---   2. db/migrations/                   ← aggiornamenti incrementali
---   3. db/seeds/001_seed_sample.sql     ← dati di esempio (opzionale)
---   4. db/seeds/fixtures/               ← solo ambienti dev/test
+-- Crea tutte le tabelle base del progetto MAC-Documents.
+-- Equivalente a db/schema.sql; da usare su ambienti che usano il runner
+-- di migration (migrations/run.js) invece del bootstrap diretto.
 -- ═══════════════════════════════════════════════════════════════════════════════
 
--- ─── templates ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS templates (
   id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   name         VARCHAR(255) NOT NULL,
@@ -31,7 +25,6 @@ CREATE TABLE IF NOT EXISTS templates (
 CREATE INDEX IF NOT EXISTS idx_templates_status ON templates(status);
 CREATE INDEX IF NOT EXISTS idx_templates_name   ON templates(name);
 
--- ─── template_versions ───────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS template_versions (
   id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   template_id  UUID         NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
@@ -49,7 +42,6 @@ CREATE INDEX IF NOT EXISTS idx_template_versions_template_id
 CREATE UNIQUE INDEX IF NOT EXISTS idx_template_versions_unique_version
   ON template_versions(template_id, version);
 
--- ─── documents ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS documents (
   id               UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   name             VARCHAR(255) NOT NULL,
@@ -68,16 +60,15 @@ CREATE TABLE IF NOT EXISTS documents (
 CREATE INDEX IF NOT EXISTS idx_documents_template_id ON documents(template_id);
 CREATE INDEX IF NOT EXISTS idx_documents_status      ON documents(status);
 
--- ─── document_versions ───────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS document_versions (
-  id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-  document_id UUID         NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-  version     INTEGER      NOT NULL,
-  content     TEXT         NOT NULL,
-  field_values JSONB       NOT NULL DEFAULT '{}',
-  action      VARCHAR(100) NOT NULL DEFAULT 'update',
-  created_by  VARCHAR(255) NOT NULL DEFAULT 'system',
-  created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id  UUID         NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  version      INTEGER      NOT NULL,
+  content      TEXT         NOT NULL,
+  field_values JSONB        NOT NULL DEFAULT '{}',
+  action       VARCHAR(100) NOT NULL DEFAULT 'update',
+  created_by   VARCHAR(255) NOT NULL DEFAULT 'system',
+  created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_document_versions_document_id
@@ -85,7 +76,6 @@ CREATE INDEX IF NOT EXISTS idx_document_versions_document_id
 CREATE UNIQUE INDEX IF NOT EXISTS idx_document_versions_unique_version
   ON document_versions(document_id, version);
 
--- ─── pdf_jobs ─────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS pdf_jobs (
   id                UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   document_id       UUID         NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
@@ -104,7 +94,6 @@ CREATE TABLE IF NOT EXISTS pdf_jobs (
 CREATE INDEX IF NOT EXISTS idx_pdf_jobs_document_id ON pdf_jobs(document_id);
 CREATE INDEX IF NOT EXISTS idx_pdf_jobs_status      ON pdf_jobs(status);
 
--- ─── audit_log ────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS audit_log (
   id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   entity_type VARCHAR(100) NOT NULL,
