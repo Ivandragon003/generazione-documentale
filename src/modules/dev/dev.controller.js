@@ -9,7 +9,7 @@ const { ApiTags, ApiOperation, ApiResponse, ApiHeader } = require('@nestjs/swagg
 
 const { getPool }          = require('../../database/database');
 const q                    = require('./dev.queries');
-const apiRegressionService = require('./api-regression.service');
+const { runApiRegressionSuite, runLargePdfSeed, ApiRegressionFailure } = require('./api-regression.service');
 
 const fsp = fs.promises;
 const STORAGE_PATH          = process.env.STORAGE_PATH          || './storage/pdf';
@@ -91,16 +91,19 @@ class DevController {
     const suite = body?.suite || 'api-regression';
     if (suite !== 'api-regression') throw new HttpException('Suite non supportata', 400);
     try {
-      return await apiRegressionService.runApiRegressionSuite({
+      return await runApiRegressionSuite({
         baseUrl: body?.baseUrl,
         reset:   body?.reset !== false,
         req,
       });
     } catch (err) {
-      throw new HttpException(
-        { ok: false, suite, error: err.message, failedTest: err.failedTest, tests: err.tests || [] },
-        500,
-      );
+      if (err instanceof ApiRegressionFailure) {
+        throw new HttpException(
+          { ok: false, suite, error: err.message, failedTest: err.failedTest, tests: err.tests || [] },
+          500,
+        );
+      }
+      throw err;
     }
   }
 
@@ -128,6 +131,25 @@ class DevController {
         pdfJobId:         FIXTURE_PDF_JOB_ID,
       },
     };
+  }
+
+  /**
+   * Crea un template grande (contratto multi-sezione, 21 campi),
+   * riempie solo 9 campi, accoda la generazione PDF.
+   * Il PDF viene salvato in storage e non viene mai eliminato.
+   */
+  async seedLargePdf(body, req) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new HttpException('Seed non disponibile in produzione', 403);
+    }
+    try {
+      return await runLargePdfSeed({ baseUrl: body?.baseUrl, req });
+    } catch (err) {
+      throw new HttpException(
+        { ok: false, error: err.message },
+        err.status || 500,
+      );
+    }
   }
 }
 
@@ -159,5 +181,23 @@ ApiResponse({ status: 400, description: 'Header mancante' })(proto, 'reset', Obj
 ApiResponse({ status: 403, description: 'Non disponibile in produzione' })(proto, 'reset', Object.getOwnPropertyDescriptor(proto, 'reset'));
 Reflect.defineMetadata('design:paramtypes', [Object], proto, 'reset');
 Req()(proto, 'reset', 0);
+
+// POST /dev/seed-large-pdf
+Post('seed-large-pdf')(proto, 'seedLargePdf', Object.getOwnPropertyDescriptor(proto, 'seedLargePdf'));
+HttpCode(HttpStatus.CREATED)(proto, 'seedLargePdf', Object.getOwnPropertyDescriptor(proto, 'seedLargePdf'));
+ApiOperation({
+  summary: 'Seed template grande con campi parziali + generazione PDF',
+  description: [
+    'Crea un template contrattuale multi-sezione con 21 campi.',
+    'Compila solo 9 campi (sede, CF cliente, CAP, durata, importi IVA/totale,',
+    'modalita pagamento e firme rimangono come {{placeholder}} nel PDF).',
+    'Il file PDF generato viene mantenuto in storage. Bloccato in produzione.',
+  ].join(' '),
+})(proto, 'seedLargePdf', Object.getOwnPropertyDescriptor(proto, 'seedLargePdf'));
+ApiResponse({ status: 201, description: 'PDF accodato, IDs restituiti' })(proto, 'seedLargePdf', Object.getOwnPropertyDescriptor(proto, 'seedLargePdf'));
+ApiResponse({ status: 403, description: 'Non disponibile in produzione' })(proto, 'seedLargePdf', Object.getOwnPropertyDescriptor(proto, 'seedLargePdf'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'seedLargePdf');
+Body()(proto, 'seedLargePdf', 0);
+Req()(proto, 'seedLargePdf', 1);
 
 module.exports = { DevController };

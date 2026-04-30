@@ -1,3 +1,5 @@
+'use strict';
+
 // Questo service esegue chiamate HTTP all'API stessa, quindi non dipende da NestJS.
 
 class ApiRegressionFailure extends Error {
@@ -42,6 +44,8 @@ async function request(baseUrl, method, path, { body, headers = {}, expectedStat
   return { status: response.status, body: parsed };
 }
 
+// ─── API Regression Suite ─────────────────────────────────────────────────────
+
 async function runApiRegressionSuite({ baseUrl, req, reset = true } = {}) {
   const resolvedBaseUrl = normalizeBaseUrl(baseUrl, req);
   const tests = [];
@@ -67,7 +71,6 @@ async function runApiRegressionSuite({ baseUrl, req, reset = true } = {}) {
     expect(result.body.reset === true, 'Reset non confermato', result.body);
   });
 
-  // /health è escluso dal prefisso /api (standard load balancer)
   await test('Health check', async () => {
     const result = await request(resolvedBaseUrl, 'GET', '/health', { expectedStatus: 200 });
     expect(result.body.status === 'ok', 'Health check non OK', result.body);
@@ -166,4 +169,164 @@ async function runApiRegressionSuite({ baseUrl, req, reset = true } = {}) {
   return { ok: true, suite: 'api-regression', baseUrl: resolvedBaseUrl, passed: tests.length, failed: 0, tests };
 }
 
-module.exports = { runApiRegressionSuite, ApiRegressionFailure };
+// ─── Large PDF Seed ───────────────────────────────────────────────────────────
+//
+// Crea un template grande (contratto multi-sezione, 15 campi),
+// riempie solo 9 campi su 15, accoda la generazione PDF.
+// Il PDF viene salvato in storage e NON viene eliminato.
+//
+const LARGE_TEMPLATE_CONTENT = `# CONTRATTO DI FORNITURA SERVIZI N. {{numero_contratto}}
+
+---
+
+## 1. PARTI CONTRAENTI
+
+**Fornitore:** {{nome_fornitore}}  
+**P.IVA Fornitore:** {{piva_fornitore}}  
+**Sede legale:** {{sede_fornitore}}
+
+**Cliente:** {{nome_cliente}}  
+**Codice Fiscale / P.IVA:** {{codice_fiscale_cliente}}  
+**Indirizzo:** {{indirizzo_cliente}}, {{cap_cliente}} {{citta_cliente}}
+
+---
+
+## 2. OGGETTO DEL CONTRATTO
+
+{{descrizione_servizio}}
+
+Durata prevista: **{{durata_contratto}}**  
+Data di inizio: **{{data_inizio}}**  
+Data di fine prevista: **{{data_fine}}**
+
+---
+
+## 3. CORRISPETTIVO
+
+| Voce                | Importo         |
+|---------------------|-----------------|
+| Imponibile          | {{importo_netto}} EUR |
+| IVA (22%)           | {{importo_iva}} EUR  |
+| **Totale**          | **{{importo_totale}} EUR** |
+
+Modalita di pagamento: {{modalita_pagamento}}
+
+---
+
+## 4. FIRME
+
+Luogo e data: {{luogo_firma}}, {{data_stipula}}
+
+**Il Fornitore**  
+{{firma_fornitore}}
+
+**Il Cliente**  
+{{firma_cliente}}
+`;
+
+const LARGE_TEMPLATE_FIELDS = [
+  // --- intestazione ---
+  { name: 'numero_contratto',      label: 'Numero Contratto',       type: 'text',   required: true  },
+  // --- fornitore ---
+  { name: 'nome_fornitore',        label: 'Nome Fornitore',         type: 'text',   required: true  },
+  { name: 'piva_fornitore',        label: 'P.IVA Fornitore',        type: 'text',   required: true  },
+  { name: 'sede_fornitore',        label: 'Sede Legale Fornitore',  type: 'text',   required: false },
+  // --- cliente ---
+  { name: 'nome_cliente',          label: 'Nome Cliente',           type: 'text',   required: true  },
+  { name: 'codice_fiscale_cliente',label: 'Codice Fiscale / P.IVA', type: 'text',   required: false },
+  { name: 'indirizzo_cliente',     label: 'Indirizzo Cliente',      type: 'text',   required: false },
+  { name: 'cap_cliente',           label: 'CAP',                    type: 'text',   required: false },
+  { name: 'citta_cliente',         label: 'Citta',                  type: 'text',   required: false },
+  // --- durata ---
+  { name: 'descrizione_servizio',  label: 'Descrizione Servizio',   type: 'text',   required: true  },
+  { name: 'durata_contratto',      label: 'Durata Contratto',       type: 'text',   required: false },
+  { name: 'data_inizio',           label: 'Data Inizio',            type: 'date',   required: true  },
+  { name: 'data_fine',             label: 'Data Fine Prevista',     type: 'date',   required: false },
+  // --- economico ---
+  { name: 'importo_netto',         label: 'Imponibile (EUR)',       type: 'number', required: true  },
+  { name: 'importo_iva',           label: 'IVA (EUR)',              type: 'number', required: false },
+  { name: 'importo_totale',        label: 'Totale (EUR)',           type: 'number', required: false },
+  { name: 'modalita_pagamento',    label: 'Modalita di Pagamento',  type: 'text',   required: false },
+  // --- firme ---
+  { name: 'luogo_firma',           label: 'Luogo Firma',            type: 'text',   required: false },
+  { name: 'data_stipula',          label: 'Data Stipula',           type: 'date',   required: true  },
+  { name: 'firma_fornitore',       label: 'Firma Fornitore',        type: 'text',   required: false },
+  { name: 'firma_cliente',         label: 'Firma Cliente',          type: 'text',   required: false },
+];
+
+// Campi compilati: 9 su 21 — il resto rimane {{placeholder}} nel PDF
+const LARGE_FIELD_VALUES = {
+  numero_contratto:   'CONTR-2026-001',
+  nome_fornitore:     'Acme S.r.l.',
+  piva_fornitore:     'IT12345678901',
+  nome_cliente:       'Mario Rossi',
+  descrizione_servizio: 'Sviluppo e manutenzione del sistema di generazione documentale per il periodo di riferimento contrattuale.',
+  data_inizio:        '2026-05-01',
+  importo_netto:      '8000',
+  luogo_firma:        'Napoli',
+  data_stipula:       '2026-04-30',
+  // campi lasciati VUOTI (non inclusi):
+  // sede_fornitore, codice_fiscale_cliente, indirizzo_cliente, cap_cliente,
+  // citta_cliente, durata_contratto, data_fine, importo_iva, importo_totale,
+  // modalita_pagamento, firma_fornitore, firma_cliente
+};
+
+async function runLargePdfSeed({ baseUrl, req } = {}) {
+  const resolvedBaseUrl = normalizeBaseUrl(baseUrl, req);
+  const result = {};
+
+  // 1. Crea template
+  const tplRes = await request(resolvedBaseUrl, 'POST', '/api/templates', {
+    expectedStatus: 201,
+    headers: { 'x-user': 'seed-large-pdf' },
+    body: {
+      name:        `Contratto Fornitura — Seed ${new Date().toISOString().slice(0, 10)}`,
+      description: 'Template grande multi-sezione per test PDF con campi parziali',
+      content:     LARGE_TEMPLATE_CONTENT,
+      fields:      LARGE_TEMPLATE_FIELDS,
+    },
+  });
+  result.templateId = tplRes.body.id;
+  result.templateFields = tplRes.body.fields?.length ?? 0;
+
+  // 2. Pubblica template
+  await request(resolvedBaseUrl, 'POST', `/api/templates/${result.templateId}/publish`, {
+    expectedStatus: 200,
+    headers: { 'x-user': 'seed-large-pdf' },
+  });
+
+  // 3. Crea documento
+  const docRes = await request(resolvedBaseUrl, 'POST', '/api/documents', {
+    expectedStatus: 201,
+    headers: { 'x-user': 'seed-large-pdf' },
+    body: { name: 'Contratto Fornitura — Test Campi Parziali', templateId: result.templateId },
+  });
+  result.documentId = docRes.body.id;
+
+  // 4. Compila solo 9 campi su 21 — gli altri rimangono {{placeholder}} nel PDF
+  const filledKeys = Object.keys(LARGE_FIELD_VALUES);
+  await request(resolvedBaseUrl, 'PUT', `/api/documents/${result.documentId}`, {
+    expectedStatus: 200,
+    headers: { 'x-user': 'seed-large-pdf' },
+    body: { fieldValues: LARGE_FIELD_VALUES },
+  });
+  result.filledFields   = filledKeys.length;
+  result.emptyFields    = LARGE_TEMPLATE_FIELDS.length - filledKeys.length;
+  result.emptyFieldNames = LARGE_TEMPLATE_FIELDS.map((f) => f.name).filter((n) => !LARGE_FIELD_VALUES[n]);
+
+  // 5. Accoda generazione PDF — il file rimane in ./storage/pdf/
+  const pdfRes = await request(resolvedBaseUrl, 'POST', `/api/documents/${result.documentId}/generate-pdf`, {
+    expectedStatus: 202,
+    headers: { 'x-user': 'seed-large-pdf' },
+  });
+  result.pdfJobId = pdfRes.body.jobId;
+  result.pdfJobStatus = pdfRes.body.status;
+
+  return {
+    ok: true,
+    note: `PDF accodato con ${result.filledFields} campi compilati e ${result.emptyFields} campi vuoti (rimangono come {{placeholder}} nel PDF). Il file resta in storage.`,
+    ...result,
+  };
+}
+
+module.exports = { runApiRegressionSuite, runLargePdfSeed, ApiRegressionFailure };
