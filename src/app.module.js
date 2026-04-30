@@ -1,6 +1,7 @@
 'use strict';
 
 const { Module } = require('@nestjs/common');
+const { HealthModule }    = require('./modules/health/health.module');
 const { AuditModule }     = require('./modules/audit/audit.module');
 const { TemplatesModule } = require('./modules/templates/template.module');
 const { DocumentsModule } = require('./modules/documents/document.module');
@@ -9,7 +10,7 @@ const { DevModule }       = require('./modules/dev/dev.module');
 class AppModule {}
 
 Module({
-  imports: [AuditModule, TemplatesModule, DocumentsModule, DevModule],
+  imports: [HealthModule, AuditModule, TemplatesModule, DocumentsModule, DevModule],
 })(AppModule);
 
 module.exports = { AppModule };

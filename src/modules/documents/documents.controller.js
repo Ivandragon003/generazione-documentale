@@ -94,6 +94,8 @@ class DocumentsController {
     stream.pipe(res);
   }
 
+  // NOTA: questa route è definita PRIMA di ':id/pdf-jobs/:jobId/download'
+  // per evitare che NestJS matchi 'latest' come :jobId
   async latestPdf(id, res) {
     const job    = await this.documentsService.getLatestCompletedPdfJob(id).catch(throwHttp);
     const stream = await pdfService.getPdfStream(job.filename).catch(throwHttp);
@@ -156,7 +158,6 @@ class DocumentsController {
 
 ApiTags('documents')(DocumentsController);
 Controller('documents')(DocumentsController);
-// Constructor DI via Inject() — required for plain JS (no TypeScript emitDecoratorMetadata)
 Inject(DocumentsService)(DocumentsController, undefined, 0);
 Inject(AuditService)(DocumentsController, undefined, 1);
 
@@ -223,7 +224,7 @@ Param('id')(proto, 'changeStatus', 0);
 Body()(proto, 'changeStatus', 1);
 Req()(proto, 'changeStatus', 2);
 
-// POST /documents/:id/generate-pdf
+// POST /documents/:id/generate-pdf → 202
 Post(':id/generate-pdf')(proto, 'generatePdf', Object.getOwnPropertyDescriptor(proto, 'generatePdf'));
 HttpCode(HttpStatus.ACCEPTED)(proto, 'generatePdf', Object.getOwnPropertyDescriptor(proto, 'generatePdf'));
 ApiOperation({ summary: 'Accoda generazione PDF asincrona' })(proto, 'generatePdf', Object.getOwnPropertyDescriptor(proto, 'generatePdf'));
@@ -259,8 +260,8 @@ Param('id')(proto, 'downloadPdf', 0);
 Param('jobId')(proto, 'downloadPdf', 1);
 Res()(proto, 'downloadPdf', 2);
 
-// GET /documents/:id/pdf-jobs/latest/download
-Get(':id/pdf-jobs/latest/download')(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
+// GET /documents/:id/latest-pdf  (era ':id/pdf-jobs/latest/download' → conflitto con :jobId)
+Get(':id/latest-pdf')(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
 ApiOperation({ summary: 'Scarica l\'ultimo PDF completato' })(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
 Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'latestPdf');

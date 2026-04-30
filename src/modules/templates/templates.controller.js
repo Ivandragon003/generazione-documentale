@@ -1,6 +1,5 @@
 'use strict';
 
-const path   = require('path');
 const multer = require('multer');
 const {
   Controller, Get, Post, Put, Delete, Param, Query, Body,
@@ -133,7 +132,6 @@ class TemplatesController {
 
 ApiTags('templates')(TemplatesController);
 Controller('templates')(TemplatesController);
-// Constructor DI via Inject() — required for plain JS (no TypeScript emitDecoratorMetadata)
 Inject(TemplatesService)(TemplatesController, undefined, 0);
 
 const proto = TemplatesController.prototype;
@@ -204,8 +202,9 @@ UploadedFile()(proto, 'importFile', 0);
 Body()(proto, 'importFile', 1);
 Req()(proto, 'importFile', 2);
 
-// POST /templates/validate-md
+// POST /templates/validate-md  → 200 (non 201, richiesto dalla regression suite)
 Post('validate-md')(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
+HttpCode(HttpStatus.OK)(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
 ApiOperation({ summary: 'Valida contenuto Markdown senza creare il template' })(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
 ApiBody({
   schema: { required: ['content'], properties: { content: { type: 'string' } } },
@@ -213,8 +212,9 @@ ApiBody({
 Reflect.defineMetadata('design:paramtypes', [Object], proto, 'validateMd');
 Body()(proto, 'validateMd', 0);
 
-// POST /templates/validate-file
+// POST /templates/validate-file  → 200
 Post('validate-file')(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
+HttpCode(HttpStatus.OK)(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
 UseInterceptors(FileInterceptor('file', multerOptions))(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
 ApiOperation({ summary: 'Valida file .md caricato senza creare il template' })(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
 ApiConsumes('multipart/form-data')(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
@@ -233,8 +233,9 @@ Param('id')(proto, 'update', 0);
 Body()(proto, 'update', 1);
 Req()(proto, 'update', 2);
 
-// POST /templates/:id/publish
+// POST /templates/:id/publish  → 200 (richiesto dalla regression suite)
 Post(':id/publish')(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
+HttpCode(HttpStatus.OK)(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
 ApiOperation({ summary: 'Pubblica il template' })(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
 Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'publish');
@@ -243,6 +244,7 @@ Req()(proto, 'publish', 1);
 
 // POST /templates/:id/restore/:version
 Post(':id/restore/:version')(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));
+HttpCode(HttpStatus.CREATED)(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));
 ApiOperation({ summary: 'Ripristina una versione precedente del template' })(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));
 ApiParam({ name: 'id',      description: 'UUID template' })(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));
 ApiParam({ name: 'version', description: 'Versione da ripristinare' })(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));
