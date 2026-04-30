@@ -9,16 +9,11 @@ const fsp = fs.promises;
 
 const STORAGE_PATH               = process.env.STORAGE_PATH               || './storage/pdf';
 const PANDOC_PATH                = process.env.PANDOC_PATH                || 'pandoc';
-const PANDOC_PDF_ENGINE          = process.env.PANDOC_PDF_ENGINE          || 'typst';
+const PANDOC_PDF_ENGINE          = process.env.PANDOC_PDF_ENGINE          || 'pdflatex';
 const PDF_GENERATION_RETRIES     = Math.max(parseInt(process.env.PDF_GENERATION_RETRIES     || '2',     10), 0);
 const PDF_GENERATION_RETRY_DELAY = Math.max(parseInt(process.env.PDF_GENERATION_RETRY_DELAY_MS || '500', 10), 0);
 const PDF_GENERATION_TIMEOUT     = Math.max(parseInt(process.env.PDF_GENERATION_TIMEOUT_MS  || '60000',10), 5000);
 const MAX_PDF_MARKDOWN_BYTES     = Math.max(parseInt(process.env.MAX_PDF_MARKDOWN_BYTES     || '300000',10), 1000);
-
-/** Rileva se il motore configurato è Typst (percorso assoluto o nome "typst") */
-function isTypstEngine(engine) {
-  return path.basename(engine, '.exe').toLowerCase() === 'typst';
-}
 
 function normalizeFieldDefinitions(fields = []) {
   return (Array.isArray(fields) ? fields : [])
@@ -64,40 +59,6 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Costruisce gli argomenti Pandoc in base al motore scelto.
- * - Typst  → usa variabili margin.* (LaTeX geometry non è supportato)
- * - LaTeX  → usa -V geometry:margin=2.5cm come prima
- */
-function buildPandocArgs(tmpMd, outputPath, title) {
-  const baseArgs = [
-    tmpMd, '-o', outputPath,
-    '--standalone',
-    '--pdf-engine', PANDOC_PDF_ENGINE,
-    '--metadata', `title=${title}`,
-    '-V', 'lang=it',
-  ];
-
-  if (isTypstEngine(PANDOC_PDF_ENGINE)) {
-    // Typst: i margini si impostano con variabili separate
-    return [
-      ...baseArgs,
-      '-V', 'margin-top=2.5cm',
-      '-V', 'margin-bottom=2.5cm',
-      '-V', 'margin-left=2.5cm',
-      '-V', 'margin-right=2.5cm',
-      '-V', 'fontsize=11pt',
-    ];
-  }
-
-  // LaTeX (pdflatex / xelatex / lualatex)
-  return [
-    ...baseArgs,
-    '-V', 'geometry:margin=2.5cm',
-    '-V', 'fontsize=11pt',
-  ];
-}
-
 async function runPandocWithRetry(args) {
   let lastError;
   const maxAttempts = PDF_GENERATION_RETRIES + 1;
@@ -119,7 +80,7 @@ async function runPandocWithRetry(args) {
 
   if (lastError && lastError.code === 'ENOENT') {
     throw new Error(
-      `Pandoc non disponibile. Configura PANDOC_PATH in .env. Comando provato: ${PANDOC_PATH}`,
+      `Pandoc non disponibile per Node. Configura PANDOC_PATH in .env oppure aggiungi Pandoc al PATH. Comando provato: ${PANDOC_PATH}`,
     );
   }
   if (lastError && lastError.stderr) throw new Error(lastError.stderr.trim());
@@ -155,8 +116,14 @@ async function generatePdf(content, fieldValues = {}, options = {}) {
   try {
     await fsp.mkdir(tmpDir, { recursive: true });
     await fsp.writeFile(tmpMd, resolvedContent, 'utf8');
-    const args = buildPandocArgs(tmpMd, outputPath, options.title || 'Documento');
-    await runPandocWithRetry(args);
+    await runPandocWithRetry([
+      tmpMd, '-o', outputPath,
+      '--standalone',
+      '-V', 'geometry:margin=2.5cm',
+      '-V', 'lang=it',
+      '--pdf-engine', PANDOC_PDF_ENGINE,
+      '--metadata', `title=${options.title || 'Documento'}`,
+    ]);
     return { filename, path: outputPath, unresolvedFields: unresolved };
   } finally {
     await fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
