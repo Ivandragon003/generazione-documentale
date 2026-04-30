@@ -1,0 +1,15 @@
+meta {
+  name: Publish Template
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/templates/{{templateId}}/publish
+  body: none
+  auth: none
+}
+
+headers {
+  x-user: {{user}}
+}

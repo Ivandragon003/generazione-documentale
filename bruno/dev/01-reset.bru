@@ -1,0 +1,16 @@
+meta {
+  name: Reset (dev only)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/dev/reset
+  body: none
+  auth: none
+}
+
+headers {
+  x-user: {{user}}
+  x-reset-confirm: true
+}

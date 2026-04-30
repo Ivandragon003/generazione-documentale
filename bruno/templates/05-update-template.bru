@@ -1,0 +1,22 @@
+meta {
+  name: Update Template
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/templates/{{templateId}}
+  body: json
+  auth: none
+}
+
+headers {
+  content-type: application/json
+  x-user: {{user}}
+}
+
+body:json {
+  {
+    "description": "Descrizione aggiornata via Bruno"
+  }
+}

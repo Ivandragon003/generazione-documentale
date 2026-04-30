@@ -1,0 +1,21 @@
+meta {
+  name: List Audit by EntityType
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/audit
+  body: none
+  auth: none
+}
+
+headers {
+  x-user: {{user}}
+}
+
+query {
+  entityType: template
+  limit: 20
+  offset: 0
+}

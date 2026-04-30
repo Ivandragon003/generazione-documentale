@@ -1,0 +1,29 @@
+meta {
+  name: Create Document
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/documents
+  body: json
+  auth: none
+}
+
+headers {
+  content-type: application/json
+  x-user: {{user}}
+}
+
+body:json {
+  {
+    "name": "Documento Test Bruno",
+    "templateId": "{{templateId}}",
+    "fieldValues": {
+      "titolo":  "Documento di prova",
+      "cliente": "Cliente Test",
+      "importo": "5000",
+      "data":    "2026-05-01"
+    }
+  }
+}

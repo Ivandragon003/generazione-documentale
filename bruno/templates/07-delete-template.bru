@@ -1,0 +1,15 @@
+meta {
+  name: Delete Template (fixture)
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/templates/{{deleteTemplateId}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-user: {{user}}
+}

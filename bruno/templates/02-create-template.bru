@@ -1,0 +1,30 @@
+meta {
+  name: Create Template
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/templates
+  body: json
+  auth: none
+}
+
+headers {
+  content-type: application/json
+  x-user: {{user}}
+}
+
+body:json {
+  {
+    "name": "Contratto Test",
+    "description": "Template di prova via Bruno",
+    "content": "# {{titolo}}\n\nCliente: {{cliente}}\nImporto: {{importo}}\nData: {{data}}\n",
+    "fields": [
+      {"name": "titolo",  "label": "Titolo",   "type": "text", "required": true,  "defaultValue": ""},
+      {"name": "cliente", "label": "Cliente",  "type": "text", "required": true,  "defaultValue": ""},
+      {"name": "importo", "label": "Importo",  "type": "text", "required": true,  "defaultValue": ""},
+      {"name": "data",    "label": "Data",     "type": "date", "required": true,  "defaultValue": ""}
+    ]
+  }
+}
