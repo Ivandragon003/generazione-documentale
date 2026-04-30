@@ -1,40 +1,69 @@
-# MAC Documents - Modulo Documentale
+# MAC Documents — Modulo Documentale
 
-## Stack
-- Node.js + Express (API REST)
-- PostgreSQL (database)
-- Pandoc (generazione PDF da Markdown)
+API REST per la generazione di documenti PDF basata su template Markdown.
+Costruita con **NestJS** su Node.js, database **PostgreSQL**, generazione PDF tramite **Pandoc**.
+
+---
+
+## Stack tecnico
+
+| Layer | Tecnologia |
+|---|---|
+| Framework | [NestJS](https://nestjs.com/) v10 (su Express) — JavaScript puro |
+| Database | PostgreSQL — query raw con `pg` (no ORM) |
+| PDF | Pandoc (`pdflatex` / `xelatex` come motore) |
+| Documentazione API | Swagger UI — `http://localhost:3000/api-docs` |
+
+> **Nota:** il progetto usa NestJS **senza TypeScript** (JavaScript puro con decoratori applicati manualmente).
+> Vedi la sezione [TypeScript](#note-su-typescript) in fondo per il confronto.
+
+---
 
 ## Prerequisiti
+
 - Node.js >= 18
 - PostgreSQL in esecuzione (locale o Docker)
-- Pandoc installato (`sudo apt install pandoc` / `brew install pandoc`)
+- Pandoc installato
+  ```bash
+  # Ubuntu/Debian
+  sudo apt install pandoc texlive-latex-base
+
+  # macOS
+  brew install pandoc
+  brew install --cask mactex
+  ```
+
+---
 
 ## Setup rapido
 
-### 1. Installa dipendenze
+### 1. Installa le dipendenze
 ```bash
 npm install
 ```
 
-### 2. Configura .env
-```
+### 2. Configura `.env`
+```env
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=mac_documents
 PORT=3000
+
 STORAGE_PATH=./storage/pdf
 TEMPLATE_STORAGE_PATH=./storage/templates
 UPLOAD_PATH=./storage/uploads
+
 MAX_FILE_SIZE_MB=10
+MAX_TEMPLATE_CONTENT_BYTES=200000
+
 PANDOC_PATH=pandoc
 PANDOC_PDF_ENGINE=pdflatex
 ```
 
 ### 3. Crea il database
-```bash
+```sql
 CREATE DATABASE mac_documents;
 ```
 
@@ -45,189 +74,244 @@ npm run migrate
 
 ### 5. Avvia il server
 ```bash
-npm run start:dev
-# oppure
-npm start
+npm run start:dev   # con nodemon (riavvio automatico)
+npm start           # senza nodemon
 ```
 
-Server: `http://localhost:3000`
-Health check: `http://localhost:3000/health`
+- Server: `http://localhost:3000`
+- Health check: `http://localhost:3000/health`
+- Swagger UI: `http://localhost:3000/api-docs`
 
-## Struttura cartelle
+---
 
-```text
-src/
-  main.js
-  database.js
-  modules/
-    templates/
-      templates.service.js
-      templates.controller.js
-    documents/
-      documents.service.js
-      documents.controller.js
-      pdf.service.js
-      pdf.controller.js
-    audit/
-      audit.service.js
-      audit.controller.js
-migrations/
-  run.js
-storage/
-  templates/
-  pdf/
-  uploads/
-  samples/
+## Struttura del progetto
+
 ```
+mac-documents/
+├── src/
+│   ├── main.js                          # Bootstrap NestJS
+│   ├── app.module.js                    # Modulo radice
+│   ├── database/
+│   │   └── database.js                  # Pool PostgreSQL + withTransaction()
+│   └── modules/
+│       ├── common/
+│       │   └── http.utils.js            # makeError, wrapAsync, parsePagination...
+│       ├── audit/
+│       │   ├── audit.module.js
+│       │   ├── audit.controller.js
+│       │   ├── audit.service.js
+│       │   └── audit.queries.js
+│       ├── templates/
+│       │   ├── template.module.js
+│       │   ├── templates.controller.js
+│       │   ├── templates.service.js
+│       │   └── templates.queries.js
+│       ├── documents/
+│       │   ├── document.module.js
+│       │   ├── documents.controller.js
+│       │   ├── documents.service.js
+│       │   ├── documents.queries.js
+│       │   ├── pdf.controller.js
+│       │   └── pdf.service.js
+│       └── dev/
+│           ├── dev.module.js
+│           ├── dev.controller.js
+│           ├── dev.queries.js
+│           ├── reset.controller.js
+│           └── api-regression.service.js
+├── db/                                  # File .sql (schema, seed)
+├── migrations/
+│   └── run.js
+├── scripts/
+│   ├── check-pandoc.js
+│   └── run-api-tests.js
+├── storage/
+│   ├── pdf/                             # PDF generati (persistenti)
+│   ├── templates/                       # File .md dei template per versione
+│   └── uploads/                         # Upload temporanei
+└── package.json
+```
+
+---
 
 ## API Endpoints
 
-### Templates
+### Templates — `/api/templates`
+
 | Metodo | Endpoint | Descrizione |
-|--------|----------|-------------|
-| GET | /api/templates | Lista templates |
-| POST | /api/templates | Crea template |
-| GET | /api/templates/:id | Dettaglio |
-| PUT | /api/templates/:id | Aggiorna (crea nuova versione) |
-| POST | /api/templates/:id/publish | Pubblica |
-| GET | /api/templates/:id/versions | Cronologia versioni |
-| GET | /api/templates/:id/versions/:v | Contenuto versione |
-| POST | /api/templates/:id/restore/:v | Ripristina versione |
-| GET | /api/templates/:id/export | Download .md |
-| POST | /api/templates | Upload .md |
-| POST | /api/templates/validate-md | Valida contenuto Markdown |
-| POST | /api/templates/validate-file | Valida file Markdown caricato |
-| DELETE | /api/templates/:id | Elimina |
+|---|---|---|
+| `GET` | `/api/templates` | Lista template (filtro `status`, paginazione) |
+| `POST` | `/api/templates` | Crea template da JSON |
+| `GET` | `/api/templates/:id` | Dettaglio template |
+| `PUT` | `/api/templates/:id` | Aggiorna (crea nuova versione) |
+| `DELETE` | `/api/templates/:id` | Elimina (solo se nessun documento attivo) |
+| `POST` | `/api/templates/:id/publish` | Pubblica il template |
+| `GET` | `/api/templates/:id/versions` | Cronologia versioni |
+| `GET` | `/api/templates/:id/versions/:v` | Contenuto versione specifica |
+| `POST` | `/api/templates/:id/restore/:v` | Ripristina versione precedente |
+| `GET` | `/api/templates/:id/export` | Scarica template come file `.md` |
+| `POST` | `/api/templates/upload` | Importa template da file `.md` (multipart) |
+| `POST` | `/api/templates/validate-md` | Valida contenuto Markdown senza salvare |
+| `POST` | `/api/templates/validate-file` | Valida file `.md` senza salvare |
 
-### Documents
+### Documents — `/api/documents`
+
 | Metodo | Endpoint | Descrizione |
-|--------|----------|-------------|
-| GET | /api/documents | Lista documenti |
-| POST | /api/documents | Crea da template |
-| GET | /api/documents/:id | Dettaglio |
-| PUT | /api/documents/:id | Aggiorna contenuto/campi |
-| PATCH | /api/documents/:id/rename | Rinomina |
-| PATCH | /api/documents/:id/status | Cambia stato |
-| POST | /api/documents/:id/generate-pdf | Accoda generazione PDF asincrona |
-| GET | /api/documents/:id/pdf-jobs | Lista job PDF |
-| GET | /api/documents/:id/pdf-jobs/:jobId | Dettaglio job PDF |
-| GET | /api/documents/:id/pdf-jobs/:jobId/download | Download PDF del job |
-| GET | /api/documents/:id/latest-pdf | Download ultimo PDF completato |
-| GET | /api/documents/:id/preview-pdf | Anteprima PDF |
-| GET | /api/documents/:id/export-md | Export .md |
-| GET | /api/documents/:id/versions | Versioni |
-| GET | /api/documents/:id/versions/:v | Contenuto versione |
-| POST | /api/documents/:id/restore/:v | Ripristina versione |
-| GET | /api/documents/:id/audit | Audit log documento |
-| DELETE | /api/documents/:id | Elimina documento |
+|---|---|---|
+| `GET` | `/api/documents` | Lista documenti (filtro `status`, paginazione) |
+| `POST` | `/api/documents` | Crea documento da template |
+| `GET` | `/api/documents/:id` | Dettaglio documento |
+| `PUT` | `/api/documents/:id` | Aggiorna contenuto / `fieldValues` |
+| `DELETE` | `/api/documents/:id` | Elimina documento |
+| `PATCH` | `/api/documents/:id/rename` | Rinomina documento |
+| `PATCH` | `/api/documents/:id/status` | Cambia stato (`draft` → `published` → `archived`) |
+| `POST` | `/api/documents/:id/generate-pdf` | Accoda generazione PDF asincrona → risponde `202` |
+| `GET` | `/api/documents/:id/pdf-jobs` | Lista job PDF del documento |
+| `GET` | `/api/documents/:id/pdf-jobs/:jobId` | Stato job (`queued` / `running` / `completed` / `failed`) |
+| `GET` | `/api/documents/:id/pdf-jobs/:jobId/download` | Scarica PDF del job completato |
+| `GET` | `/api/documents/:id/latest-pdf` | Scarica l'ultimo PDF completato |
+| `GET` | `/api/documents/:id/preview-pdf` | Anteprima PDF temporanea (non salvata) |
+| `GET` | `/api/documents/:id/versions` | Cronologia versioni documento |
+| `GET` | `/api/documents/:id/versions/:v` | Contenuto versione specifica |
+| `POST` | `/api/documents/:id/restore/:v` | Ripristina versione precedente |
+| `GET` | `/api/documents/:id/export-md` | Esporta documento come file `.md` |
+| `GET` | `/api/documents/:id/audit` | Audit log del documento |
 
-### PDF
+### Audit — `/api/audit`
+
 | Metodo | Endpoint | Descrizione |
-|--------|----------|-------------|
-| POST | /api/pdf/templates/:templateId/validate | Valida disponibilita template |
+|---|---|---|
+| `GET` | `/api/audit` | Registro globale (immutabile) |
 
-### Dev/Test
+### PDF — `/api/pdf`
+
 | Metodo | Endpoint | Descrizione |
-|--------|----------|-------------|
-| POST | /api/dev/reset | Svuota dati e storage locale/test |
-| POST | /api/dev/test-runs/execute | Esegue subito la suite tecnica e ritorna pass/fail |
+|---|---|---|
+| `POST` | `/api/pdf/templates/:templateId/validate` | Verifica disponibilità template per generazione |
 
-`/api/dev/reset` richiede header `x-reset-confirm: true` ed e bloccato con `NODE_ENV=production`.
-`/api/dev/reset` crea anche fixture stabili per la collection: template, documento e job PDF con UUID fissi. L'endpoint `/api/dev/test-runs/execute` e tecnico: serve per lanciare i test senza trasformare scenari come "Markdown corrotto" o "Documento incompleto" in API di dominio. E bloccato con `NODE_ENV=production`.
+### Dev/Test — `/api/dev` _(solo `NODE_ENV=development`)_
 
-### Audit
 | Metodo | Endpoint | Descrizione |
-|--------|----------|-------------|
-| GET | /api/audit | Registro globale |
+|---|---|---|
+| `POST` | `/api/dev/reset` | Svuota DB e storage, ricrea fixture stabili |
+| `POST` | `/api/dev/test-runs/execute` | Esegue la suite di regression test |
+| `POST` | `/api/dev/seed-large-pdf` | Crea contratto 21 campi, compila 9/21, accoda PDF |
 
-## Content e field_values
+`/api/dev/reset` richiede header `x-reset-confirm: true`.
 
-`documents.content` contiene il Markdown del documento, copiato dal template quando crei il documento.
-`documents.field_values` contiene solo i valori strutturati dei placeholder, per esempio `titolo`, `budget`, `firma`.
+---
 
-Se un documento e appena creato, `field_values` e `{}`. Dopo una `PUT /api/documents/:id` con `fieldValues`, contiene solo i campi inviati. In preview/PDF i placeholder presenti in `content` vengono risolti usando `field_values`; in modalita strict la generazione PDF fallisce se rimangono placeholder non compilati.
+## Flusso di utilizzo tipico
 
-## Campi template
-
-`templates.fields` contiene definizioni strutturate:
-
-```json
-[
-  {
-    "name": "titolo",
-    "label": "Titolo",
-    "type": "text",
-    "required": true,
-    "defaultValue": ""
-  }
-]
+```
+1. POST /api/templates/validate-md       → verifica il Markdown
+2. POST /api/templates                   → crea il template
+3. POST /api/templates/:id/publish       → pubblica (obbligatorio prima di usarlo)
+4. POST /api/documents                   → crea documento dal template
+5. PUT  /api/documents/:id               → compila i fieldValues
+6. POST /api/documents/:id/generate-pdf  → accoda generazione → ricevi jobId
+7. GET  /api/documents/:id/pdf-jobs/:jobId → polling finché status = "completed"
+8. GET  /api/documents/:id/pdf-jobs/:jobId/download → scarica il PDF
 ```
 
-I campi `required: true` bloccano la generazione PDF se non compilati. I campi opzionali non compilati vengono sostituiti con `defaultValue` oppure stringa vuota.
+---
+
+## Campi template (`fieldValues`)
+
+I template usano placeholder `{{nome_campo}}` nel Markdown.
+
+```json
+{
+  "name": "titolo",
+  "label": "Titolo documento",
+  "type": "text",
+  "required": true,
+  "defaultValue": ""
+}
+```
+
+- Campi `required: true` → bloccano la generazione PDF se non compilati (`strict: true`)
+- Campi facoltativi non compilati → sostituiti con `defaultValue` o stringa vuota
+- `GET /api/documents/:id/preview-pdf` usa `strict: false` — genera PDF anche con campi mancanti (i `{{placeholder}}` restano visibili)
+
+---
 
 ## PDF asincroni
 
-`POST /api/documents/:id/generate-pdf` non genera piu il PDF dentro la richiesta HTTP: crea un record in `pdf_jobs`, risponde `202` con `jobId`, poi un worker in-process esegue Pandoc in background.
-
-Usa:
-
-```http
-GET /api/documents/:id/pdf-jobs/:jobId
-```
-
-per leggere `queued`, `running`, `completed` o `failed`. In produzione SaaS lo stesso contratto API puo restare uguale, ma il worker in-process va sostituito con una queue esterna.
-
-I PDF generati via job sono persistenti e scaricabili da `pdf-jobs/:jobId/download` o da `latest-pdf`. La preview rimane temporanea: genera un PDF per visualizzazione inline e lo cancella alla fine dello stream.
-
-## Validazione Markdown
-
-`POST /api/templates/validate-md` accetta:
-
-```json
-{
-  "content": "# {{titolo}}\n\nTesto normale\n\nCliente: {{committente}}"
-}
-```
-
-Risponde con `valid`, `errors`, `warnings` e `fields`. Serve per controllare in modo pratico se un `.md` e usabile come template prima di importarlo o salvarlo.
-
-## Header opzionale
-Usa `x-user: <username>` per tracciare l'autore su audit log. Se assente viene usato `system`.
-
-## Postman
-Importa `MAC-Documents-API.postman_collection.json`.
-
-La collection contiene le singole chiamate agli endpoint reali, con nomi come `POST /api/templates/validate-md` o `GET /api/documents/:id`.
-
-Gli scenari particolari non sono piu richieste Postman separate: si lanciano con `POST /api/dev/test-runs/execute`. Quell'endpoint esegue i test tecnici, per esempio input corrotto, verifica campi, creazione template/documento e job PDF. Se tutto passa risponde `200` con `ok: true`; se un test fallisce risponde `500` con `failedTest`.
-
-La richiesta `POST /api/dev/reset` cancella i dati vecchi, pulisce le cartelle `storage/templates`, `storage/pdf` e `storage/uploads`, poi ricrea fixture stabili usate dalle chiamate con `:id`.
-Non eseguire il reset alla fine, altrimenti cancelli i dati appena creati e non puoi ispezionarli.
-
-Per eseguire tutta la suite da terminale:
+`POST /api/documents/:id/generate-pdf` risponde subito con `202 Accepted` e un `jobId`.
+La generazione avviene in background tramite un worker in-process (coda FIFO con concorrenza configurabile via `PDF_JOB_CONCURRENCY`).
 
 ```bash
-npm run test:api
+# Polling manuale
+GET /api/documents/:id/pdf-jobs/:jobId
+# → { "status": "queued" | "running" | "completed" | "failed", "filename": "..." }
 ```
 
-Lo script chiama `POST /api/dev/test-runs/execute` e fallisce con exit code `1` se un test non passa.
+I PDF completati sono **persistenti** in `./storage/pdf/` e scaricabili in qualsiasi momento.
+La preview è invece temporanea: genera e serve il file inline, poi lo cancella.
 
-Per avviarla via API tecnica:
+---
 
+## Testing
+
+### Reset + fixture stabili
 ```http
-POST /api/dev/test-runs/execute
-Content-Type: application/json
-
-{
-  "suite": "api-regression"
-}
+POST /api/dev/reset
+x-reset-confirm: true
 ```
 
-## PDF con LaTeX
+Crea fixture con UUID fissi (utili nelle collezioni Bruno/Postman):
+```
+templateId:  11111111-1111-4111-8111-111111111111
+documentId:  22222222-2222-4222-8222-222222222222
+pdfJobId:    33333333-3333-4333-8333-333333333333
+```
 
-Il progetto usa gia Pandoc per produrre PDF. Pandoc puo usare LaTeX come motore (`pdflatex`, `xelatex`, `lualatex`) tramite `--pdf-engine`.
-Passare a PDF "in LaTeX" non e complicato se continui a partire da Markdown: basta installare una distribuzione LaTeX e configurare il motore Pandoc.
-Diventa piu impegnativo se vuoi generare direttamente file `.tex`, perche devi gestire escaping dei caratteri, template LaTeX, pacchetti, font, tabelle lunghe e diagnostica degli errori.
+### Regression suite completa
+```bash
+npm run test:api
+# oppure via API:
+POST /api/dev/test-runs/execute
+{ "suite": "api-regression" }
+```
 
-La generazione PDF funziona solo tramite Pandoc. Se Node non trova `pandoc`, imposta `PANDOC_PATH` nel `.env` con il percorso completo dell'eseguibile. Se Pandoc non trova `pdflatex`, imposta `PANDOC_PDF_ENGINE` con il percorso completo del motore PDF, per esempio MiKTeX.
-Pandoc viene eseguito con `execFile`, timeout e senza shell. I template bloccano placeholder invalidi, HTML script/iframe e comandi LaTeX di input/output.
+Risponde `200` con `ok: true` se tutti i test passano, `500` con `failedTest` al primo fallimento.
+
+### Test PDF con campi parziali
+```http
+POST /api/dev/seed-large-pdf
+```
+Crea un contratto multi-sezione con 21 campi, ne compila 9 e accoda la generazione PDF.
+Il file rimane in storage per ispezione.
+
+---
+
+## Header opzionale
+
+`x-user: <nome>` → traccia l'autore nell'audit log. Se assente viene usato `system`.
+
+---
+
+## Collezione Bruno / Postman
+
+- Bruno: cartella `bruno/` nella repo (consigliato — variabili d'ambiente, sequenze salvate)
+- Postman: importa `MAC-Documents-API.postman_collection.json`
+
+---
+
+## Note su TypeScript
+
+Il progetto è scritto in **JavaScript puro con NestJS**. Questo funziona, ma NestJS nasce per TypeScript e in JS i decoratori vanno applicati manualmente su ogni metodo e parametro, il che è più verboso e error-prone.
+
+**Cosa migliorerebbe con TypeScript:**
+
+| Aspetto | JS attuale | TS |
+|---|---|---|
+| Decoratori parametri | `Query()(proto, 'findAll', 0)` a mano | `findAll(@Query() q: QueryDto)` — inline |
+| Validazione body | Assente / manuale | `class-validator` + `class-transformer` su DTO |
+| Tipo delle righe DB | `any` implicito | `interface TemplateRow { id: string; ... }` |
+| Errori di battitura | Runtime | Compile time |
+| IntelliSense | Parziale | Completo |
+| Documentazione Swagger | `@ApiProperty()` a mano | Generata automaticamente dai DTO |
+
+**Stima migrazione:** 2–3 giorni per un progetto di questa dimensione — principalmente rinominare i file in `.ts`, aggiungere `tsconfig.json`, definire i DTO e tipare le query DB.
