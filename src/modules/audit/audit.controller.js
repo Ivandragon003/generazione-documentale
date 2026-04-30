@@ -1,8 +1,8 @@
-﻿'use strict';
+'use strict';
 
 const { Controller, Get, Query, HttpException } = require('@nestjs/common');
-const { ApiTags, ApiOperation, ApiQuery } = require('@nestjs/swagger');
-const { AuditService } = require('./audit.service');
+const { ApiTags, ApiOperation, ApiQuery }       = require('@nestjs/swagger');
+const { AuditService }    = require('./audit.service');
 const { parsePagination } = require('../common/http.utils');
 
 function throwHttp(err) {
@@ -26,12 +26,8 @@ class AuditController {
   }
 }
 
-// ─── Decoratori di classe ─────────────────────────────────────────────────────
-
 ApiTags('audit')(AuditController);
 Controller('audit')(AuditController);
-
-// ─── Decoratori di metodo e parametro ────────────────────────────────────────
 
 const proto = AuditController.prototype;
 
@@ -44,7 +40,7 @@ ApiQuery({ name: 'fromDate', required: false, description: 'ISO 8601 datetime' }
 ApiQuery({ name: 'toDate',   required: false, description: 'ISO 8601 datetime' })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiQuery({ name: 'limit',    required: false, type: Number, example: 50 })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiQuery({ name: 'offset',   required: false, type: Number, example: 0  })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
-// ✅ parametro 0 = query object
+Reflect.defineMetadata('design:paramtypes', [Object], proto, 'findAll');
 Query()(proto, 'findAll', 0);
 
 module.exports = { AuditController };

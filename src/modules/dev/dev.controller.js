@@ -7,9 +7,9 @@ const {
 } = require('@nestjs/common');
 const { ApiTags, ApiOperation, ApiResponse, ApiHeader } = require('@nestjs/swagger');
 
-const { getPool }             = require('../../database/database');
-const q                       = require('./dev.queries');
-const apiRegressionService    = require('./api-regression.service');
+const { getPool }          = require('../../database/database');
+const q                    = require('./dev.queries');
+const apiRegressionService = require('./api-regression.service');
 
 const fsp = fs.promises;
 const STORAGE_PATH          = process.env.STORAGE_PATH          || './storage/pdf';
@@ -84,23 +84,18 @@ async function seedDevFixtures(pool) {
 }
 
 class DevController {
-  // POST /dev/test-runs/execute
-  // ⚠️ NOTA: i parametri NON usano la sintassi @Decorator() inline (non valida in JS puro).
-  //          I decorator sono applicati manualmente nella sezione in fondo al file.
   async executeTestRun(body, req) {
     if (process.env.NODE_ENV === 'production') {
       throw new HttpException('Test run non disponibili in produzione', 403);
     }
     const suite = body?.suite || 'api-regression';
     if (suite !== 'api-regression') throw new HttpException('Suite non supportata', 400);
-
     try {
-      const result = await apiRegressionService.runApiRegressionSuite({
+      return await apiRegressionService.runApiRegressionSuite({
         baseUrl: body?.baseUrl,
         reset:   body?.reset !== false,
         req,
       });
-      return result;
     } catch (err) {
       throw new HttpException(
         { ok: false, suite, error: err.message, failedTest: err.failedTest, tests: err.tests || [] },
@@ -109,7 +104,6 @@ class DevController {
     }
   }
 
-  // POST /dev/reset
   async reset(req) {
     if (process.env.NODE_ENV === 'production') {
       throw new HttpException('Reset non disponibile in produzione', 403);
@@ -117,18 +111,14 @@ class DevController {
     if (req.headers['x-reset-confirm'] !== 'true') {
       throw new HttpException('Header x-reset-confirm: true obbligatorio', 400);
     }
-
     const pool = getPool();
     await q.truncateAll(pool);
-
     await Promise.all([
       resetDirectory(path.resolve(TEMPLATE_STORAGE_PATH)),
       resetDirectory(path.resolve(STORAGE_PATH)),
       resetDirectory(path.resolve(UPLOAD_PATH)),
     ]);
-
     await seedDevFixtures(pool);
-
     return {
       reset: true,
       fixtures: {
@@ -141,12 +131,8 @@ class DevController {
   }
 }
 
-// ─── Decoratori di classe ─────────────────────────────────────────────────────
-
 ApiTags('dev')(DevController);
 Controller('dev')(DevController);
-
-// ─── Decoratori di metodo e parametro ────────────────────────────────────────
 
 const proto = DevController.prototype;
 
@@ -156,7 +142,7 @@ HttpCode(HttpStatus.OK)(proto, 'executeTestRun', Object.getOwnPropertyDescriptor
 ApiOperation({ summary: 'Esegue la suite di regression test API', description: 'Bloccato in NODE_ENV=production.' })(proto, 'executeTestRun', Object.getOwnPropertyDescriptor(proto, 'executeTestRun'));
 ApiResponse({ status: 200, description: 'Tutti i test superati' })(proto, 'executeTestRun', Object.getOwnPropertyDescriptor(proto, 'executeTestRun'));
 ApiResponse({ status: 500, description: 'Almeno un test fallito' })(proto, 'executeTestRun', Object.getOwnPropertyDescriptor(proto, 'executeTestRun'));
-// ✅ param 0 = body, param 1 = req
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'executeTestRun');
 Body()(proto, 'executeTestRun', 0);
 Req()(proto, 'executeTestRun', 1);
 
@@ -171,7 +157,7 @@ ApiHeader({ name: 'x-reset-confirm', description: 'Deve essere "true"', required
 ApiResponse({ status: 200, description: 'Reset completato con fixture' })(proto, 'reset', Object.getOwnPropertyDescriptor(proto, 'reset'));
 ApiResponse({ status: 400, description: 'Header mancante' })(proto, 'reset', Object.getOwnPropertyDescriptor(proto, 'reset'));
 ApiResponse({ status: 403, description: 'Non disponibile in produzione' })(proto, 'reset', Object.getOwnPropertyDescriptor(proto, 'reset'));
-// ✅ param 0 = req
+Reflect.defineMetadata('design:paramtypes', [Object], proto, 'reset');
 Req()(proto, 'reset', 0);
 
 module.exports = { DevController };
