@@ -156,7 +156,7 @@ class DocumentsController {
 
 ApiTags('documents')(DocumentsController);
 Controller('documents')(DocumentsController);
-// FIX: use Inject() instead of Reflect.defineMetadata for reliable DI in plain JS
+// Constructor DI via Inject() — required for plain JS (no TypeScript emitDecoratorMetadata)
 Inject(DocumentsService)(DocumentsController, undefined, 0);
 Inject(AuditService)(DocumentsController, undefined, 1);
 
@@ -168,6 +168,7 @@ ApiOperation({ summary: 'Lista documenti' })(proto, 'findAll', Object.getOwnProp
 ApiQuery({ name: 'status', required: false, enum: ['draft', 'generated', 'published', 'archived'] })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiQuery({ name: 'limit',  required: false, type: Number, example: 20 })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiQuery({ name: 'offset', required: false, type: Number, example: 0  })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+Reflect.defineMetadata('design:paramtypes', [Object], proto, 'findAll');
 Query()(proto, 'findAll', 0);
 
 // GET /documents/:id
@@ -175,6 +176,7 @@ Get(':id')(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
 ApiOperation({ summary: 'Dettaglio documento' })(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
 ApiResponse({ status: 404, description: 'Documento non trovato' })(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
+Reflect.defineMetadata('design:paramtypes', [Object], proto, 'findOne');
 Param('id')(proto, 'findOne', 0);
 
 // POST /documents
@@ -190,6 +192,7 @@ ApiBody({
     },
   },
 })(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'create');
 Body()(proto, 'create', 0);
 Req()(proto, 'create', 1);
 
@@ -197,6 +200,7 @@ Req()(proto, 'create', 1);
 Put(':id')(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
 ApiOperation({ summary: 'Aggiorna contenuto/fieldValues documento' })(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'update');
 Param('id')(proto, 'update', 0);
 Body()(proto, 'update', 1);
 Req()(proto, 'update', 2);
@@ -205,6 +209,7 @@ Req()(proto, 'update', 2);
 Patch(':id/rename')(proto, 'rename', Object.getOwnPropertyDescriptor(proto, 'rename'));
 ApiOperation({ summary: 'Rinomina documento' })(proto, 'rename', Object.getOwnPropertyDescriptor(proto, 'rename'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'rename', Object.getOwnPropertyDescriptor(proto, 'rename'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'rename');
 Param('id')(proto, 'rename', 0);
 Body()(proto, 'rename', 1);
 Req()(proto, 'rename', 2);
@@ -213,6 +218,7 @@ Req()(proto, 'rename', 2);
 Patch(':id/status')(proto, 'changeStatus', Object.getOwnPropertyDescriptor(proto, 'changeStatus'));
 ApiOperation({ summary: 'Cambia stato documento' })(proto, 'changeStatus', Object.getOwnPropertyDescriptor(proto, 'changeStatus'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'changeStatus', Object.getOwnPropertyDescriptor(proto, 'changeStatus'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'changeStatus');
 Param('id')(proto, 'changeStatus', 0);
 Body()(proto, 'changeStatus', 1);
 Req()(proto, 'changeStatus', 2);
@@ -223,6 +229,7 @@ HttpCode(HttpStatus.ACCEPTED)(proto, 'generatePdf', Object.getOwnPropertyDescrip
 ApiOperation({ summary: 'Accoda generazione PDF asincrona' })(proto, 'generatePdf', Object.getOwnPropertyDescriptor(proto, 'generatePdf'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'generatePdf', Object.getOwnPropertyDescriptor(proto, 'generatePdf'));
 ApiResponse({ status: 202, description: 'Job PDF accodato' })(proto, 'generatePdf', Object.getOwnPropertyDescriptor(proto, 'generatePdf'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'generatePdf');
 Param('id')(proto, 'generatePdf', 0);
 Req()(proto, 'generatePdf', 1);
 
@@ -230,6 +237,7 @@ Req()(proto, 'generatePdf', 1);
 Get(':id/pdf-jobs')(proto, 'getPdfJobs', Object.getOwnPropertyDescriptor(proto, 'getPdfJobs'));
 ApiOperation({ summary: 'Lista job PDF del documento' })(proto, 'getPdfJobs', Object.getOwnPropertyDescriptor(proto, 'getPdfJobs'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'getPdfJobs', Object.getOwnPropertyDescriptor(proto, 'getPdfJobs'));
+Reflect.defineMetadata('design:paramtypes', [Object], proto, 'getPdfJobs');
 Param('id')(proto, 'getPdfJobs', 0);
 
 // GET /documents/:id/pdf-jobs/:jobId
@@ -237,6 +245,7 @@ Get(':id/pdf-jobs/:jobId')(proto, 'getPdfJob', Object.getOwnPropertyDescriptor(p
 ApiOperation({ summary: 'Dettaglio job PDF' })(proto, 'getPdfJob', Object.getOwnPropertyDescriptor(proto, 'getPdfJob'));
 ApiParam({ name: 'id',    description: 'UUID documento' })(proto, 'getPdfJob', Object.getOwnPropertyDescriptor(proto, 'getPdfJob'));
 ApiParam({ name: 'jobId', description: 'UUID job PDF'   })(proto, 'getPdfJob', Object.getOwnPropertyDescriptor(proto, 'getPdfJob'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'getPdfJob');
 Param('id')(proto, 'getPdfJob', 0);
 Param('jobId')(proto, 'getPdfJob', 1);
 
@@ -245,6 +254,7 @@ Get(':id/pdf-jobs/:jobId/download')(proto, 'downloadPdf', Object.getOwnPropertyD
 ApiOperation({ summary: 'Scarica PDF del job completato' })(proto, 'downloadPdf', Object.getOwnPropertyDescriptor(proto, 'downloadPdf'));
 ApiParam({ name: 'id',    description: 'UUID documento' })(proto, 'downloadPdf', Object.getOwnPropertyDescriptor(proto, 'downloadPdf'));
 ApiParam({ name: 'jobId', description: 'UUID job PDF'   })(proto, 'downloadPdf', Object.getOwnPropertyDescriptor(proto, 'downloadPdf'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'downloadPdf');
 Param('id')(proto, 'downloadPdf', 0);
 Param('jobId')(proto, 'downloadPdf', 1);
 Res()(proto, 'downloadPdf', 2);
@@ -253,6 +263,7 @@ Res()(proto, 'downloadPdf', 2);
 Get(':id/pdf-jobs/latest/download')(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
 ApiOperation({ summary: 'Scarica l\'ultimo PDF completato' })(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'latestPdf');
 Param('id')(proto, 'latestPdf', 0);
 Res()(proto, 'latestPdf', 1);
 
@@ -260,6 +271,7 @@ Res()(proto, 'latestPdf', 1);
 Get(':id/preview-pdf')(proto, 'previewPdf', Object.getOwnPropertyDescriptor(proto, 'previewPdf'));
 ApiOperation({ summary: 'Anteprima PDF temporanea (non salvata)' })(proto, 'previewPdf', Object.getOwnPropertyDescriptor(proto, 'previewPdf'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'previewPdf', Object.getOwnPropertyDescriptor(proto, 'previewPdf'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'previewPdf');
 Param('id')(proto, 'previewPdf', 0);
 Res()(proto, 'previewPdf', 1);
 
@@ -267,6 +279,7 @@ Res()(proto, 'previewPdf', 1);
 Get(':id/versions')(proto, 'getVersions', Object.getOwnPropertyDescriptor(proto, 'getVersions'));
 ApiOperation({ summary: 'Cronologia versioni documento' })(proto, 'getVersions', Object.getOwnPropertyDescriptor(proto, 'getVersions'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'getVersions', Object.getOwnPropertyDescriptor(proto, 'getVersions'));
+Reflect.defineMetadata('design:paramtypes', [Object], proto, 'getVersions');
 Param('id')(proto, 'getVersions', 0);
 
 // GET /documents/:id/versions/:version
@@ -274,6 +287,7 @@ Get(':id/versions/:version')(proto, 'getVersionContent', Object.getOwnPropertyDe
 ApiOperation({ summary: 'Contenuto di una versione specifica del documento' })(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
 ApiParam({ name: 'id',      description: 'UUID documento' })(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
 ApiParam({ name: 'version', description: 'Numero versione' })(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'getVersionContent');
 Param('id')(proto, 'getVersionContent', 0);
 Param('version')(proto, 'getVersionContent', 1);
 
@@ -282,6 +296,7 @@ Post(':id/restore/:version')(proto, 'restoreVersion', Object.getOwnPropertyDescr
 ApiOperation({ summary: 'Ripristina una versione precedente del documento' })(proto, 'restoreVersion', Object.getOwnPropertyDescriptor(proto, 'restoreVersion'));
 ApiParam({ name: 'id',      description: 'UUID documento' })(proto, 'restoreVersion', Object.getOwnPropertyDescriptor(proto, 'restoreVersion'));
 ApiParam({ name: 'version', description: 'Versione da ripristinare' })(proto, 'restoreVersion', Object.getOwnPropertyDescriptor(proto, 'restoreVersion'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'restoreVersion');
 Param('id')(proto, 'restoreVersion', 0);
 Param('version')(proto, 'restoreVersion', 1);
 Req()(proto, 'restoreVersion', 2);
@@ -290,6 +305,7 @@ Req()(proto, 'restoreVersion', 2);
 Get(':id/export-md')(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
 ApiOperation({ summary: 'Esporta documento come file .md' })(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'exportMd');
 Param('id')(proto, 'exportMd', 0);
 Res()(proto, 'exportMd', 1);
 
@@ -299,6 +315,7 @@ ApiOperation({ summary: 'Audit log del documento' })(proto, 'getAudit', Object.g
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
 ApiQuery({ name: 'limit',  required: false, type: Number, example: 50 })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
 ApiQuery({ name: 'offset', required: false, type: Number, example: 0  })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'getAudit');
 Param('id')(proto, 'getAudit', 0);
 Query()(proto, 'getAudit', 1);
 
@@ -306,6 +323,7 @@ Query()(proto, 'getAudit', 1);
 Delete(':id')(proto, 'remove', Object.getOwnPropertyDescriptor(proto, 'remove'));
 ApiOperation({ summary: 'Elimina documento' })(proto, 'remove', Object.getOwnPropertyDescriptor(proto, 'remove'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'remove', Object.getOwnPropertyDescriptor(proto, 'remove'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'remove');
 Param('id')(proto, 'remove', 0);
 Req()(proto, 'remove', 1);
 

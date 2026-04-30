@@ -133,7 +133,7 @@ class TemplatesController {
 
 ApiTags('templates')(TemplatesController);
 Controller('templates')(TemplatesController);
-// FIX: use Inject() instead of Reflect.defineMetadata for reliable DI in plain JS
+// Constructor DI via Inject() — required for plain JS (no TypeScript emitDecoratorMetadata)
 Inject(TemplatesService)(TemplatesController, undefined, 0);
 
 const proto = TemplatesController.prototype;
@@ -144,6 +144,7 @@ ApiOperation({ summary: 'Lista template' })(proto, 'findAll', Object.getOwnPrope
 ApiQuery({ name: 'status', required: false, enum: ['draft', 'published'] })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiQuery({ name: 'limit',  required: false, type: Number, example: 20 })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiQuery({ name: 'offset', required: false, type: Number, example: 0  })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+Reflect.defineMetadata('design:paramtypes', [Object], proto, 'findAll');
 Query()(proto, 'findAll', 0);
 
 // GET /templates/:id
@@ -151,12 +152,14 @@ Get(':id')(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
 ApiOperation({ summary: 'Dettaglio template' })(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
 ApiResponse({ status: 404, description: 'Template non trovato' })(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
+Reflect.defineMetadata('design:paramtypes', [Object], proto, 'findOne');
 Param('id')(proto, 'findOne', 0);
 
 // GET /templates/:id/versions
 Get(':id/versions')(proto, 'getVersions', Object.getOwnPropertyDescriptor(proto, 'getVersions'));
 ApiOperation({ summary: 'Cronologia versioni template' })(proto, 'getVersions', Object.getOwnPropertyDescriptor(proto, 'getVersions'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'getVersions', Object.getOwnPropertyDescriptor(proto, 'getVersions'));
+Reflect.defineMetadata('design:paramtypes', [Object], proto, 'getVersions');
 Param('id')(proto, 'getVersions', 0);
 
 // GET /templates/:id/versions/:version
@@ -164,6 +167,7 @@ Get(':id/versions/:version')(proto, 'getVersionContent', Object.getOwnPropertyDe
 ApiOperation({ summary: 'Contenuto di una versione specifica' })(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
 ApiParam({ name: 'id',      description: 'UUID template' })(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
 ApiParam({ name: 'version', description: 'Numero versione (intero positivo)' })(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'getVersionContent');
 Param('id')(proto, 'getVersionContent', 0);
 Param('version')(proto, 'getVersionContent', 1);
 
@@ -182,6 +186,7 @@ ApiBody({
     },
   },
 })(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'create');
 Body()(proto, 'create', 0);
 Req()(proto, 'create', 1);
 
@@ -194,6 +199,7 @@ ApiConsumes('multipart/form-data')(proto, 'importFile', Object.getOwnPropertyDes
 ApiBody({
   schema: { type: 'object', properties: { name: { type: 'string' }, file: { type: 'string', format: 'binary' } } },
 })(proto, 'importFile', Object.getOwnPropertyDescriptor(proto, 'importFile'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'importFile');
 UploadedFile()(proto, 'importFile', 0);
 Body()(proto, 'importFile', 1);
 Req()(proto, 'importFile', 2);
@@ -204,6 +210,7 @@ ApiOperation({ summary: 'Valida contenuto Markdown senza creare il template' })(
 ApiBody({
   schema: { required: ['content'], properties: { content: { type: 'string' } } },
 })(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
+Reflect.defineMetadata('design:paramtypes', [Object], proto, 'validateMd');
 Body()(proto, 'validateMd', 0);
 
 // POST /templates/validate-file
@@ -214,12 +221,14 @@ ApiConsumes('multipart/form-data')(proto, 'validateFile', Object.getOwnPropertyD
 ApiBody({
   schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
 })(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
+Reflect.defineMetadata('design:paramtypes', [Object], proto, 'validateFile');
 UploadedFile()(proto, 'validateFile', 0);
 
 // PUT /templates/:id
 Put(':id')(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
 ApiOperation({ summary: 'Aggiorna template (crea nuova versione)' })(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'update');
 Param('id')(proto, 'update', 0);
 Body()(proto, 'update', 1);
 Req()(proto, 'update', 2);
@@ -228,6 +237,7 @@ Req()(proto, 'update', 2);
 Post(':id/publish')(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
 ApiOperation({ summary: 'Pubblica il template' })(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'publish');
 Param('id')(proto, 'publish', 0);
 Req()(proto, 'publish', 1);
 
@@ -236,6 +246,7 @@ Post(':id/restore/:version')(proto, 'restore', Object.getOwnPropertyDescriptor(p
 ApiOperation({ summary: 'Ripristina una versione precedente del template' })(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));
 ApiParam({ name: 'id',      description: 'UUID template' })(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));
 ApiParam({ name: 'version', description: 'Versione da ripristinare' })(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'restore');
 Param('id')(proto, 'restore', 0);
 Param('version')(proto, 'restore', 1);
 Req()(proto, 'restore', 2);
@@ -245,6 +256,7 @@ Get(':id/export')(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exp
 ApiOperation({ summary: 'Scarica il template come file .md' })(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
 ApiResponse({ status: 200, description: 'File .md in download', content: { 'text/markdown': {} } })(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'exportMd');
 Param('id')(proto, 'exportMd', 0);
 Res()(proto, 'exportMd', 1);
 
@@ -252,6 +264,7 @@ Res()(proto, 'exportMd', 1);
 Delete(':id')(proto, 'remove', Object.getOwnPropertyDescriptor(proto, 'remove'));
 ApiOperation({ summary: 'Elimina template' })(proto, 'remove', Object.getOwnPropertyDescriptor(proto, 'remove'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'remove', Object.getOwnPropertyDescriptor(proto, 'remove'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'remove');
 Param('id')(proto, 'remove', 0);
 Req()(proto, 'remove', 1);
 

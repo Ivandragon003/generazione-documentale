@@ -36,7 +36,7 @@ class AuditController {
 
 ApiTags('audit')(AuditController);
 Controller('audit')(AuditController);
-// FIX: use Inject() instead of Reflect.defineMetadata for reliable DI in plain JS
+// Constructor DI via Inject() — required for plain JS (no TypeScript emitDecoratorMetadata)
 Inject(AuditService)(AuditController, undefined, 0);
 
 const proto = AuditController.prototype;
@@ -50,6 +50,7 @@ ApiQuery({ name: 'fromDate',   required: false })(proto, 'findAll', Object.getOw
 ApiQuery({ name: 'toDate',     required: false })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiQuery({ name: 'limit',      required: false, type: Number, example: 50 })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiQuery({ name: 'offset',     required: false, type: Number, example: 0  })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+Reflect.defineMetadata('design:paramtypes', [Object], proto, 'findAll');
 Query()(proto, 'findAll', 0);
 
 module.exports = { AuditController };
