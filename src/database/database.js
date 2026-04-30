@@ -16,12 +16,34 @@ function getPool() {
       idleTimeoutMillis:       30000,
       connectionTimeoutMillis: 2000,
     });
-
     pool.on('error', (err) => {
-      console.error('Unexpected error on idle DB client:', err.message);
+      console.error('Unexpected error on idle client:', err.message);
     });
   }
   return pool;
 }
 
-module.exports = { getPool };
+/**
+ * Esegue `fn(client)` dentro una transazione PostgreSQL.
+ * Fa automaticamente BEGIN, COMMIT o ROLLBACK, e rilascia il client.
+ *
+ * @param {import('pg').Pool} pool
+ * @param {(client: import('pg').PoolClient) => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+async function withTransaction(pool, fn) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = { getPool, withTransaction };
