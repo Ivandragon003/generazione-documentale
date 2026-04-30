@@ -154,6 +154,9 @@ class DocumentsController {
   }
 }
 
+// DI: dice a NestJS cosa iniettare nel costruttore (ordine = ordine dei parametri)
+Reflect.defineMetadata('design:paramtypes', [DocumentsService, AuditService], DocumentsController);
+
 ApiTags('documents')(DocumentsController);
 Controller('documents')(DocumentsController);
 

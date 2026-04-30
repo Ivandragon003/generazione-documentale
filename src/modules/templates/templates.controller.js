@@ -131,6 +131,9 @@ class TemplatesController {
   }
 }
 
+// DI: dice a NestJS cosa iniettare nel costruttore
+Reflect.defineMetadata('design:paramtypes', [TemplatesService], TemplatesController);
+
 ApiTags('templates')(TemplatesController);
 Controller('templates')(TemplatesController);
 
@@ -195,13 +198,7 @@ UseInterceptors(FileInterceptor('file', multerOptions))(proto, 'importFile', Obj
 ApiOperation({ summary: 'Importa template da file .md (multipart)' })(proto, 'importFile', Object.getOwnPropertyDescriptor(proto, 'importFile'));
 ApiConsumes('multipart/form-data')(proto, 'importFile', Object.getOwnPropertyDescriptor(proto, 'importFile'));
 ApiBody({
-  schema: {
-    type: 'object',
-    properties: {
-      name: { type: 'string' },
-      file: { type: 'string', format: 'binary' },
-    },
-  },
+  schema: { type: 'object', properties: { name: { type: 'string' }, file: { type: 'string', format: 'binary' } } },
 })(proto, 'importFile', Object.getOwnPropertyDescriptor(proto, 'importFile'));
 Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'importFile');
 UploadedFile()(proto, 'importFile', 0);

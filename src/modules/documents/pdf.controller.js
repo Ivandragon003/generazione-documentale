@@ -13,7 +13,6 @@ class PdfController {
     this.templatesService = templatesService;
   }
 
-  // POST /pdf/templates/:templateId/validate
   async validateTemplate(templateId) {
     const template = await this.templatesService.findOne(templateId).catch(throwHttp);
     if (!template) throw new HttpException('Template non trovato', 404);
@@ -29,12 +28,14 @@ class PdfController {
   }
 }
 
+// DI: dice a NestJS cosa iniettare nel costruttore
+Reflect.defineMetadata('design:paramtypes', [TemplatesService], PdfController);
+
 ApiTags('pdf')(PdfController);
 Controller('pdf')(PdfController);
 
 const proto = PdfController.prototype;
 
-// POST /pdf/templates/:templateId/validate
 Post('templates/:templateId/validate')(proto, 'validateTemplate', Object.getOwnPropertyDescriptor(proto, 'validateTemplate'));
 ApiOperation({ summary: 'Valida disponibilità template per generazione PDF' })(proto, 'validateTemplate', Object.getOwnPropertyDescriptor(proto, 'validateTemplate'));
 ApiParam({ name: 'templateId', description: 'UUID template' })(proto, 'validateTemplate', Object.getOwnPropertyDescriptor(proto, 'validateTemplate'));

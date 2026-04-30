@@ -26,12 +26,14 @@ class AuditController {
   }
 }
 
+// DI: dice a NestJS cosa iniettare nel costruttore
+Reflect.defineMetadata('design:paramtypes', [AuditService], AuditController);
+
 ApiTags('audit')(AuditController);
 Controller('audit')(AuditController);
 
 const proto = AuditController.prototype;
 
-// GET /audit
 Get()(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiOperation({ summary: 'Registro audit globale' })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
 ApiQuery({ name: 'entityType', required: false, enum: ['template', 'document'] })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
