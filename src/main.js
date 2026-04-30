@@ -1,46 +1,72 @@
 require('dotenv').config();
-require('reflect-metadata');
+const express = require('express');
+const path = require('path');
+const YAML = require('yamljs');
+const swaggerUi = require('swagger-ui-express');
 
-const { NestFactory } = require('@nestjs/core');
-const { AppModule } = require('./app.module');
-const { SwaggerModule, DocumentBuilder } = require('@nestjs/swagger');
+const { registerTemplateRoutes } = require('./modules/templates/templates.controller');
+const { registerDocumentRoutes } = require('./modules/documents/documents.controller');
+const { registerPdfRoutes } = require('./modules/documents/pdf.controller');
+const { registerAuditRoutes } = require('./modules/audit/audit.controller');
+const { registerDevRoutes } = require('./modules/dev/reset.controller');
+const { getPool } = require('./database');
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-  app.setGlobalPrefix('api');
+// Body parsing
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true }));
 
-  // ── Swagger ──────────────────────────────────────────────────────────────
-  const config = new DocumentBuilder()
-    .setTitle('MAC Documents API')
-    .setDescription(
-      'API REST per la gestione di template documentali, documenti e generazione PDF asincrona tramite Pandoc.',
-    )
-    .setVersion('1.0.0')
-    .addTag('templates', 'Gestione template Markdown')
-    .addTag('documents', 'Gestione documenti generati dai template')
-    .addTag('pdf', 'Validazione disponibilità template per PDF')
-    .addTag('audit', 'Registro immutabile delle operazioni')
-    .addTag('dev', 'Endpoint interni per test e reset (non disponibili in produzione)')
-    .addApiKey({ type: 'apiKey', name: 'x-user', in: 'header' }, 'x-user')
-    .build();
+// Logging minimo
+app.use((req, _res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      tagsSorter: 'alpha',
-      operationsSorter: 'alpha',
-    },
-  });
-  // ─────────────────────────────────────────────────────────────────────────
+// Swagger UI — serve /api-docs
+const swaggerDocument = YAML.load(path.join(__dirname, '../swagger/openapi.yaml'));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-  const PORT = process.env.PORT || 3000;
-  await app.listen(PORT);
+// Routes
+app.use('/api/templates', registerTemplateRoutes(express.Router()));
+app.use('/api/documents', registerDocumentRoutes(express.Router()));
+app.use('/api/pdf', registerPdfRoutes(express.Router()));
+app.use('/api/audit', registerAuditRoutes(express.Router()));
+app.use('/api/dev', registerDevRoutes(express.Router()));
 
+// Health check
+app.get('/health', async (req, res) => {
+  try {
+    const pool = getPool();
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
+  } catch (err) {
+    res.status(503).json({ status: 'error', db: 'disconnected', message: err.message });
+  }
+});
+
+// 404
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route non trovata', path: req.path });
+});
+
+// Error handler centralizzato
+app.use((err, req, res, _next) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || 'Errore interno del server';
+
+  if (status >= 500) {
+    console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
+  }
+
+  res.status(status).json({ error: message });
+});
+
+app.listen(PORT, () => {
   console.log(`MAC Documents API running on port ${PORT}`);
-  console.log(`Health check : http://localhost:${PORT}/api/health`);
-  console.log(`Swagger docs : http://localhost:${PORT}/docs`);
-}
+  console.log(`Health check: http://localhost:${PORT}/health`);
+  console.log(`Swagger UI:   http://localhost:${PORT}/api-docs`);
+});
 
-bootstrap();
+module.exports = app;
