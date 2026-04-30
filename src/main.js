@@ -1,72 +1,52 @@
+'use strict';
+
 require('dotenv').config();
-const express = require('express');
-const path = require('path');
-const YAML = require('yamljs');
-const swaggerUi = require('swagger-ui-express');
 
-const { registerTemplateRoutes } = require('./modules/templates/templates.controller');
-const { registerDocumentRoutes } = require('./modules/documents/documents.controller');
-const { registerPdfRoutes } = require('./modules/documents/pdf.controller');
-const { registerAuditRoutes } = require('./modules/audit/audit.controller');
-const { registerDevRoutes } = require('./modules/dev/reset.controller');
-const { getPool } = require('./database');
+const { NestFactory }   = require('@nestjs/core');
+const { SwaggerModule, DocumentBuilder } = require('@nestjs/swagger');
+const { AppModule }     = require('./app.module');
+const { getPool }       = require('./database/database');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule, {
+    logger: ['log', 'warn', 'error'],
+  });
 
-// Body parsing
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true }));
+  // ── Prefisso globale /api ──────────────────────────────────────────────────
+  app.setGlobalPrefix('api');
 
-// Logging minimo
-app.use((req, _res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-  next();
+  // ── Swagger / OpenAPI (generato dinamicamente dai decoratori) ─────────────
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('MAC Documents API')
+    .setDescription(
+      'API per la generazione documentale basata su template Markdown.\n\n' +
+      '**Ambienti di sviluppo:** le route /api/dev/* sono disponibili solo con NODE_ENV=development.',
+    )
+    .setVersion('1.0.0')
+    .addTag('health',    'Stato applicazione')
+    .addTag('templates', 'Gestione template documentali')
+    .addTag('documents', 'Gestione documenti generati')
+    .addTag('audit',     'Registro audit immutabile')
+    .build();
+
+  const swaggerDoc = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api-docs', app, swaggerDoc, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      defaultModelsExpandDepth: -1,
+    },
+  });
+
+  // ── Porta ─────────────────────────────────────────────────────────────────
+  const port = parseInt(process.env.PORT, 10) || 3000;
+  await app.listen(port);
+
+  console.log(`\n✅ MAC Documents API avviata su http://localhost:${port}`);
+  console.log(`   Swagger UI  : http://localhost:${port}/api-docs`);
+  console.log(`   Health check: http://localhost:${port}/api/health\n`);
+}
+
+bootstrap().catch((err) => {
+  console.error('❌ Errore avvio applicazione:', err.message);
+  process.exit(1);
 });
-
-// Swagger UI — serve /api-docs
-const swaggerDocument = YAML.load(path.join(__dirname, '../swagger/openapi.yaml'));
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
-// Routes
-app.use('/api/templates', registerTemplateRoutes(express.Router()));
-app.use('/api/documents', registerDocumentRoutes(express.Router()));
-app.use('/api/pdf', registerPdfRoutes(express.Router()));
-app.use('/api/audit', registerAuditRoutes(express.Router()));
-app.use('/api/dev', registerDevRoutes(express.Router()));
-
-// Health check
-app.get('/health', async (req, res) => {
-  try {
-    const pool = getPool();
-    await pool.query('SELECT 1');
-    res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
-  } catch (err) {
-    res.status(503).json({ status: 'error', db: 'disconnected', message: err.message });
-  }
-});
-
-// 404
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route non trovata', path: req.path });
-});
-
-// Error handler centralizzato
-app.use((err, req, res, _next) => {
-  const status = err.status || err.statusCode || 500;
-  const message = err.message || 'Errore interno del server';
-
-  if (status >= 500) {
-    console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
-  }
-
-  res.status(status).json({ error: message });
-});
-
-app.listen(PORT, () => {
-  console.log(`MAC Documents API running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
-  console.log(`Swagger UI:   http://localhost:${PORT}/api-docs`);
-});
-
-module.exports = app;
