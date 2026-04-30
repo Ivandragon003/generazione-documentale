@@ -1,3 +1,6 @@
+// Invariato rispetto alla versione Express originale.
+// Questo service esegue chiamate HTTP all'API stessa, quindi non dipende da NestJS.
+
 class ApiRegressionFailure extends Error {
   constructor(message, failedTest, tests) {
     super(message);
@@ -13,8 +16,8 @@ function normalizeBaseUrl(baseUrl, req) {
 }
 
 async function parseResponse(response) {
-  const contentType = response.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) return response.json();
+  const ct = response.headers.get('content-type') || '';
+  if (ct.includes('application/json')) return response.json();
   return response.text();
 }
 
@@ -29,23 +32,15 @@ function expect(condition, message, details) {
 async function request(baseUrl, method, path, { body, headers = {}, expectedStatus } = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     method,
-    headers: {
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
-      ...headers,
-    },
+    headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers },
     body: body ? JSON.stringify(body) : undefined,
   });
   const parsed = await parseResponse(response);
   const expected = Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus];
-
   if (expectedStatus && !expected.includes(response.status)) {
     throw new Error(`Status atteso ${expected.join('/')} ma ricevuto ${response.status}: ${JSON.stringify(parsed)}`);
   }
-
-  return {
-    status: response.status,
-    body: parsed,
-  };
+  return { status: response.status, body: parsed };
 }
 
 async function runApiRegressionSuite({ baseUrl, req, reset = true } = {}) {
@@ -59,14 +54,7 @@ async function runApiRegressionSuite({ baseUrl, req, reset = true } = {}) {
       await fn();
       tests.push({ name, status: 'passed', startedAt, completedAt: new Date().toISOString() });
     } catch (err) {
-      const failed = {
-        name,
-        status: 'failed',
-        startedAt,
-        completedAt: new Date().toISOString(),
-        error: err.message,
-        details: err.details,
-      };
+      const failed = { name, status: 'failed', startedAt, completedAt: new Date().toISOString(), error: err.message, details: err.details };
       tests.push(failed);
       throw new ApiRegressionFailure(`Test fallito: ${name}`, failed, tests);
     }
@@ -75,35 +63,33 @@ async function runApiRegressionSuite({ baseUrl, req, reset = true } = {}) {
   await test('Reset dati di test', async () => {
     if (!reset) return;
     const result = await request(resolvedBaseUrl, 'POST', '/api/dev/reset', {
-      headers: { 'x-reset-confirm': 'true' },
-      expectedStatus: 200,
+      headers: { 'x-reset-confirm': 'true' }, expectedStatus: 200,
     });
     expect(result.body.reset === true, 'Reset non confermato', result.body);
   });
 
   await test('Health check', async () => {
-    const result = await request(resolvedBaseUrl, 'GET', '/health', { expectedStatus: 200 });
+    const result = await request(resolvedBaseUrl, 'GET', '/api/health', { expectedStatus: 200 });
     expect(result.body.status === 'ok', 'Health check non OK', result.body);
   });
 
   await test('Validazione Markdown valido', async () => {
     const result = await request(resolvedBaseUrl, 'POST', '/api/templates/validate-md', {
       expectedStatus: 200,
-      body: {
-        content: '# {{titolo}}\n\nCliente: {{cliente}}\nImporto: {{importo}}',
-      },
+      body: { content: '# {{titolo}}\n\nCliente: {{cliente}}\nImporto: {{importo}}' },
     });
-    const fieldNames = result.body.fields.map((field) => field.name);
+    const fieldNames = result.body.fields.map((f) => f.name);
     expect(result.body.valid === true, 'Markdown valido marcato come non valido', result.body);
-    expect(fieldNames.includes('titolo') && fieldNames.includes('cliente') && fieldNames.includes('importo'), 'Campi estratti non corretti', result.body);
+    expect(
+      fieldNames.includes('titolo') && fieldNames.includes('cliente') && fieldNames.includes('importo'),
+      'Campi estratti non corretti', result.body,
+    );
   });
 
   await test('Validazione Markdown corrotto', async () => {
     const result = await request(resolvedBaseUrl, 'POST', '/api/templates/validate-md', {
       expectedStatus: 200,
-      body: {
-        content: '# corrotto\n\nCampo aperto senza chiusura: {{cliente\n\nCampo non valido: {{nome cliente}}',
-      },
+      body: { content: '# corrotto\n\nCampo aperto senza chiusura: {{cliente\n\nCampo non valido: {{nome cliente}}' },
     });
     expect(result.body.valid === false, 'Markdown corrotto marcato come valido', result.body);
     expect(Array.isArray(result.body.errors) && result.body.errors.length > 0, 'Errori di validazione mancanti', result.body);
@@ -118,10 +104,10 @@ async function runApiRegressionSuite({ baseUrl, req, reset = true } = {}) {
         description: 'Creato dalla suite tecnica',
         content: '# {{titolo}}\n\nCliente: {{cliente}}\nImporto: {{importo}}\nData: {{data}}',
         fields: [
-          { name: 'titolo', label: 'Titolo', type: 'text', required: true },
-          { name: 'cliente', label: 'Cliente', type: 'text', required: true },
+          { name: 'titolo',  label: 'Titolo',  type: 'text',   required: true },
+          { name: 'cliente', label: 'Cliente', type: 'text',   required: true },
           { name: 'importo', label: 'Importo', type: 'number', required: true },
-          { name: 'data', label: 'Data', type: 'date', required: true },
+          { name: 'data',    label: 'Data',    type: 'date',   required: true },
         ],
       },
     });
@@ -137,20 +123,15 @@ async function runApiRegressionSuite({ baseUrl, req, reset = true } = {}) {
 
   await test('Pubblicazione template', async () => {
     const result = await request(resolvedBaseUrl, 'POST', `/api/templates/${context.templateId}/publish`, {
-      expectedStatus: 200,
-      headers: { 'x-user': 'api-regression' },
+      expectedStatus: 200, headers: { 'x-user': 'api-regression' },
     });
     expect(result.body.status === 'published', 'Template non pubblicato', result.body);
   });
 
   await test('Creazione documento da template', async () => {
     const result = await request(resolvedBaseUrl, 'POST', '/api/documents', {
-      expectedStatus: 201,
-      headers: { 'x-user': 'api-regression' },
-      body: {
-        name: `Documento Regression ${Date.now()}`,
-        templateId: context.templateId,
-      },
+      expectedStatus: 201, headers: { 'x-user': 'api-regression' },
+      body: { name: `Documento Regression ${Date.now()}`, templateId: context.templateId },
     });
     context.documentId = result.body.id;
     expect(Boolean(context.documentId), 'ID documento mancante', result.body);
@@ -158,33 +139,22 @@ async function runApiRegressionSuite({ baseUrl, req, reset = true } = {}) {
 
   await test('Aggiornamento fieldValues documento', async () => {
     const result = await request(resolvedBaseUrl, 'PUT', `/api/documents/${context.documentId}`, {
-      expectedStatus: 200,
-      headers: { 'x-user': 'api-regression' },
-      body: {
-        fieldValues: {
-          titolo: 'Contratto Regression',
-          cliente: 'Cliente Test',
-          importo: '1000',
-          data: '2026-04-29',
-        },
-      },
+      expectedStatus: 200, headers: { 'x-user': 'api-regression' },
+      body: { fieldValues: { titolo: 'Contratto Regression', cliente: 'Cliente Test', importo: '1000', data: '2026-04-29' } },
     });
     expect(result.body.field_values.titolo === 'Contratto Regression', 'fieldValues non salvati correttamente', result.body);
   });
 
   await test('Accodamento generazione PDF', async () => {
     const result = await request(resolvedBaseUrl, 'POST', `/api/documents/${context.documentId}/generate-pdf`, {
-      expectedStatus: 202,
-      headers: { 'x-user': 'api-regression' },
+      expectedStatus: 202, headers: { 'x-user': 'api-regression' },
     });
     context.pdfJobId = result.body.jobId;
     expect(Boolean(context.pdfJobId), 'jobId PDF mancante', result.body);
   });
 
   await test('Dettaglio job PDF', async () => {
-    const result = await request(resolvedBaseUrl, 'GET', `/api/documents/${context.documentId}/pdf-jobs/${context.pdfJobId}`, {
-      expectedStatus: 200,
-    });
+    const result = await request(resolvedBaseUrl, 'GET', `/api/documents/${context.documentId}/pdf-jobs/${context.pdfJobId}`, { expectedStatus: 200 });
     expect(result.body.id === context.pdfJobId, 'Job PDF errato', result.body);
   });
 
@@ -193,17 +163,7 @@ async function runApiRegressionSuite({ baseUrl, req, reset = true } = {}) {
     expect(Array.isArray(result.body.data || result.body), 'Risposta audit non valida', result.body);
   });
 
-  return {
-    ok: true,
-    suite: 'api-regression',
-    baseUrl: resolvedBaseUrl,
-    passed: tests.length,
-    failed: 0,
-    tests,
-  };
+  return { ok: true, suite: 'api-regression', baseUrl: resolvedBaseUrl, passed: tests.length, failed: 0, tests };
 }
 
-module.exports = {
-  runApiRegressionSuite,
-  ApiRegressionFailure,
-};
+module.exports = { runApiRegressionSuite, ApiRegressionFailure };

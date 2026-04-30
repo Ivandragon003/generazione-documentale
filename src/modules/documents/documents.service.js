@@ -1,7 +1,9 @@
-﻿const { getPool } = require('../../database');
-const auditService = require('../audit/audit.service');
+﻿const { Injectable } = require('@nestjs/common');
+const { getPool } = require('../../database/database');
+const { AuditService } = require('../audit/audit.service');
+const { TemplatesService } = require('../templates/templates.service');
 const pdfService = require('./pdf.service');
-const templatesService = require('../templates/templates.service');
+const q = require('./documents.queries');
 
 const PDF_JOB_CONCURRENCY = Math.max(parseInt(process.env.PDF_JOB_CONCURRENCY || '1', 10), 1);
 let activePdfJobs = 0;
@@ -34,78 +36,42 @@ function drainPdfQueue() {
   }
 }
 
-async function ensureQueueRecovery(processPdfJobFn) {
-  if (queueRecoveryStarted) return;
-  queueRecoveryStarted = true;
-
-  try {
-    const pool = getPool();
-    const result = await pool.query(
-      `SELECT id FROM pdf_jobs WHERE status = 'queued' ORDER BY created_at ASC`,
-    );
-
-    for (const row of result.rows) {
-      enqueuePdfJob(async () => {
-        await processPdfJobFn(row.id);
-      });
-    }
-  } catch (_) {
-    queueRecoveryStarted = false;
-  }
-}
-
 class DocumentsService {
-  constructor() {
+  constructor(auditService, templatesService) {
+    this.auditService = auditService;
+    this.templatesService = templatesService;
+
     setImmediate(() => {
-      ensureQueueRecovery(this.processPdfJob.bind(this)).catch(() => {});
+      this._ensureQueueRecovery().catch(() => {});
     });
   }
 
-  async findAll({ status, limit = 20, offset = 0 } = {}) {
-    const pool = getPool();
-    const conditions = [];
-    const params = [];
-    let i = 1;
-
-    if (status) {
-      conditions.push(`d.status = $${i++}`);
-      params.push(status);
+  async _ensureQueueRecovery() {
+    if (queueRecoveryStarted) return;
+    queueRecoveryStarted = true;
+    try {
+      const rows = await q.findQueuedPdfJobs();
+      for (const row of rows) {
+        enqueuePdfJob(() => this.processPdfJob(row.id));
+      }
+    } catch (_) {
+      queueRecoveryStarted = false;
     }
+  }
 
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    params.push(limit, offset);
-
-    const result = await pool.query(
-      `SELECT d.id, d.name, d.status, d.template_id, d.template_version,
-              d.created_by, d.created_at, d.updated_at
-       FROM documents d
-       ${where}
-       ORDER BY d.updated_at DESC
-       LIMIT $${i++} OFFSET $${i}`,
-      params,
-    );
-
-    const countParams = conditions.length > 0 ? params.slice(0, conditions.length) : [];
-    const countResult = await pool.query(`SELECT COUNT(*) FROM documents d ${where}`, countParams);
-
-    return {
-      data: result.rows,
-      total: parseInt(countResult.rows[0].count, 10),
-      limit,
-      offset,
-    };
+  async findAll({ status, limit = 20, offset = 0 } = {}) {
+    const { data, total } = await q.findAll({ status, limit, offset });
+    return { data, total, limit, offset };
   }
 
   async findOne(id) {
-    const pool = getPool();
-    const result = await pool.query(`SELECT * FROM documents WHERE id = $1`, [id]);
-    return result.rows[0] || null;
+    return q.findById(id);
   }
 
   async create({ name, templateId, created_by = 'system' }) {
     if (!name || name.trim().length === 0) throw makeError('Il nome documento e obbligatorio', 400);
 
-    const template = await templatesService.findOne(templateId);
+    const template = await this.templatesService.findOne(templateId);
     if (!template) throw makeError('Template non trovato', 404);
 
     const pool = getPool();
@@ -113,27 +79,20 @@ class DocumentsService {
 
     try {
       await client.query('BEGIN');
-
-      const result = await client.query(
-        `INSERT INTO documents
-           (name, template_id, template_version, content, field_values, status, created_by)
-         VALUES ($1, $2, $3, $4, $5, 'draft', $6)
-         RETURNING *`,
-        [name.trim(), templateId, template.version, template.content, JSON.stringify({}), created_by],
-      );
-
-      const doc = result.rows[0];
-
-      await client.query(
-        `INSERT INTO document_versions (document_id, version, content, field_values, action, created_by)
-         VALUES ($1, 1, $2, '{}', 'create', $3)`,
-        [doc.id, template.content, created_by],
-      );
-
+      const doc = await q.insertDocument(client, {
+        name: name.trim(),
+        templateId,
+        templateVersion: template.version,
+        content: template.content,
+        createdBy: created_by,
+      });
+      await q.insertDocumentVersion(client, {
+        documentId: doc.id, version: 1, content: template.content,
+        fieldValues: {}, action: 'create', createdBy: created_by,
+      });
       await client.query('COMMIT');
-      await auditService.log('document', doc.id, 'create', created_by, {
-        name,
-        template_id: templateId,
+      await this.auditService.log('document', doc.id, 'create', created_by, {
+        name, template_id: templateId,
       });
       return doc;
     } catch (err) {
@@ -144,9 +103,9 @@ class DocumentsService {
     }
   }
 
-  async getFieldDefinitions(doc) {
+  async _getFieldDefinitions(doc) {
     if (!doc.template_id) return [];
-    const template = await templatesService.findOne(doc.template_id);
+    const template = await this.templatesService.findOne(doc.template_id);
     return template?.fields || [];
   }
 
@@ -154,37 +113,36 @@ class DocumentsService {
     const existing = await this.findOne(id);
     if (!existing) throw makeError('Documento non trovato', 404);
 
-    const pool = getPool();
-    const verResult = await pool.query(
-      `SELECT MAX(version) AS max_version FROM document_versions WHERE document_id = $1`,
-      [id],
-    );
-    const nextVersion = (parseInt(verResult.rows[0].max_version, 10) || 0) + 1;
+    if (
+      fieldValues !== undefined &&
+      (fieldValues === null || typeof fieldValues !== 'object' || Array.isArray(fieldValues))
+    ) {
+      throw makeError('fieldValues deve essere un oggetto', 400);
+    }
 
+    const maxVer = await q.getMaxVersion(id);
+    const nextVersion = maxVer + 1;
     const newContent = content !== undefined ? content : existing.content;
     const newFieldValues = fieldValues !== undefined ? fieldValues : existing.field_values;
+
+    const pool = getPool();
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
-
-      const result = await client.query(
-        `UPDATE documents
-         SET name = $1, content = $2, field_values = $3, updated_at = NOW()
-         WHERE id = $4
-         RETURNING *`,
-        [name ? name.trim() : existing.name, newContent, JSON.stringify(newFieldValues), id],
-      );
-
-      await client.query(
-        `INSERT INTO document_versions (document_id, version, content, field_values, action, created_by)
-         VALUES ($1, $2, $3, $4, 'update', $5)`,
-        [id, nextVersion, newContent, JSON.stringify(newFieldValues), created_by],
-      );
-
+      const updated = await q.updateDocument(client, {
+        id,
+        name: name ? name.trim() : existing.name,
+        content: newContent,
+        fieldValues: newFieldValues,
+      });
+      await q.insertDocumentVersion(client, {
+        documentId: id, version: nextVersion, content: newContent,
+        fieldValues: newFieldValues, action: 'update', createdBy: created_by,
+      });
       await client.query('COMMIT');
-      await auditService.log('document', id, 'update', created_by, { version: nextVersion });
-      return result.rows[0];
+      await this.auditService.log('document', id, 'update', created_by, { version: nextVersion });
+      return updated;
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -194,136 +152,74 @@ class DocumentsService {
   }
 
   async enqueuePdfGeneration(id, actor = 'system') {
-    await ensureQueueRecovery(this.processPdfJob.bind(this));
-
+    await this._ensureQueueRecovery();
     const doc = await this.findOne(id);
     if (!doc) throw makeError('Documento non trovato', 404);
 
-    const pool = getPool();
-    const result = await pool.query(
-      `INSERT INTO pdf_jobs (document_id, status, requested_by)
-       VALUES ($1, 'queued', $2)
-       RETURNING *`,
-      [id, actor],
-    );
-
-    const job = result.rows[0];
-
-    enqueuePdfJob(async () => {
-      await this.processPdfJob(job.id);
-    });
-
-    await auditService.log('document', id, 'enqueue_pdf', actor, { job_id: job.id });
+    const job = await q.insertPdfJob(id, actor);
+    enqueuePdfJob(() => this.processPdfJob(job.id));
+    await this.auditService.log('document', id, 'enqueue_pdf', actor, { job_id: job.id });
     return job;
   }
 
   async processPdfJob(jobId) {
-    const pool = getPool();
-    const jobResult = await pool.query(`SELECT * FROM pdf_jobs WHERE id = $1`, [jobId]);
-    const job = jobResult.rows[0];
+    const job = await q.findPdfJobById(jobId);
     if (!job || job.status !== 'queued') return;
 
-    await pool.query(
-      `UPDATE pdf_jobs SET status = 'running', started_at = NOW() WHERE id = $1`,
-      [jobId],
-    );
+    await q.updatePdfJobRunning(jobId);
 
     try {
       const doc = await this.findOne(job.document_id);
       if (!doc) throw makeError('Documento non trovato', 404);
 
-      const fields = await this.getFieldDefinitions(doc);
+      const fields = await this._getFieldDefinitions(doc);
       const { filename, unresolvedFields } = await pdfService.generatePdf(
         doc.content,
         doc.field_values || {},
         { title: doc.name, strict: true, fields },
       );
 
-      await pool.query(
-        `UPDATE pdf_jobs
-         SET status = 'completed', filename = $1, unresolved_fields = $2, completed_at = NOW()
-         WHERE id = $3`,
-        [filename, JSON.stringify(unresolvedFields), jobId],
-      );
-
-      await pool.query(`UPDATE documents SET status = 'generated', updated_at = NOW() WHERE id = $1`, [doc.id]);
-
-      await auditService.log('document', doc.id, 'generate_pdf_completed', job.requested_by, {
-        job_id: jobId,
-        filename,
-        unresolved_fields: unresolvedFields,
+      await q.updatePdfJobCompleted(jobId, filename, unresolvedFields);
+      await q.updateDocumentStatusGenerated(doc.id);
+      await this.auditService.log('document', doc.id, 'generate_pdf_completed', job.requested_by, {
+        job_id: jobId, filename, unresolved_fields: unresolvedFields,
       });
     } catch (err) {
-      await pool.query(
-        `UPDATE pdf_jobs
-         SET status = 'failed', error = $1, completed_at = NOW()
-         WHERE id = $2`,
-        [err.message, jobId],
-      );
-
-      await auditService.log('document', job.document_id, 'generate_pdf_failed', job.requested_by, {
-        job_id: jobId,
-        error: err.message,
+      await q.updatePdfJobFailed(jobId, err.message);
+      await this.auditService.log('document', job.document_id, 'generate_pdf_failed', job.requested_by, {
+        job_id: jobId, error: err.message,
       });
     }
   }
 
   async getPdfJob(documentId, jobId) {
-    const pool = getPool();
-    const result = await pool.query(
-      `SELECT * FROM pdf_jobs WHERE id = $1 AND document_id = $2`,
-      [jobId, documentId],
-    );
-    return result.rows[0] || null;
+    return q.findPdfJob(documentId, jobId);
   }
 
   async getCompletedPdfJob(documentId, jobId) {
     const job = await this.getPdfJob(documentId, jobId);
     if (!job) throw makeError('Job PDF non trovato', 404);
-    if (job.status !== 'completed' || !job.filename) {
-      throw makeError('PDF non ancora disponibile', 409);
-    }
+    if (job.status !== 'completed' || !job.filename) throw makeError('PDF non ancora disponibile', 409);
     return job;
   }
 
   async getLatestCompletedPdfJob(documentId) {
-    const pool = getPool();
-    const result = await pool.query(
-      `SELECT *
-       FROM pdf_jobs
-       WHERE document_id = $1 AND status = 'completed' AND filename IS NOT NULL
-       ORDER BY completed_at DESC
-       LIMIT 1`,
-      [documentId],
-    );
-
-    if (!result.rows[0]) {
-      throw makeError('Nessun PDF completato per questo documento', 404);
-    }
-
-    return result.rows[0];
+    const job = await q.findLatestCompletedPdfJob(documentId);
+    if (!job) throw makeError('Nessun PDF completato per questo documento', 404);
+    return job;
   }
 
   async getPdfJobs(documentId) {
-    const pool = getPool();
-    const result = await pool.query(
-      `SELECT * FROM pdf_jobs WHERE document_id = $1 ORDER BY created_at DESC`,
-      [documentId],
-    );
-    return result.rows;
+    return q.findPdfJobsByDocument(documentId);
   }
 
   async previewPdf(id) {
     const doc = await this.findOne(id);
     if (!doc) throw makeError('Documento non trovato', 404);
-
-    const fields = await this.getFieldDefinitions(doc);
+    const fields = await this._getFieldDefinitions(doc);
     const { filename } = await pdfService.generatePdf(doc.content, doc.field_values || {}, {
-      title: doc.name,
-      strict: false,
-      fields,
+      title: doc.name, strict: false, fields,
     });
-
     return { filename };
   }
 
@@ -334,14 +230,10 @@ class DocumentsService {
     const existing = await this.findOne(id);
     if (!existing) throw makeError('Documento non trovato', 404);
 
-    const pool = getPool();
-    await pool.query(`UPDATE documents SET status = $1, updated_at = NOW() WHERE id = $2`, [newStatus, id]);
-
-    await auditService.log('document', id, 'status_change', actor, {
-      from: existing.status,
-      to: newStatus,
+    await q.changeDocumentStatus(id, newStatus);
+    await this.auditService.log('document', id, 'status_change', actor, {
+      from: existing.status, to: newStatus,
     });
-
     return { ...existing, status: newStatus };
   }
 
@@ -352,71 +244,40 @@ class DocumentsService {
     const existing = await this.findOne(id);
     if (!existing) throw makeError('Documento non trovato', 404);
 
-    const pool = getPool();
-    const result = await pool.query(
-      `UPDATE documents SET name = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-      [newName.trim(), id],
-    );
-
-    await auditService.log('document', id, 'rename', actor, {
-      from: existing.name,
-      to: newName.trim(),
+    const updated = await q.renameDocument(id, newName.trim());
+    await this.auditService.log('document', id, 'rename', actor, {
+      from: existing.name, to: newName.trim(),
     });
-    return result.rows[0];
+    return updated;
   }
 
   async restore(id, targetVersion, actor = 'system') {
     const existing = await this.findOne(id);
     if (!existing) throw makeError('Documento non trovato', 404);
 
+    const versionRow = await q.findVersionById(id, targetVersion);
+    if (!versionRow) throw makeError(`Versione ${targetVersion} non trovata`, 404);
+
+    const maxVer = await q.getMaxVersion(id);
+    const nextVersion = maxVer + 1;
     const pool = getPool();
-    const versionResult = await pool.query(
-      `SELECT * FROM document_versions WHERE document_id = $1 AND version = $2`,
-      [id, targetVersion],
-    );
-
-    if (versionResult.rows.length === 0) {
-      throw makeError(`Versione ${targetVersion} non trovata`, 404);
-    }
-
-    const oldVersion = versionResult.rows[0];
-    const verResult = await pool.query(
-      `SELECT MAX(version) AS max_version FROM document_versions WHERE document_id = $1`,
-      [id],
-    );
-    const nextVersion = (parseInt(verResult.rows[0].max_version, 10) || 0) + 1;
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
-
-      const result = await client.query(
-        `UPDATE documents
-         SET content = $1, field_values = $2, updated_at = NOW()
-         WHERE id = $3
-         RETURNING *`,
-        [oldVersion.content, JSON.stringify(oldVersion.field_values), id],
-      );
-
-      await client.query(
-        `INSERT INTO document_versions (document_id, version, content, field_values, action, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          id,
-          nextVersion,
-          oldVersion.content,
-          JSON.stringify(oldVersion.field_values),
-          `restore_from_v${targetVersion}`,
-          actor,
-        ],
-      );
-
-      await client.query('COMMIT');
-      await auditService.log('document', id, 'restore', actor, {
-        from_version: targetVersion,
-        new_version: nextVersion,
+      const restored = await q.restoreDocument(client, {
+        id, content: versionRow.content, fieldValues: versionRow.field_values,
       });
-      return result.rows[0];
+      await q.insertDocumentVersion(client, {
+        documentId: id, version: nextVersion,
+        content: versionRow.content, fieldValues: versionRow.field_values,
+        action: `restore_from_v${targetVersion}`, createdBy: actor,
+      });
+      await client.query('COMMIT');
+      await this.auditService.log('document', id, 'restore', actor, {
+        from_version: targetVersion, new_version: nextVersion,
+      });
+      return restored;
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -426,35 +287,22 @@ class DocumentsService {
   }
 
   async getVersions(id) {
-    const pool = getPool();
-    const result = await pool.query(
-      `SELECT id, version, action, created_by, created_at
-       FROM document_versions
-       WHERE document_id = $1
-       ORDER BY version DESC`,
-      [id],
-    );
-    return result.rows;
+    return q.findVersions(id);
   }
 
   async getVersionContent(id, version) {
-    const pool = getPool();
-    const result = await pool.query(
-      `SELECT * FROM document_versions WHERE document_id = $1 AND version = $2`,
-      [id, version],
-    );
-    return result.rows[0] || null;
+    return q.findVersionById(id, version);
   }
 
   async delete(id, actor = 'system') {
     const existing = await this.findOne(id);
     if (!existing) throw makeError('Documento non trovato', 404);
-
-    const pool = getPool();
-    await pool.query(`DELETE FROM documents WHERE id = $1`, [id]);
-    await auditService.log('document', id, 'delete', actor, { name: existing.name });
+    await q.deleteDocument(id);
+    await this.auditService.log('document', id, 'delete', actor, { name: existing.name });
     return { deleted: true };
   }
 }
 
-module.exports = new DocumentsService();
+Injectable()(DocumentsService);
+
+module.exports = { DocumentsService };

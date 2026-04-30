@@ -1,84 +1,7 @@
-require('dotenv').config();
-const fs = require('fs');
-const path = require('path');
-const { getPool } = require('../src/database/database');
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- MAC-Documents Database Schema
+-- ═══════════════════════════════════════════════════════════════════════════════
 
-const fsp = fs.promises;
-const TEMPLATE_STORAGE_PATH = process.env.TEMPLATE_STORAGE_PATH || './storage/templates';
-
-async function writeTemplateFile(templateId, version, content) {
-  const relativePath = path.join(templateId, `v${version}.md`).replace(/\\/g, '/');
-  await fsp.mkdir(path.join(TEMPLATE_STORAGE_PATH, templateId), { recursive: true });
-  await fsp.writeFile(path.join(TEMPLATE_STORAGE_PATH, relativePath), content, 'utf8');
-  return relativePath;
-}
-
-async function columnExists(client, tableName, columnName) {
-  const result = await client.query(
-    `SELECT 1 FROM information_schema.columns
-     WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`,
-    [tableName, columnName],
-  );
-  return result.rows.length > 0;
-}
-
-async function backfillTemplateFiles(client) {
-  const hasTemplateContent        = await columnExists(client, 'templates', 'content');
-  const hasTemplateVersionContent = await columnExists(client, 'template_versions', 'content');
-
-  if (!hasTemplateContent && !hasTemplateVersionContent) return;
-
-  if (hasTemplateVersionContent) {
-    const versions = await client.query(
-      `SELECT template_id, version, content FROM template_versions
-       WHERE content_path IS NULL AND content IS NOT NULL`,
-    );
-    for (const row of versions.rows) {
-      const contentPath = await writeTemplateFile(row.template_id, row.version, row.content);
-      await client.query(
-        `UPDATE template_versions SET content_path = $1 WHERE template_id = $2 AND version = $3`,
-        [contentPath, row.template_id, row.version],
-      );
-    }
-  }
-
-  if (hasTemplateContent) {
-    const templates = await client.query(
-      `SELECT id, version, content FROM templates WHERE content_path IS NULL AND content IS NOT NULL`,
-    );
-    for (const row of templates.rows) {
-      const contentPath = await writeTemplateFile(row.id, row.version, row.content);
-      await client.query(
-        `UPDATE templates SET content_path = $1 WHERE id = $2`,
-        [contentPath, row.id],
-      );
-    }
-  }
-}
-
-async function readMigrationsFromFile() {
-  try {
-    const migrationsSql = await fsp.readFile(path.join(__dirname, '..', 'db', 'schema.sql'), 'utf8');
-    return migrationsSql;
-  } catch (err) {
-    console.error('Errore lettura schema SQL:', err.message);
-    throw err;
-  }
-}
-
-const cleanupMigrations = `
-DROP INDEX IF EXISTS idx_templates_parent_id;
-ALTER TABLE templates DROP COLUMN IF EXISTS parent_id;
-ALTER TABLE templates DROP COLUMN IF EXISTS content;
-ALTER TABLE template_versions DROP COLUMN IF EXISTS content;
-ALTER TABLE documents DROP COLUMN IF EXISTS locked_by;
-ALTER TABLE documents DROP COLUMN IF EXISTS locked_at;
-ALTER TABLE documents DROP COLUMN IF EXISTS pdf_path;
-ALTER TABLE documents DROP COLUMN IF EXISTS pdf_generated_at;
-ALTER TABLE documents DROP COLUMN IF EXISTS pdf_status;
-ALTER TABLE documents DROP COLUMN IF EXISTS pdf_deleted_at;
-UPDATE pdf_jobs SET status = 'failed', error = 'Job interrotto dal riavvio applicazione' WHERE status IN ('queued', 'running');
-`;
 CREATE TABLE IF NOT EXISTS templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL,
@@ -174,9 +97,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
-`;
 
-const cleanupMigrations = `
 DROP INDEX IF EXISTS idx_templates_parent_id;
 ALTER TABLE templates DROP COLUMN IF EXISTS parent_id;
 ALTER TABLE templates DROP COLUMN IF EXISTS content;
@@ -188,25 +109,3 @@ ALTER TABLE documents DROP COLUMN IF EXISTS pdf_generated_at;
 ALTER TABLE documents DROP COLUMN IF EXISTS pdf_status;
 ALTER TABLE documents DROP COLUMN IF EXISTS pdf_deleted_at;
 UPDATE pdf_jobs SET status = 'failed', error = 'Job interrotto dal riavvio applicazione' WHERE status IN ('queued', 'running');
-`;
-
-async function runMigrations() {
-  const pool = getPool();
-  const client = await pool.connect();
-  try {
-    console.log('Running migrations...');
-    const migrations = await readMigrationsFromFile();
-    await client.query(migrations);
-    await backfillTemplateFiles(client);
-    await client.query(cleanupMigrations);
-    console.log('Migrations completed successfully.');
-  } catch (err) {
-    console.error('Migration error:', err.message);
-    process.exit(1);
-  } finally {
-    client.release();
-    await pool.end();
-  }
-}
-
-runMigrations();

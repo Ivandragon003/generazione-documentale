@@ -1,33 +1,38 @@
-﻿const auditService = require('./audit.service');
-const { wrapAsync } = require('../common/http.utils');
+﻿const { Controller, Get, Query, HttpException } = require('@nestjs/common');
+const { ApiTags, ApiOperation, ApiQuery } = require('@nestjs/swagger');
+const { AuditService } = require('./audit.service');
+const { parsePagination } = require('../common/http.utils');
 
-function registerAuditRoutes(router) {
-  function parsePagination(query) {
-    const limitRaw = query.limit;
-    const offsetRaw = query.offset;
-    const limit = limitRaw === undefined ? 50 : Number.parseInt(limitRaw, 10);
-    const offset = offsetRaw === undefined ? 0 : Number.parseInt(offsetRaw, 10);
-    if (!Number.isInteger(limit) || limit <= 0) throw { status: 400, message: 'limit non valido' };
-    if (!Number.isInteger(offset) || offset < 0) throw { status: 400, message: 'offset non valido' };
-    return { limit, offset };
-  }
-
-  // GET /audit
-  router.get('/', wrapAsync(async (req, res) => {
-    const { entityType, actor, fromDate, toDate } = req.query;
-    const { limit, offset } = parsePagination(req.query);
-    const logs = await auditService.findAll({
-      entityType,
-      actor,
-      fromDate,
-      toDate,
-      limit,
-      offset,
-    });
-    res.json(logs);
-  }));
-
-  return router;
+function throwHttp(err) {
+  throw new HttpException(err.message || 'Errore interno', err.status || 500);
 }
 
-module.exports = { registerAuditRoutes };
+class AuditController {
+  constructor(auditService) {
+    this.auditService = auditService;
+  }
+
+  async findAll(query) {
+    const { entityType, actor, fromDate, toDate } = query;
+    let pagination;
+    try { pagination = parsePagination(query, { limit: 50, offset: 0 }); }
+    catch (e) { throwHttp(e); }
+    return this.auditService.findAll({ entityType, actor, fromDate, toDate, ...pagination });
+  }
+}
+
+ApiTags('audit')(AuditController);
+Controller('audit')(AuditController);
+
+const proto = AuditController.prototype;
+
+Get()(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiOperation({ summary: 'Registro audit globale' })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiQuery({ name: 'entityType', required: false, enum: ['template', 'document'] })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiQuery({ name: 'actor', required: false, type: String })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiQuery({ name: 'fromDate', required: false, description: 'ISO 8601 datetime' })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiQuery({ name: 'toDate', required: false, description: 'ISO 8601 datetime' })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+
+module.exports = { AuditController };

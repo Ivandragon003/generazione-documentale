@@ -1,6 +1,6 @@
 ﻿const fs = require('fs');
 const path = require('path');
-const { getPool } = require('../../database');
+const { getPool } = require('../../database/database');
 const apiRegressionService = require('./api-regression.service');
 const { wrapAsync } = require('../common/http.utils');
 

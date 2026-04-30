@@ -7,59 +7,47 @@ const { v4: uuidv4 } = require('uuid');
 const execFileAsync = promisify(execFile);
 const fsp = fs.promises;
 
-const STORAGE_PATH = process.env.STORAGE_PATH || './storage/pdf';
-const PANDOC_PATH = process.env.PANDOC_PATH || 'pandoc';
-const PANDOC_PDF_ENGINE = process.env.PANDOC_PDF_ENGINE || 'pdflatex';
-const PDF_GENERATION_RETRIES = Math.max(parseInt(process.env.PDF_GENERATION_RETRIES || '2', 10), 0);
-const PDF_GENERATION_RETRY_DELAY_MS = Math.max(parseInt(process.env.PDF_GENERATION_RETRY_DELAY_MS || '500', 10), 0);
-const PDF_GENERATION_TIMEOUT_MS = Math.max(parseInt(process.env.PDF_GENERATION_TIMEOUT_MS || '60000', 10), 5000);
-const MAX_PDF_MARKDOWN_BYTES = Math.max(parseInt(process.env.MAX_PDF_MARKDOWN_BYTES || '300000', 10), 1000);
+const STORAGE_PATH               = process.env.STORAGE_PATH               || './storage/pdf';
+const PANDOC_PATH                = process.env.PANDOC_PATH                || 'pandoc';
+const PANDOC_PDF_ENGINE          = process.env.PANDOC_PDF_ENGINE          || 'pdflatex';
+const PDF_GENERATION_RETRIES     = Math.max(parseInt(process.env.PDF_GENERATION_RETRIES     || '2',     10), 0);
+const PDF_GENERATION_RETRY_DELAY = Math.max(parseInt(process.env.PDF_GENERATION_RETRY_DELAY_MS || '500', 10), 0);
+const PDF_GENERATION_TIMEOUT     = Math.max(parseInt(process.env.PDF_GENERATION_TIMEOUT_MS  || '60000',10), 5000);
+const MAX_PDF_MARKDOWN_BYTES     = Math.max(parseInt(process.env.MAX_PDF_MARKDOWN_BYTES     || '300000',10), 1000);
 
-// Sostituisce {{campo}} con i valori forniti.
 function normalizeFieldDefinitions(fields = []) {
   return (Array.isArray(fields) ? fields : [])
-    .map((field) => (typeof field === 'string' ? { name: field, required: true } : field))
-    .filter((field) => field && field.name);
+    .map((f) => (typeof f === 'string' ? { name: f, required: true } : f))
+    .filter((f) => f && f.name);
 }
 
 function resolvePlaceholders(content, fieldValues, fields = []) {
   const definitions = normalizeFieldDefinitions(fields);
-  const byName = new Map(definitions.map((field) => [field.name, field]));
+  const byName = new Map(definitions.map((f) => [f.name, f]));
 
   return content.replace(/\{\{(\w+)\}\}/g, (match, key) => {
     if (fieldValues[key] !== undefined && fieldValues[key] !== null && fieldValues[key] !== '') {
       return fieldValues[key];
     }
-
-    const definition = byName.get(key);
-    if (definition && definition.defaultValue !== undefined && definition.defaultValue !== '') {
-      return definition.defaultValue;
-    }
-
-    if (definition && definition.required === false) {
-      return '';
-    }
-
+    const def = byName.get(key);
+    if (def && def.defaultValue !== undefined && def.defaultValue !== '') return def.defaultValue;
+    if (def && def.required === false) return '';
     return match;
   });
 }
 
-// Restituisce i campi obbligatori non compilati.
 function getMissingRequiredFields(fields, fieldValues) {
   return normalizeFieldDefinitions(fields)
-    .filter((field) => field.required !== false)
-    .filter((field) => fieldValues[field.name] === undefined || fieldValues[field.name] === null || fieldValues[field.name] === '')
-    .map((field) => field.name);
+    .filter((f) => f.required !== false)
+    .filter((f) => fieldValues[f.name] === undefined || fieldValues[f.name] === null || fieldValues[f.name] === '')
+    .map((f) => f.name);
 }
 
-// Controlla se esistono placeholder non risolti nel contenuto.
 function getUnresolvedPlaceholders(content) {
   const regex = /\{\{(\w+)\}\}/g;
   const unresolved = [];
   let match;
-  while ((match = regex.exec(content)) !== null) {
-    unresolved.push(match[1]);
-  }
+  while ((match = regex.exec(content)) !== null) unresolved.push(match[1]);
   return unresolved;
 }
 
@@ -75,10 +63,10 @@ async function runPandocWithRetry(args) {
   let lastError;
   const maxAttempts = PDF_GENERATION_RETRIES + 1;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       await execFileAsync(PANDOC_PATH, args, {
-        timeout: PDF_GENERATION_TIMEOUT_MS,
+        timeout: PDF_GENERATION_TIMEOUT,
         killSignal: 'SIGKILL',
         windowsHide: true,
         maxBuffer: 1024 * 1024,
@@ -86,9 +74,7 @@ async function runPandocWithRetry(args) {
       return;
     } catch (err) {
       lastError = err;
-      if (attempt < maxAttempts) {
-        await sleep(PDF_GENERATION_RETRY_DELAY_MS);
-      }
+      if (attempt < maxAttempts) await sleep(PDF_GENERATION_RETRY_DELAY);
     }
   }
 
@@ -97,11 +83,7 @@ async function runPandocWithRetry(args) {
       `Pandoc non disponibile per Node. Configura PANDOC_PATH in .env oppure aggiungi Pandoc al PATH. Comando provato: ${PANDOC_PATH}`,
     );
   }
-
-  if (lastError && lastError.stderr) {
-    throw new Error(lastError.stderr.trim());
-  }
-
+  if (lastError && lastError.stderr) throw new Error(lastError.stderr.trim());
   throw lastError;
 }
 
@@ -113,10 +95,10 @@ async function generatePdf(content, fieldValues = {}, options = {}) {
   }
 
   const fields = normalizeFieldDefinitions(options.fields || []);
-  const missingRequiredFields = getMissingRequiredFields(fields, fieldValues);
+  const missingRequired = getMissingRequiredFields(fields, fieldValues);
 
-  if (options.strict && missingRequiredFields.length > 0) {
-    throw new Error(`Campi obbligatori non compilati: ${missingRequiredFields.join(', ')}`);
+  if (options.strict && missingRequired.length > 0) {
+    throw new Error(`Campi obbligatori non compilati: ${missingRequired.join(', ')}`);
   }
 
   const resolvedContent = resolvePlaceholders(content, fieldValues, fields);
@@ -134,22 +116,14 @@ async function generatePdf(content, fieldValues = {}, options = {}) {
   try {
     await fsp.mkdir(tmpDir, { recursive: true });
     await fsp.writeFile(tmpMd, resolvedContent, 'utf8');
-
     await runPandocWithRetry([
-      tmpMd,
-      '-o',
-      outputPath,
+      tmpMd, '-o', outputPath,
       '--standalone',
-      '-V',
-      'geometry:margin=2.5cm',
-      '-V',
-      'lang=it',
-      '--pdf-engine',
-      PANDOC_PDF_ENGINE,
-      '--metadata',
-      `title=${options.title || 'Documento'}`,
+      '-V', 'geometry:margin=2.5cm',
+      '-V', 'lang=it',
+      '--pdf-engine', PANDOC_PDF_ENGINE,
+      '--metadata', `title=${options.title || 'Documento'}`,
     ]);
-
     return { filename, path: outputPath, unresolvedFields: unresolved };
   } finally {
     await fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => {});

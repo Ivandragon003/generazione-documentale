@@ -7,12 +7,8 @@ async function main() {
     body: JSON.stringify({ suite: 'api-regression' }),
   });
   const body = await response.json();
-
   console.log(JSON.stringify(body, null, 2));
-
-  if (!response.ok || body.ok !== true) {
-    process.exit(1);
-  }
+  if (!response.ok || body.ok !== true) process.exit(1);
 }
 
 main().catch((err) => {

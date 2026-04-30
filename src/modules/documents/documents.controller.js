@@ -1,193 +1,246 @@
-﻿const documentsService = require('./documents.service');
-const auditService = require('../audit/audit.service');
-const { wrapAsync, validateUuidParam, getActor } = require('../common/http.utils');
+﻿const {
+  Controller, Get, Post, Put, Patch, Delete,
+  Param, Query, Body, Req, Res, HttpCode, HttpStatus, HttpException,
+} = require('@nestjs/common');
+const { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiBody } = require('@nestjs/swagger');
 
-function registerDocumentRoutes(router) {
-  function parseVersionOrThrow(value) {
-    const parsed = Number.parseInt(value, 10);
-    if (!/^\d+$/.test(String(value)) || parsed <= 0) {
-      throw { status: 400, message: 'version non valida' };
-    }
-    return parsed;
+const { DocumentsService } = require('./documents.service');
+const { AuditService } = require('../audit/audit.service');
+const pdfService = require('./pdf.service');
+const { getActor, parsePagination, parseVersionOrThrow } = require('../common/http.utils');
+
+function throwHttp(err) {
+  throw new HttpException(err.message || 'Errore interno', err.status || 500);
+}
+
+class DocumentsController {
+  constructor(documentsService, auditService) {
+    this.documentsService = documentsService;
+    this.auditService = auditService;
   }
 
-  function parsePagination(query, defaults = { limit: 20, offset: 0 }) {
-    const limitRaw = query.limit;
-    const offsetRaw = query.offset;
-    const limit = limitRaw === undefined ? defaults.limit : Number.parseInt(limitRaw, 10);
-    const offset = offsetRaw === undefined ? defaults.offset : Number.parseInt(offsetRaw, 10);
-    if (!Number.isInteger(limit) || limit <= 0) throw { status: 400, message: 'limit non valido' };
-    if (!Number.isInteger(offset) || offset < 0) throw { status: 400, message: 'offset non valido' };
-    return { limit, offset };
+  async findAll(query) {
+    try {
+      const { limit, offset } = parsePagination(query);
+      return this.documentsService.findAll({ status: query.status, limit, offset });
+    } catch (e) { throwHttp(e); }
   }
 
-  router.param('id', validateUuidParam('id', 'ID documento non valido'));
+  async findOne(id) {
+    const doc = await this.documentsService.findOne(id).catch(throwHttp);
+    if (!doc) throw new HttpException('Documento non trovato', 404);
+    return doc;
+  }
 
-  router.get('/', wrapAsync(async (req, res) => {
-    const { status } = req.query;
-    const { limit, offset } = parsePagination(req.query);
-    const result = await documentsService.findAll({
-      status,
-      limit,
-      offset,
-    });
-    res.json(result);
-  }));
+  async create(body, req) {
+    const { name, templateId } = body;
+    if (!name)       throw new HttpException('name e obbligatorio', 400);
+    if (!templateId) throw new HttpException('templateId e obbligatorio', 400);
+    return this.documentsService.create({ name, templateId, created_by: getActor(req) }).catch(throwHttp);
+  }
 
-  router.get('/:id', wrapAsync(async (req, res) => {
-    const doc = await documentsService.findOne(req.params.id);
-    if (!doc) throw { status: 404, message: 'Documento non trovato' };
-    res.json(doc);
-  }));
+  async update(id, body, req) {
+    const { name, content, fieldValues } = body;
+    return this.documentsService.update(id, { name, content, fieldValues, created_by: getActor(req) }).catch(throwHttp);
+  }
 
-  router.post('/', wrapAsync(async (req, res) => {
-    const { name, templateId } = req.body;
-    if (!name) throw { status: 400, message: 'name e obbligatorio' };
-    if (!templateId) throw { status: 400, message: 'templateId e obbligatorio' };
+  async rename(id, body, req) {
+    const { name } = body;
+    if (!name) throw new HttpException('name e obbligatorio', 400);
+    return this.documentsService.rename(id, name, getActor(req)).catch(throwHttp);
+  }
 
-    const doc = await documentsService.create({
-      name,
-      templateId,
-      created_by: getActor(req),
-    });
-    res.status(201).json(doc);
-  }));
+  async changeStatus(id, body, req) {
+    const { status } = body;
+    if (!status) throw new HttpException('status e obbligatorio', 400);
+    return this.documentsService.changeStatus(id, status, getActor(req)).catch(throwHttp);
+  }
 
-  router.put('/:id', wrapAsync(async (req, res) => {
-    const { name, content, fieldValues } = req.body;
-    if (fieldValues !== undefined && (fieldValues === null || typeof fieldValues !== 'object' || Array.isArray(fieldValues))) {
-      throw { status: 400, message: 'fieldValues deve essere un oggetto' };
-    }
-    const doc = await documentsService.update(req.params.id, {
-      name,
-      content,
-      fieldValues,
-      created_by: getActor(req),
-    });
-    res.json(doc);
-  }));
-
-  router.patch('/:id/rename', wrapAsync(async (req, res) => {
-    const { name } = req.body;
-    if (!name) throw { status: 400, message: 'name e obbligatorio' };
-    const doc = await documentsService.rename(req.params.id, name, getActor(req));
-    res.json(doc);
-  }));
-
-  router.patch('/:id/status', wrapAsync(async (req, res) => {
-    const { status } = req.body;
-    if (!status) throw { status: 400, message: 'status e obbligatorio' };
-    const doc = await documentsService.changeStatus(req.params.id, status, getActor(req));
-    res.json(doc);
-  }));
-
-  router.post('/:id/generate-pdf', wrapAsync(async (req, res) => {
-    const job = await documentsService.enqueuePdfGeneration(req.params.id, getActor(req));
-    res.status(202).json({
+  async generatePdf(id, req) {
+    const job = await this.documentsService.enqueuePdfGeneration(id, getActor(req)).catch(throwHttp);
+    return {
       message: 'Generazione PDF accodata',
       jobId: job.id,
       status: job.status,
       documentId: job.document_id,
-    });
-  }));
+    };
+  }
 
-  router.get('/:id/pdf-jobs', wrapAsync(async (req, res) => {
-    const doc = await documentsService.findOne(req.params.id);
-    if (!doc) throw { status: 404, message: 'Documento non trovato' };
-    const jobs = await documentsService.getPdfJobs(req.params.id);
-    res.json(jobs);
-  }));
+  async getPdfJobs(id) {
+    const doc = await this.documentsService.findOne(id).catch(throwHttp);
+    if (!doc) throw new HttpException('Documento non trovato', 404);
+    return this.documentsService.getPdfJobs(id);
+  }
 
-  router.get('/:id/pdf-jobs/:jobId', wrapAsync(async (req, res) => {
-    const job = await documentsService.getPdfJob(req.params.id, req.params.jobId);
-    if (!job) throw { status: 404, message: 'Job PDF non trovato' };
-    res.json(job);
-  }));
+  async getPdfJob(id, jobId) {
+    const job = await this.documentsService.getPdfJob(id, jobId).catch(throwHttp);
+    if (!job) throw new HttpException('Job PDF non trovato', 404);
+    return job;
+  }
 
-  router.get('/:id/pdf-jobs/:jobId/download', wrapAsync(async (req, res, next) => {
-    const job = await documentsService.getCompletedPdfJob(req.params.id, req.params.jobId);
-    const pdfService = require('./pdf.service');
-    const stream = await pdfService.getPdfStream(job.filename);
-
+  async downloadPdf(id, jobId, res) {
+    const job = await this.documentsService.getCompletedPdfJob(id, jobId).catch(throwHttp);
+    const stream = await pdfService.getPdfStream(job.filename).catch(throwHttp);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${job.filename}"`);
-    stream.on('error', next);
+    stream.on('error', (err) => res.status(500).end(err.message));
     stream.pipe(res);
-  }));
+  }
 
-  router.get('/:id/latest-pdf', wrapAsync(async (req, res, next) => {
-    const job = await documentsService.getLatestCompletedPdfJob(req.params.id);
-    const pdfService = require('./pdf.service');
-    const stream = await pdfService.getPdfStream(job.filename);
-
+  async latestPdf(id, res) {
+    const job = await this.documentsService.getLatestCompletedPdfJob(id).catch(throwHttp);
+    const stream = await pdfService.getPdfStream(job.filename).catch(throwHttp);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${job.filename}"`);
-    stream.on('error', next);
+    stream.on('error', (err) => res.status(500).end(err.message));
     stream.pipe(res);
-  }));
+  }
 
-  router.get('/:id/preview-pdf', wrapAsync(async (req, res, next) => {
-    const { filename } = await documentsService.previewPdf(req.params.id);
-    const pdfService = require('./pdf.service');
-    const stream = await pdfService.getPdfStream(filename);
-
+  async previewPdf(id, res) {
+    const { filename } = await this.documentsService.previewPdf(id).catch(throwHttp);
+    const stream = await pdfService.getPdfStream(filename).catch(throwHttp);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="preview-temporanea.pdf"');
-    stream.on('error', next);
+    stream.on('error', (err) => res.status(500).end(err.message));
     stream.pipe(res);
-    stream.on('end', () => {
-      pdfService.deletePdf(filename).catch(() => {});
-    });
-  }));
+    stream.on('end', () => { pdfService.deletePdf(filename).catch(() => {}); });
+  }
 
-  router.get('/:id/versions', wrapAsync(async (req, res) => {
-    const doc = await documentsService.findOne(req.params.id);
-    if (!doc) throw { status: 404, message: 'Documento non trovato' };
-    const versions = await documentsService.getVersions(req.params.id);
-    res.json(versions);
-  }));
+  async getVersions(id) {
+    const doc = await this.documentsService.findOne(id).catch(throwHttp);
+    if (!doc) throw new HttpException('Documento non trovato', 404);
+    return this.documentsService.getVersions(id);
+  }
 
-  router.get('/:id/versions/:version', wrapAsync(async (req, res) => {
-    const version = parseVersionOrThrow(req.params.version);
-    const v = await documentsService.getVersionContent(req.params.id, version);
-    if (!v) throw { status: 404, message: 'Versione non trovata' };
-    res.json(v);
-  }));
+  async getVersionContent(id, version) {
+    let ver;
+    try { ver = parseVersionOrThrow(version); } catch (e) { throwHttp(e); }
+    const v = await this.documentsService.getVersionContent(id, ver).catch(throwHttp);
+    if (!v) throw new HttpException('Versione non trovata', 404);
+    return v;
+  }
 
-  router.post('/:id/restore/:version', wrapAsync(async (req, res) => {
-    const version = parseVersionOrThrow(req.params.version);
-    const doc = await documentsService.restore(
-      req.params.id,
-      version,
-      getActor(req),
-    );
-    res.json(doc);
-  }));
+  async restoreVersion(id, version, req) {
+    let ver;
+    try { ver = parseVersionOrThrow(version); } catch (e) { throwHttp(e); }
+    return this.documentsService.restore(id, ver, getActor(req)).catch(throwHttp);
+  }
 
-  router.get('/:id/export-md', wrapAsync(async (req, res) => {
-    const doc = await documentsService.findOne(req.params.id);
-    if (!doc) throw { status: 404, message: 'Documento non trovato' };
+  async exportMd(id, res) {
+    const doc = await this.documentsService.findOne(id).catch(throwHttp);
+    if (!doc) throw new HttpException('Documento non trovato', 404);
     const safeName = doc.name.replace(/[^a-z0-9_\-]/gi, '_');
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.md"`);
     res.send(doc.content);
-  }));
+  }
 
-  router.get('/:id/audit', wrapAsync(async (req, res) => {
-    const { limit, offset } = parsePagination(req.query, { limit: 50, offset: 0 });
-    const logs = await auditService.findByEntity('document', req.params.id, {
-      limit,
-      offset,
-    });
-    res.json(logs);
-  }));
+  async getAudit(id, query) {
+    try {
+      const { limit, offset } = parsePagination(query, { limit: 50, offset: 0 });
+      return this.auditService.findByEntity('document', id, { limit, offset });
+    } catch (e) { throwHttp(e); }
+  }
 
-  router.delete('/:id', wrapAsync(async (req, res) => {
-    const result = await documentsService.delete(req.params.id, getActor(req));
-    res.json(result);
-  }));
-
-  return router;
+  async remove(id, req) {
+    return this.documentsService.delete(id, getActor(req)).catch(throwHttp);
+  }
 }
 
-module.exports = { registerDocumentRoutes };
+// ─── Applicazione decoratori NestJS ──────────────────────────────────────────
+
+ApiTags('documents')(DocumentsController);
+Controller('documents')(DocumentsController);
+
+const proto = DocumentsController.prototype;
+
+Get()(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiOperation({ summary: 'Lista documenti' })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+ApiQuery({ name: 'status', required: false, enum: ['draft', 'generated', 'published', 'archived'] })(proto, 'findAll', Object.getOwnPropertyDescriptor(proto, 'findAll'));
+
+Get(':id')(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
+ApiOperation({ summary: 'Dettaglio documento' })(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'findOne', Object.getOwnPropertyDescriptor(proto, 'findOne'));
+
+Post()(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
+HttpCode(HttpStatus.CREATED)(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
+ApiOperation({ summary: 'Crea documento da template' })(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
+ApiBody({
+  schema: {
+    required: ['name', 'templateId'],
+    properties: {
+      name: { type: 'string', example: 'Capitolato Beta' },
+      templateId: { type: 'string', format: 'uuid' },
+    },
+  },
+})(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
+
+Put(':id')(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
+ApiOperation({ summary: 'Aggiorna contenuto/fieldValues documento' })(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
+
+Patch(':id/rename')(proto, 'rename', Object.getOwnPropertyDescriptor(proto, 'rename'));
+ApiOperation({ summary: 'Rinomina documento' })(proto, 'rename', Object.getOwnPropertyDescriptor(proto, 'rename'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'rename', Object.getOwnPropertyDescriptor(proto, 'rename'));
+
+Patch(':id/status')(proto, 'changeStatus', Object.getOwnPropertyDescriptor(proto, 'changeStatus'));
+ApiOperation({ summary: 'Cambia stato documento' })(proto, 'changeStatus', Object.getOwnPropertyDescriptor(proto, 'changeStatus'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'changeStatus', Object.getOwnPropertyDescriptor(proto, 'changeStatus'));
+
+Post(':id/generate-pdf')(proto, 'generatePdf', Object.getOwnPropertyDescriptor(proto, 'generatePdf'));
+HttpCode(HttpStatus.ACCEPTED)(proto, 'generatePdf', Object.getOwnPropertyDescriptor(proto, 'generatePdf'));
+ApiOperation({ summary: 'Accoda generazione PDF asincrona' })(proto, 'generatePdf', Object.getOwnPropertyDescriptor(proto, 'generatePdf'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'generatePdf', Object.getOwnPropertyDescriptor(proto, 'generatePdf'));
+ApiResponse({ status: 202, description: 'Job PDF accodato' })(proto, 'generatePdf', Object.getOwnPropertyDescriptor(proto, 'generatePdf'));
+
+Get(':id/pdf-jobs')(proto, 'getPdfJobs', Object.getOwnPropertyDescriptor(proto, 'getPdfJobs'));
+ApiOperation({ summary: 'Lista job PDF del documento' })(proto, 'getPdfJobs', Object.getOwnPropertyDescriptor(proto, 'getPdfJobs'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'getPdfJobs', Object.getOwnPropertyDescriptor(proto, 'getPdfJobs'));
+
+Get(':id/pdf-jobs/:jobId')(proto, 'getPdfJob', Object.getOwnPropertyDescriptor(proto, 'getPdfJob'));
+ApiOperation({ summary: 'Dettaglio job PDF' })(proto, 'getPdfJob', Object.getOwnPropertyDescriptor(proto, 'getPdfJob'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'getPdfJob', Object.getOwnPropertyDescriptor(proto, 'getPdfJob'));
+ApiParam({ name: 'jobId', description: 'UUID job PDF' })(proto, 'getPdfJob', Object.getOwnPropertyDescriptor(proto, 'getPdfJob'));
+
+Get(':id/pdf-jobs/:jobId/download')(proto, 'downloadPdf', Object.getOwnPropertyDescriptor(proto, 'downloadPdf'));
+ApiOperation({ summary: 'Scarica PDF del job completato' })(proto, 'downloadPdf', Object.getOwnPropertyDescriptor(proto, 'downloadPdf'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'downloadPdf', Object.getOwnPropertyDescriptor(proto, 'downloadPdf'));
+ApiParam({ name: 'jobId', description: 'UUID job PDF' })(proto, 'downloadPdf', Object.getOwnPropertyDescriptor(proto, 'downloadPdf'));
+
+Get(':id/latest-pdf')(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
+ApiOperation({ summary: 'Scarica ultimo PDF completato' })(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
+
+Get(':id/preview-pdf')(proto, 'previewPdf', Object.getOwnPropertyDescriptor(proto, 'previewPdf'));
+ApiOperation({ summary: 'Anteprima PDF temporanea (non salvata)' })(proto, 'previewPdf', Object.getOwnPropertyDescriptor(proto, 'previewPdf'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'previewPdf', Object.getOwnPropertyDescriptor(proto, 'previewPdf'));
+
+Get(':id/versions')(proto, 'getVersions', Object.getOwnPropertyDescriptor(proto, 'getVersions'));
+ApiOperation({ summary: 'Cronologia versioni documento' })(proto, 'getVersions', Object.getOwnPropertyDescriptor(proto, 'getVersions'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'getVersions', Object.getOwnPropertyDescriptor(proto, 'getVersions'));
+
+Get(':id/versions/:version')(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
+ApiOperation({ summary: 'Contenuto di una versione specifica del documento' })(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
+ApiParam({ name: 'version', description: 'Numero versione' })(proto, 'getVersionContent', Object.getOwnPropertyDescriptor(proto, 'getVersionContent'));
+
+Post(':id/restore/:version')(proto, 'restoreVersion', Object.getOwnPropertyDescriptor(proto, 'restoreVersion'));
+ApiOperation({ summary: 'Ripristina una versione precedente del documento' })(proto, 'restoreVersion', Object.getOwnPropertyDescriptor(proto, 'restoreVersion'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'restoreVersion', Object.getOwnPropertyDescriptor(proto, 'restoreVersion'));
+ApiParam({ name: 'version', description: 'Versione da ripristinare' })(proto, 'restoreVersion', Object.getOwnPropertyDescriptor(proto, 'restoreVersion'));
+
+Get(':id/export-md')(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
+ApiOperation({ summary: 'Esporta documento come file .md' })(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
+
+Get(':id/audit')(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
+ApiOperation({ summary: 'Audit log del documento' })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
+
+Delete(':id')(proto, 'remove', Object.getOwnPropertyDescriptor(proto, 'remove'));
+ApiOperation({ summary: 'Elimina documento' })(proto, 'remove', Object.getOwnPropertyDescriptor(proto, 'remove'));
+ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'remove', Object.getOwnPropertyDescriptor(proto, 'remove'));
+
+Get(':id/export-md')(proto, 'exportMd', Object.getOwnPropertyDescriptor(proto, 'exportMd'));
+
+module.exports = { DocumentsController };

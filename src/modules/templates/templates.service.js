@@ -1,12 +1,20 @@
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const { getPool } = require('../../database');
-const auditService = require('../audit/audit.service');
+const { Injectable } = require('@nestjs/common');
+const { getPool } = require('../../database/database');
+const { AuditService } = require('../audit/audit.service');
+const q = require('./templates.queries');
 
 const fsp = fs.promises;
-const TEMPLATE_STORAGE_PATH = process.env.TEMPLATE_STORAGE_PATH || './storage/templates';
-const MAX_TEMPLATE_CONTENT_BYTES = Math.max(parseInt(process.env.MAX_TEMPLATE_CONTENT_BYTES || '200000', 10), 1000);
+const TEMPLATE_STORAGE_PATH =
+  process.env.TEMPLATE_STORAGE_PATH || './storage/templates';
+const MAX_TEMPLATE_CONTENT_BYTES = Math.max(
+  parseInt(process.env.MAX_TEMPLATE_CONTENT_BYTES || '200000', 10),
+  1000,
+);
+
+// ─── helpers puri (nessuna dipendenza esterna) ────────────────────────────────
 
 function makeError(message, status = 400) {
   const err = new Error(message);
@@ -18,16 +26,14 @@ function extractFields(content) {
   const regex = /\{\{(\w+)\}\}/g;
   const fields = new Set();
   let match;
-  while ((match = regex.exec(content)) !== null) {
-    fields.add(match[1]);
-  }
+  while ((match = regex.exec(content)) !== null) fields.add(match[1]);
   return Array.from(fields);
 }
 
 function labelFromName(name) {
   return name
     .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(' ');
 }
 
@@ -35,9 +41,9 @@ function normalizeFieldDefinitions(content, providedFields = []) {
   const placeholders = extractFields(content);
   const providedByName = new Map(
     (Array.isArray(providedFields) ? providedFields : [])
-      .map((field) => (typeof field === 'string' ? { name: field } : field))
-      .filter((field) => field && field.name)
-      .map((field) => [field.name, field]),
+      .map((f) => (typeof f === 'string' ? { name: f } : f))
+      .filter((f) => f && f.name)
+      .map((f) => [f.name, f]),
   );
 
   return placeholders.map((name) => {
@@ -70,12 +76,13 @@ function validateMarkdownContent(content) {
     const matches = content.match(new RegExp(`\\{\\{${field}\\}\\}`, 'g')) || [];
     return matches.length > 1;
   });
-  const invalidPlaceholders = content.match(/\{\{[^}\n]*\}\}/g)
-    ?.filter((placeholder) => !/^\{\{\w+\}\}$/.test(placeholder)) || [];
-  const danglingOpen = (content.match(/\{\{/g) || []).length;
-  const danglingClose = (content.match(/\}\}/g) || []).length;
 
-  if (danglingOpen !== danglingClose) {
+  const invalidPlaceholders =
+    content.match(/\{\{[^}\n]*\}\}/g)?.filter((p) => !/^\{\{\w+\}\}$/.test(p)) || [];
+
+  const open  = (content.match(/\{\{/g) || []).length;
+  const close = (content.match(/\}\}/g) || []).length;
+  if (open !== close) {
     errors.push('Ci sono parentesi placeholder non bilanciate: controlla {{ e }}');
   }
 
@@ -100,11 +107,9 @@ function validateMarkdownContent(content) {
   if (fields.length === 0) {
     warnings.push('Nessun campo dinamico trovato. Usa placeholder come {{titolo}}');
   }
-
   if (!/^#\s+.+/m.test(content)) {
     warnings.push('Nessun titolo Markdown H1 trovato. Aggiungi una riga tipo # {{titolo}}');
   }
-
   if (duplicateFields.length > 0) {
     warnings.push(`Campi ripetuti nel template: ${duplicateFields.join(', ')}`);
   }
@@ -119,10 +124,10 @@ function validateMarkdownContent(content) {
 
 function validateContent(content) {
   const result = validateMarkdownContent(content);
-  if (!result.valid) {
-    throw makeError(result.errors.join('; '), 400);
-  }
+  if (!result.valid) throw makeError(result.errors.join('; '), 400);
 }
+
+// ─── file system helpers ──────────────────────────────────────────────────────
 
 async function ensureTemplateStorageDir(templateId) {
   await fsp.mkdir(path.join(TEMPLATE_STORAGE_PATH, templateId), { recursive: true });
@@ -152,60 +157,25 @@ async function hydrateContent(row) {
   throw new Error('File contenuto template non configurato');
 }
 
+// ─── Service ──────────────────────────────────────────────────────────────────
+
 class TemplatesService {
+  constructor(auditService) {
+    this.auditService = auditService;
+  }
+
   async findAll({ status, limit = 20, offset = 0 } = {}) {
-    const pool = getPool();
-    const params = [];
-    let where = '';
-
-    if (status) {
-      where = 'WHERE status = $1';
-      params.push(status);
-    }
-
-    params.push(limit, offset);
-    const limitParam = params.length - 1;
-    const offsetParam = params.length;
-
-    const result = await pool.query(
-      `SELECT id, name, description, status, version, fields, content_path, created_by, created_at, updated_at
-       FROM templates
-       ${where}
-       ORDER BY updated_at DESC
-       LIMIT $${limitParam} OFFSET $${offsetParam}`,
-      params,
-    );
-
-    const countResult = await pool.query(
-      `SELECT COUNT(*) FROM templates ${where}`,
-      status ? [status] : [],
-    );
-
-    return {
-      data: result.rows,
-      total: parseInt(countResult.rows[0].count, 10),
-      limit,
-      offset,
-    };
+    const { data, total } = await q.findAll({ status, limit, offset });
+    return { data, total, limit, offset };
   }
 
   async findOne(id) {
-    const pool = getPool();
-    const result = await pool.query(
-      `SELECT id, name, description, content_path, status, version,
-              fields, created_by, created_at, updated_at
-       FROM templates
-       WHERE id = $1`,
-      [id],
-    );
-    return hydrateContent(result.rows[0] || null);
+    return hydrateContent(await q.findById(id));
   }
 
   async create({ name, description, content, fields: providedFields, created_by = 'system' }) {
     validateContent(content);
-    if (!name || name.trim().length === 0) {
-      throw makeError('Il nome del template e obbligatorio', 400);
-    }
+    if (!name || name.trim().length === 0) throw makeError('Il nome del template e obbligatorio', 400);
 
     const id = uuidv4();
     const fields = normalizeFieldDefinitions(content, providedFields);
@@ -215,25 +185,15 @@ class TemplatesService {
 
     try {
       await client.query('BEGIN');
-
-      const result = await client.query(
-        `INSERT INTO templates (id, name, description, content_path, status, version, fields, created_by)
-         VALUES ($1, $2, $3, $4, 'draft', 1, $5, $6)
-         RETURNING *`,
-        [id, name.trim(), description || null, contentPath, JSON.stringify(fields), created_by],
-      );
-
-      const template = result.rows[0];
-
-      await client.query(
-        `INSERT INTO template_versions (template_id, version, content_path, fields, status, action, created_by)
-         VALUES ($1, 1, $2, $3, 'draft', 'create', $4)`,
-        [template.id, contentPath, JSON.stringify(fields), created_by],
-      );
-
+      const template = await q.insertTemplate(client, {
+        id, name: name.trim(), description, contentPath, fields, createdBy: created_by,
+      });
+      await q.insertTemplateVersion(client, {
+        templateId: template.id, version: 1, contentPath, fields,
+        status: 'draft', action: 'create', createdBy: created_by,
+      });
       await client.query('COMMIT');
-
-      await auditService.log('template', template.id, 'create', created_by, { name });
+      await this.auditService.log('template', template.id, 'create', created_by, { name });
       return hydrateContent(template);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -246,7 +206,6 @@ class TemplatesService {
   async update(id, { name, description, content, fields: providedFields, created_by = 'system' }) {
     const existing = await this.findOne(id);
     if (!existing) throw makeError('Template non trovato', 404);
-
     if (existing.status === 'published') {
       throw makeError('Un template pubblicato non puo essere modificato. Crea una nuova versione.', 409);
     }
@@ -262,33 +221,21 @@ class TemplatesService {
 
     try {
       await client.query('BEGIN');
-
-      const result = await client.query(
-        `UPDATE templates
-         SET name = $1, description = $2, content_path = $3,
-             fields = $4, version = $5, updated_at = NOW()
-         WHERE id = $6
-         RETURNING *`,
-        [
-          name ? name.trim() : existing.name,
-          description !== undefined ? description : existing.description,
-          contentPath,
-          JSON.stringify(fields),
-          newVersion,
-          id,
-        ],
-      );
-
-      await client.query(
-        `INSERT INTO template_versions (template_id, version, content_path, fields, status, action, created_by)
-         VALUES ($1, $2, $3, $4, $5, 'update', $6)`,
-        [id, newVersion, contentPath, JSON.stringify(fields), existing.status, created_by],
-      );
-
+      const updated = await q.updateTemplate(client, {
+        id,
+        name: name ? name.trim() : existing.name,
+        description: description !== undefined ? description : existing.description,
+        contentPath,
+        fields,
+        newVersion,
+      });
+      await q.insertTemplateVersion(client, {
+        templateId: id, version: newVersion, contentPath, fields,
+        status: existing.status, action: 'update', createdBy: created_by,
+      });
       await client.query('COMMIT');
-
-      await auditService.log('template', id, 'update', created_by, { version: newVersion });
-      return hydrateContent(result.rows[0]);
+      await this.auditService.log('template', id, 'update', created_by, { version: newVersion });
+      return hydrateContent(updated);
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -302,13 +249,8 @@ class TemplatesService {
     if (!existing) throw makeError('Template non trovato', 404);
     if (existing.status === 'published') throw makeError('Template gia pubblicato', 409);
 
-    const pool = getPool();
-    await pool.query(
-      `UPDATE templates SET status = 'published', updated_at = NOW() WHERE id = $1`,
-      [id],
-    );
-
-    await auditService.log('template', id, 'publish', actor, { version: existing.version });
+    await q.publishTemplate(id);
+    await this.auditService.log('template', id, 'publish', actor, { version: existing.version });
     return { ...existing, status: 'published' };
   }
 
@@ -316,55 +258,28 @@ class TemplatesService {
     const existing = await this.findOne(id);
     if (!existing) throw makeError('Template non trovato', 404);
 
-    const pool = getPool();
-    const versionResult = await pool.query(
-      `SELECT * FROM template_versions WHERE template_id = $1 AND version = $2`,
-      [id, targetVersion],
-    );
+    const versionRow = await q.findVersionById(id, targetVersion);
+    if (!versionRow) throw makeError(`Versione ${targetVersion} non trovata`, 404);
 
-    if (versionResult.rows.length === 0) {
-      throw makeError(`Versione ${targetVersion} non trovata`, 404);
-    }
-
-    const oldVersion = await hydrateContent(versionResult.rows[0]);
+    const oldVersion = await hydrateContent(versionRow);
     const newVersion = existing.version + 1;
     const fields = normalizeFieldDefinitions(oldVersion.content, oldVersion.fields);
     const contentPath = await writeTemplateFile(id, newVersion, oldVersion.content);
+    const pool = getPool();
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
-
-      const result = await client.query(
-        `UPDATE templates
-         SET content_path = $1, fields = $2, version = $3,
-             status = 'draft', updated_at = NOW()
-         WHERE id = $4
-         RETURNING *`,
-        [contentPath, JSON.stringify(fields), newVersion, id],
-      );
-
-      await client.query(
-        `INSERT INTO template_versions (template_id, version, content_path, fields, status, action, created_by)
-         VALUES ($1, $2, $3, $4, 'draft', $5, $6)`,
-        [
-          id,
-          newVersion,
-          contentPath,
-          JSON.stringify(fields),
-          `restore_from_v${targetVersion}`,
-          actor,
-        ],
-      );
-
-      await client.query('COMMIT');
-
-      await auditService.log('template', id, 'restore', actor, {
-        from_version: targetVersion,
-        new_version: newVersion,
+      const restored = await q.restoreTemplate(client, { id, contentPath, fields, newVersion });
+      await q.insertTemplateVersion(client, {
+        templateId: id, version: newVersion, contentPath, fields,
+        status: 'draft', action: `restore_from_v${targetVersion}`, createdBy: actor,
       });
-
-      return hydrateContent(result.rows[0]);
+      await client.query('COMMIT');
+      await this.auditService.log('template', id, 'restore', actor, {
+        from_version: targetVersion, new_version: newVersion,
+      });
+      return hydrateContent(restored);
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -374,42 +289,25 @@ class TemplatesService {
   }
 
   async getVersions(id) {
-    const pool = getPool();
-    const result = await pool.query(
-      `SELECT id, version, status, action, content_path, created_by, created_at
-       FROM template_versions
-       WHERE template_id = $1
-       ORDER BY version DESC`,
-      [id],
-    );
-    return result.rows;
+    return q.findVersions(id);
   }
 
   async getVersionContent(id, version) {
-    const pool = getPool();
-    const result = await pool.query(
-      `SELECT * FROM template_versions WHERE template_id = $1 AND version = $2`,
-      [id, version],
-    );
-    return hydrateContent(result.rows[0] || null);
+    return hydrateContent(await q.findVersionById(id, version));
   }
 
   async delete(id, actor = 'system') {
     const existing = await this.findOne(id);
     if (!existing) throw makeError('Template non trovato', 404);
 
-    const pool = getPool();
-    const docs = await pool.query(
-      `SELECT COUNT(*) FROM documents WHERE template_id = $1 AND status != 'archived'`,
-      [id],
-    );
-    if (parseInt(docs.rows[0].count, 10) > 0) {
+    const activeCount = await q.countActiveDocuments(id);
+    if (activeCount > 0) {
       throw makeError('Impossibile eliminare: esistono documenti attivi basati su questo template', 409);
     }
 
-    await pool.query(`DELETE FROM templates WHERE id = $1`, [id]);
+    await q.deleteTemplate(id);
     await fsp.rm(path.join(TEMPLATE_STORAGE_PATH, id), { recursive: true, force: true });
-    await auditService.log('template', id, 'delete', actor, { name: existing.name });
+    await this.auditService.log('template', id, 'delete', actor, { name: existing.name });
     return { deleted: true };
   }
 
@@ -427,4 +325,6 @@ class TemplatesService {
   }
 }
 
-module.exports = new TemplatesService();
+Injectable()(TemplatesService);
+
+module.exports = { TemplatesService };
