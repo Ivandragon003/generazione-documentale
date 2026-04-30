@@ -5,17 +5,18 @@ require('dotenv').config();
 const { NestFactory }   = require('@nestjs/core');
 const { SwaggerModule, DocumentBuilder } = require('@nestjs/swagger');
 const { AppModule }     = require('./app.module');
-const { getPool }       = require('./database/database');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['log', 'warn', 'error'],
   });
 
-  // ── Prefisso globale /api ──────────────────────────────────────────────────
-  app.setGlobalPrefix('api');
+  // Prefisso globale /api — /health escluso (standard per load balancer / k8s)
+  app.setGlobalPrefix('api', {
+    exclude: ['health'],
+  });
 
-  // ── Swagger / OpenAPI (generato dinamicamente dai decoratori) ─────────────
+  // Swagger UI generato dinamicamente dai decorator NestJS
   const swaggerConfig = new DocumentBuilder()
     .setTitle('MAC Documents API')
     .setDescription(
@@ -37,16 +38,16 @@ async function bootstrap() {
     },
   });
 
-  // ── Porta ─────────────────────────────────────────────────────────────────
   const port = parseInt(process.env.PORT, 10) || 3000;
   await app.listen(port);
 
-  console.log(`\n✅ MAC Documents API avviata su http://localhost:${port}`);
+  console.log(`\n\u2705 MAC Documents API avviata su http://localhost:${port}`);
   console.log(`   Swagger UI  : http://localhost:${port}/api-docs`);
-  console.log(`   Health check: http://localhost:${port}/api/health\n`);
+  console.log(`   Health check: http://localhost:${port}/health`);
+  console.log(`   API routes  : http://localhost:${port}/api/...\n`);
 }
 
 bootstrap().catch((err) => {
-  console.error('❌ Errore avvio applicazione:', err.message);
+  console.error('\u274c Errore avvio applicazione:', err.message);
   process.exit(1);
 });

@@ -1,4 +1,3 @@
-// Invariato rispetto alla versione Express originale.
 // Questo service esegue chiamate HTTP all'API stessa, quindi non dipende da NestJS.
 
 class ApiRegressionFailure extends Error {
@@ -68,8 +67,9 @@ async function runApiRegressionSuite({ baseUrl, req, reset = true } = {}) {
     expect(result.body.reset === true, 'Reset non confermato', result.body);
   });
 
+  // /health è escluso dal prefisso /api (standard load balancer)
   await test('Health check', async () => {
-    const result = await request(resolvedBaseUrl, 'GET', '/api/health', { expectedStatus: 200 });
+    const result = await request(resolvedBaseUrl, 'GET', '/health', { expectedStatus: 200 });
     expect(result.body.status === 'ok', 'Health check non OK', result.body);
   });
 
