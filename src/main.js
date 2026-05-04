@@ -17,12 +17,11 @@ async function bootstrap() {
     exclude: ['health'],
   });
 
-  // Swagger UI generato dinamicamente dai decorator NestJS
+  // Swagger UI — solo le API pubbliche, nessuna route di test/dev
   const swaggerConfig = new DocumentBuilder()
     .setTitle('MAC Documents API')
     .setDescription(
-      'API per la generazione documentale basata su template Markdown.\n\n' +
-      '**Ambienti di sviluppo:** le route /api/dev/* sono disponibili solo con NODE_ENV=development.',
+      'API per la generazione documentale basata su template Markdown.',
     )
     .setVersion('1.0.0')
     .addTag('health',    'Stato applicazione')
@@ -30,7 +29,6 @@ async function bootstrap() {
     .addTag('documents', 'Gestione documenti generati')
     .addTag('audit',     'Registro audit immutabile')
     .addTag('pdf',       'Utilità generazione PDF')
-    .addTag('dev',       'Strumenti di sviluppo e test (solo NODE_ENV=development)')
     .build();
 
   const swaggerDoc = SwaggerModule.createDocument(app, swaggerConfig);
@@ -54,6 +52,24 @@ async function bootstrap() {
   console.log(`   Swagger UI  : http://localhost:${port}/api-docs`);
   console.log(`   Health check: http://localhost:${port}/health`);
   console.log(`   API routes  : http://localhost:${port}/api/...\n`);
+
+  // Esegue i test di regressione automaticamente all'avvio (solo in development)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🧪 NODE_ENV=development — avvio suite di regression test...\n');
+    try {
+      const { runApiRegressionSuite } = require('./modules/dev/api-regression.service');
+      const result = await runApiRegressionSuite({
+        baseUrl: `http://localhost:${port}`,
+        reset:   true,
+      });
+      const passed = result.tests?.filter(t => t.ok).length ?? 0;
+      const total  = result.tests?.length ?? 0;
+      console.log(`✅ Regression test completati: ${passed}/${total} passati\n`);
+    } catch (err) {
+      console.error('❌ Regression test FALLITI:', err.message);
+      if (err.failedTest) console.error('   Test fallito:', err.failedTest);
+    }
+  }
 }
 
 bootstrap().catch((err) => {

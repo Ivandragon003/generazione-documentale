@@ -6,17 +6,13 @@ const { AuditModule }     = require('./modules/audit/audit.module');
 const { TemplatesModule } = require('./modules/templates/template.module');
 const { DocumentsModule } = require('./modules/documents/document.module');
 
-// DevModule registrato solo in sviluppo:
-// - le route /api/dev/* non esistono in produzione
-// - la sezione "dev" sparisce completamente dallo Swagger
-const devImports = process.env.NODE_ENV !== 'production'
-  ? [require('./modules/dev/dev.module').DevModule]
-  : [];
-
+// DevModule NON viene mai registrato:
+// - le route /api/dev/* non esistono né in Swagger né nel server
+// - i test vengono eseguiti automaticamente all'avvio da main.js (solo in development)
 class AppModule {}
 
 Module({
-  imports: [HealthModule, AuditModule, TemplatesModule, DocumentsModule, ...devImports],
+  imports: [HealthModule, AuditModule, TemplatesModule, DocumentsModule],
 })(AppModule);
 
 module.exports = { AppModule };
