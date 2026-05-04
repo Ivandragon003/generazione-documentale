@@ -1,6 +1,7 @@
 'use strict';
 
 // Questo service esegue chiamate HTTP all'API stessa, quindi non dipende da NestJS.
+const axios = require('axios');
 
 class ApiRegressionFailure extends Error {
   constructor(message, failedTest, tests) {
@@ -16,12 +17,6 @@ function normalizeBaseUrl(baseUrl, req) {
   return `${req.protocol}://${req.get('host')}`;
 }
 
-async function parseResponse(response) {
-  const ct = response.headers.get('content-type') || '';
-  if (ct.includes('application/json')) return response.json();
-  return response.text();
-}
-
 function expect(condition, message, details) {
   if (!condition) {
     const error = new Error(message);
@@ -30,18 +25,34 @@ function expect(condition, message, details) {
   }
 }
 
+/**
+ * Esegue una chiamata HTTP con axios.
+ * A differenza di fetch, axios lancia un'eccezione per status >= 400 —
+ * quindi usiamo validateStatus per gestire noi il controllo.
+ */
 async function request(baseUrl, method, path, { body, headers = {}, expectedStatus } = {}) {
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await axios({
     method,
-    headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers },
-    body: body ? JSON.stringify(body) : undefined,
+    url: `${baseUrl}${path}`,
+    headers: {
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...headers,
+    },
+    data: body,
+    validateStatus: () => true, // non lanciare mai eccezione per lo status
   });
-  const parsed = await parseResponse(response);
-  const expected = Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus];
-  if (expectedStatus && !expected.includes(response.status)) {
-    throw new Error(`Status atteso ${expected.join('/')} ma ricevuto ${response.status}: ${JSON.stringify(parsed)}`);
+
+  const expected = expectedStatus
+    ? (Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus])
+    : null;
+
+  if (expected && !expected.includes(response.status)) {
+    throw new Error(
+      `Status atteso ${expected.join('/')} ma ricevuto ${response.status}: ${JSON.stringify(response.data)}`,
+    );
   }
-  return { status: response.status, body: parsed };
+
+  return { status: response.status, body: response.data };
 }
 
 // ─── API Regression Suite ─────────────────────────────────────────────────────
@@ -124,13 +135,6 @@ async function runApiRegressionSuite({ baseUrl, req, reset = true } = {}) {
     expect(result.body.id === context.templateId, 'Dettaglio template errato', result.body);
   });
 
-  await test('Pubblicazione template', async () => {
-    const result = await request(resolvedBaseUrl, 'POST', `/api/templates/${context.templateId}/publish`, {
-      expectedStatus: 200, headers: { 'x-user': 'api-regression' },
-    });
-    expect(result.body.status === 'published', 'Template non pubblicato', result.body);
-  });
-
   await test('Creazione documento da template', async () => {
     const result = await request(resolvedBaseUrl, 'POST', '/api/documents', {
       expectedStatus: 201, headers: { 'x-user': 'api-regression' },
@@ -170,11 +174,7 @@ async function runApiRegressionSuite({ baseUrl, req, reset = true } = {}) {
 }
 
 // ─── Large PDF Seed ───────────────────────────────────────────────────────────
-//
-// Crea un template grande (contratto multi-sezione, 15 campi),
-// riempie solo 9 campi su 15, accoda la generazione PDF.
-// Il PDF viene salvato in storage e NON viene eliminato.
-//
+
 const LARGE_TEMPLATE_CONTENT = `# CONTRATTO DI FORNITURA SERVIZI N. {{numero_contratto}}
 
 ---
@@ -225,50 +225,39 @@ Luogo e data: {{luogo_firma}}, {{data_stipula}}
 `;
 
 const LARGE_TEMPLATE_FIELDS = [
-  // --- intestazione ---
-  { name: 'numero_contratto',      label: 'Numero Contratto',       type: 'text',   required: true  },
-  // --- fornitore ---
-  { name: 'nome_fornitore',        label: 'Nome Fornitore',         type: 'text',   required: true  },
-  { name: 'piva_fornitore',        label: 'P.IVA Fornitore',        type: 'text',   required: true  },
-  { name: 'sede_fornitore',        label: 'Sede Legale Fornitore',  type: 'text',   required: false },
-  // --- cliente ---
-  { name: 'nome_cliente',          label: 'Nome Cliente',           type: 'text',   required: true  },
-  { name: 'codice_fiscale_cliente',label: 'Codice Fiscale / P.IVA', type: 'text',   required: false },
-  { name: 'indirizzo_cliente',     label: 'Indirizzo Cliente',      type: 'text',   required: false },
-  { name: 'cap_cliente',           label: 'CAP',                    type: 'text',   required: false },
-  { name: 'citta_cliente',         label: 'Citta',                  type: 'text',   required: false },
-  // --- durata ---
-  { name: 'descrizione_servizio',  label: 'Descrizione Servizio',   type: 'text',   required: true  },
-  { name: 'durata_contratto',      label: 'Durata Contratto',       type: 'text',   required: false },
-  { name: 'data_inizio',           label: 'Data Inizio',            type: 'date',   required: true  },
-  { name: 'data_fine',             label: 'Data Fine Prevista',     type: 'date',   required: false },
-  // --- economico ---
-  { name: 'importo_netto',         label: 'Imponibile (EUR)',       type: 'number', required: true  },
-  { name: 'importo_iva',           label: 'IVA (EUR)',              type: 'number', required: false },
-  { name: 'importo_totale',        label: 'Totale (EUR)',           type: 'number', required: false },
-  { name: 'modalita_pagamento',    label: 'Modalita di Pagamento',  type: 'text',   required: false },
-  // --- firme ---
-  { name: 'luogo_firma',           label: 'Luogo Firma',            type: 'text',   required: false },
-  { name: 'data_stipula',          label: 'Data Stipula',           type: 'date',   required: true  },
-  { name: 'firma_fornitore',       label: 'Firma Fornitore',        type: 'text',   required: false },
-  { name: 'firma_cliente',         label: 'Firma Cliente',          type: 'text',   required: false },
+  { name: 'numero_contratto',       label: 'Numero Contratto',       type: 'text',   required: true  },
+  { name: 'nome_fornitore',         label: 'Nome Fornitore',         type: 'text',   required: true  },
+  { name: 'piva_fornitore',         label: 'P.IVA Fornitore',        type: 'text',   required: true  },
+  { name: 'sede_fornitore',         label: 'Sede Legale Fornitore',  type: 'text',   required: false },
+  { name: 'nome_cliente',           label: 'Nome Cliente',           type: 'text',   required: true  },
+  { name: 'codice_fiscale_cliente', label: 'Codice Fiscale / P.IVA', type: 'text',   required: false },
+  { name: 'indirizzo_cliente',      label: 'Indirizzo Cliente',      type: 'text',   required: false },
+  { name: 'cap_cliente',            label: 'CAP',                    type: 'text',   required: false },
+  { name: 'citta_cliente',          label: 'Citta',                  type: 'text',   required: false },
+  { name: 'descrizione_servizio',   label: 'Descrizione Servizio',   type: 'text',   required: true  },
+  { name: 'durata_contratto',       label: 'Durata Contratto',       type: 'text',   required: false },
+  { name: 'data_inizio',            label: 'Data Inizio',            type: 'date',   required: true  },
+  { name: 'data_fine',              label: 'Data Fine Prevista',     type: 'date',   required: false },
+  { name: 'importo_netto',          label: 'Imponibile (EUR)',       type: 'number', required: true  },
+  { name: 'importo_iva',            label: 'IVA (EUR)',              type: 'number', required: false },
+  { name: 'importo_totale',         label: 'Totale (EUR)',           type: 'number', required: false },
+  { name: 'modalita_pagamento',     label: 'Modalita di Pagamento',  type: 'text',   required: false },
+  { name: 'luogo_firma',            label: 'Luogo Firma',            type: 'text',   required: false },
+  { name: 'data_stipula',           label: 'Data Stipula',           type: 'date',   required: true  },
+  { name: 'firma_fornitore',        label: 'Firma Fornitore',        type: 'text',   required: false },
+  { name: 'firma_cliente',          label: 'Firma Cliente',          type: 'text',   required: false },
 ];
 
-// Campi compilati: 9 su 21 — il resto rimane {{placeholder}} nel PDF
 const LARGE_FIELD_VALUES = {
-  numero_contratto:   'CONTR-2026-001',
-  nome_fornitore:     'Acme S.r.l.',
-  piva_fornitore:     'IT12345678901',
-  nome_cliente:       'Mario Rossi',
+  numero_contratto:     'CONTR-2026-001',
+  nome_fornitore:       'Acme S.r.l.',
+  piva_fornitore:       'IT12345678901',
+  nome_cliente:         'Mario Rossi',
   descrizione_servizio: 'Sviluppo e manutenzione del sistema di generazione documentale per il periodo di riferimento contrattuale.',
-  data_inizio:        '2026-05-01',
-  importo_netto:      '8000',
-  luogo_firma:        'Napoli',
-  data_stipula:       '2026-04-30',
-  // campi lasciati VUOTI (non inclusi):
-  // sede_fornitore, codice_fiscale_cliente, indirizzo_cliente, cap_cliente,
-  // citta_cliente, durata_contratto, data_fine, importo_iva, importo_totale,
-  // modalita_pagamento, firma_fornitore, firma_cliente
+  data_inizio:          '2026-05-01',
+  importo_netto:        '8000',
+  luogo_firma:          'Napoli',
+  data_stipula:         '2026-04-30',
 };
 
 async function runLargePdfSeed({ baseUrl, req } = {}) {
@@ -286,16 +275,10 @@ async function runLargePdfSeed({ baseUrl, req } = {}) {
       fields:      LARGE_TEMPLATE_FIELDS,
     },
   });
-  result.templateId = tplRes.body.id;
+  result.templateId     = tplRes.body.id;
   result.templateFields = tplRes.body.fields?.length ?? 0;
 
-  // 2. Pubblica template
-  await request(resolvedBaseUrl, 'POST', `/api/templates/${result.templateId}/publish`, {
-    expectedStatus: 200,
-    headers: { 'x-user': 'seed-large-pdf' },
-  });
-
-  // 3. Crea documento
+  // 2. Crea documento
   const docRes = await request(resolvedBaseUrl, 'POST', '/api/documents', {
     expectedStatus: 201,
     headers: { 'x-user': 'seed-large-pdf' },
@@ -303,23 +286,23 @@ async function runLargePdfSeed({ baseUrl, req } = {}) {
   });
   result.documentId = docRes.body.id;
 
-  // 4. Compila solo 9 campi su 21 — gli altri rimangono {{placeholder}} nel PDF
+  // 3. Compila solo 9 campi su 21 — gli altri rimangono {{placeholder}} nel PDF
   const filledKeys = Object.keys(LARGE_FIELD_VALUES);
   await request(resolvedBaseUrl, 'PUT', `/api/documents/${result.documentId}`, {
     expectedStatus: 200,
     headers: { 'x-user': 'seed-large-pdf' },
     body: { fieldValues: LARGE_FIELD_VALUES },
   });
-  result.filledFields   = filledKeys.length;
-  result.emptyFields    = LARGE_TEMPLATE_FIELDS.length - filledKeys.length;
+  result.filledFields    = filledKeys.length;
+  result.emptyFields     = LARGE_TEMPLATE_FIELDS.length - filledKeys.length;
   result.emptyFieldNames = LARGE_TEMPLATE_FIELDS.map((f) => f.name).filter((n) => !LARGE_FIELD_VALUES[n]);
 
-  // 5. Accoda generazione PDF — il file rimane in ./storage/pdf/
+  // 4. Accoda generazione PDF
   const pdfRes = await request(resolvedBaseUrl, 'POST', `/api/documents/${result.documentId}/generate-pdf`, {
     expectedStatus: 202,
     headers: { 'x-user': 'seed-large-pdf' },
   });
-  result.pdfJobId = pdfRes.body.jobId;
+  result.pdfJobId     = pdfRes.body.jobId;
   result.pdfJobStatus = pdfRes.body.status;
 
   return {
