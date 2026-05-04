@@ -2,7 +2,7 @@
 
 const fs   = require('fs');
 const path = require('path');
-const { v4: uuidv4 }        = require('uuid');
+const { v4: uuidv4, validate: isUuid } = require('uuid');
 const { Injectable }        = require('@nestjs/common');
 const { getPool, withTransaction } = require('../../database/database');
 const { AuditService }      = require('../audit/audit.service');
@@ -16,6 +16,10 @@ const MAX_TEMPLATE_CONTENT_BYTES = Math.max(
 );
 
 // ─── helpers puri ─────────────────────────────────────────────────────────────
+
+function assertValidUuid(id) {
+  if (!id || !isUuid(id)) throw makeError(`ID non valido: deve essere un UUID v4 (es. 550e8400-e29b-41d4-a716-446655440000)`, 400);
+}
 
 function extractFields(content) {
   const regex = /\{\{(\w+)\}\}/g;
@@ -122,8 +126,9 @@ class TemplatesService {
     this.auditService = auditService;
   }
 
-  // Helper interno: findOne + 404 se non trovato
+  // Helper interno: valida UUID + findOne + 404 se non trovato
   async _findOneOrThrow(id) {
+    assertValidUuid(id);
     const t = await this.findOne(id);
     if (!t) throw makeError('Template non trovato', 404);
     return t;
@@ -135,6 +140,7 @@ class TemplatesService {
   }
 
   async findOne(id) {
+    assertValidUuid(id);
     return hydrateContent(await q.findById(id));
   }
 
