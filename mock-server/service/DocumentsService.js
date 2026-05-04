@@ -1,0 +1,20 @@
+'use strict';
+
+exports.documentsController_changeStatus = function(id) { return new Promise(r => r()); };
+exports.documentsController_create = function(body) { return new Promise(r => r()); };
+exports.documentsController_downloadPdf = function(id, jobId) { return new Promise(r => r()); };
+exports.documentsController_exportMd = function(id) { return new Promise(r => r()); };
+exports.documentsController_findAll = function(status, limit, offset) { return new Promise(r => r()); };
+exports.documentsController_findOne = function(id) { return new Promise(r => r()); };
+exports.documentsController_generatePdf = function(id) { return new Promise(r => r()); };
+exports.documentsController_getAudit = function(id, limit, offset) { return new Promise(r => r()); };
+exports.documentsController_getPdfJob = function(id, jobId) { return new Promise(r => r()); };
+exports.documentsController_getPdfJobs = function(id) { return new Promise(r => r()); };
+exports.documentsController_getVersionContent = function(id, version) { return new Promise(r => r()); };
+exports.documentsController_getVersions = function(id) { return new Promise(r => r()); };
+exports.documentsController_latestPdf = function(id) { return new Promise(r => r()); };
+exports.documentsController_previewPdf = function(id) { return new Promise(r => r()); };
+exports.documentsController_remove = function(id) { return new Promise(r => r()); };
+exports.documentsController_rename = function(id) { return new Promise(r => r()); };
+exports.documentsController_restoreVersion = function(id, version) { return new Promise(r => r()); };
+exports.documentsController_update = function(id) { return new Promise(r => r()); };
