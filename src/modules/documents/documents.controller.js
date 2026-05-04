@@ -61,27 +61,6 @@ class DocumentsController {
     };
   }
 
-  async getPdfJobs(id) {
-    const doc = await this.documentsService.findOne(id).catch(throwHttp);
-    if (!doc) throw new HttpException('Documento non trovato', 404);
-    return this.documentsService.getPdfJobs(id);
-  }
-
-  async getPdfJob(id, jobId) {
-    const job = await this.documentsService.getPdfJob(id, jobId).catch(throwHttp);
-    if (!job) throw new HttpException('Job PDF non trovato', 404);
-    return job;
-  }
-
-  async downloadPdf(id, jobId, res) {
-    const job    = await this.documentsService.getCompletedPdfJob(id, jobId).catch(throwHttp);
-    const stream = await pdfService.getPdfStream(job.filename).catch(throwHttp);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${job.filename}"`);
-    stream.on('error', (err) => res.status(500).end(err.message));
-    stream.pipe(res);
-  }
-
   async latestPdf(id, res) {
     const job    = await this.documentsService.getLatestCompletedPdfJob(id).catch(throwHttp);
     const stream = await pdfService.getPdfStream(job.filename).catch(throwHttp);
@@ -218,36 +197,12 @@ Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'generatePd
 Param('id')(proto, 'generatePdf', 0);
 Req()(proto, 'generatePdf', 1);
 
-// GET /documents/:id/pdf-jobs
-Get(':id/pdf-jobs')(proto, 'getPdfJobs', Object.getOwnPropertyDescriptor(proto, 'getPdfJobs'));
-ApiOperation({ summary: 'Lista job PDF del documento' })(proto, 'getPdfJobs', Object.getOwnPropertyDescriptor(proto, 'getPdfJobs'));
-ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'getPdfJobs', Object.getOwnPropertyDescriptor(proto, 'getPdfJobs'));
-Reflect.defineMetadata('design:paramtypes', [Object], proto, 'getPdfJobs');
-Param('id')(proto, 'getPdfJobs', 0);
-
-// GET /documents/:id/pdf-jobs/:jobId
-Get(':id/pdf-jobs/:jobId')(proto, 'getPdfJob', Object.getOwnPropertyDescriptor(proto, 'getPdfJob'));
-ApiOperation({ summary: 'Dettaglio job PDF' })(proto, 'getPdfJob', Object.getOwnPropertyDescriptor(proto, 'getPdfJob'));
-ApiParam({ name: 'id',    description: 'UUID documento' })(proto, 'getPdfJob', Object.getOwnPropertyDescriptor(proto, 'getPdfJob'));
-ApiParam({ name: 'jobId', description: 'UUID job PDF'   })(proto, 'getPdfJob', Object.getOwnPropertyDescriptor(proto, 'getPdfJob'));
-Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'getPdfJob');
-Param('id')(proto, 'getPdfJob', 0);
-Param('jobId')(proto, 'getPdfJob', 1);
-
-// GET /documents/:id/pdf-jobs/:jobId/download
-Get(':id/pdf-jobs/:jobId/download')(proto, 'downloadPdf', Object.getOwnPropertyDescriptor(proto, 'downloadPdf'));
-ApiOperation({ summary: 'Scarica PDF del job completato' })(proto, 'downloadPdf', Object.getOwnPropertyDescriptor(proto, 'downloadPdf'));
-ApiParam({ name: 'id',    description: 'UUID documento' })(proto, 'downloadPdf', Object.getOwnPropertyDescriptor(proto, 'downloadPdf'));
-ApiParam({ name: 'jobId', description: 'UUID job PDF'   })(proto, 'downloadPdf', Object.getOwnPropertyDescriptor(proto, 'downloadPdf'));
-Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'downloadPdf');
-Param('id')(proto, 'downloadPdf', 0);
-Param('jobId')(proto, 'downloadPdf', 1);
-Res()(proto, 'downloadPdf', 2);
-
-// GET /documents/:id/latest-pdf
-Get(':id/latest-pdf')(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
+// GET /documents/:id/pdf/latest
+Get(':id/pdf/latest')(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
 ApiOperation({ summary: "Scarica l'ultimo PDF completato" })(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
+ApiResponse({ status: 200, description: 'File PDF scaricato', content: { 'application/pdf': {} } })(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
+ApiResponse({ status: 404, description: 'Nessun PDF disponibile' })(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
 Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'latestPdf');
 Param('id')(proto, 'latestPdf', 0);
 Res()(proto, 'latestPdf', 1);
