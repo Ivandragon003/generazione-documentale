@@ -1,9 +1,7 @@
 // Auto-generated TypeScript client — MAC Documents API
 // Do not edit manually. Regenerate from openapi.yaml with swagger-codegen.
-// NOTE: basePath must be set in Configuration (e.g. http://localhost:8080 for mock, http://localhost:3000 for NestJS)
+// NOTE: basePath must be set in Configuration (e.g. http://localhost:3000 for NestJS)
 
-import * as url from "url";
-import * as isomorphicFetch from "isomorphic-fetch";
 import { Configuration } from "./configuration";
 
 const BASE_PATH = ""; // intentionally empty — always pass basePath via Configuration
@@ -15,7 +13,7 @@ export interface FetchArgs { url: string; options: any; }
 
 export class BaseAPI {
   protected configuration: Configuration;
-  constructor(configuration?: Configuration, protected basePath: string = BASE_PATH, protected fetch: FetchAPI = isomorphicFetch) {
+  constructor(configuration?: Configuration, protected basePath: string = BASE_PATH, protected fetch: FetchAPI = globalThis.fetch) {
     if (configuration) {
       this.configuration = configuration;
       this.basePath = configuration.basePath || this.basePath;
@@ -37,65 +35,24 @@ export interface TemplatesValidatefileBody { file?: Blob; }
 export interface TemplatesValidatemdBody { content: string; }
 
 // --- Health ---
-export const HealthApiFetchParamCreator = function(configuration?: Configuration) {
-  return {
-    healthControllerCheck(options: any = {}): FetchArgs {
-      const localVarPath = `/health`;
-      const localVarUrlObj = url.parse(localVarPath, true);
-      const localVarRequestOptions = Object.assign({ method: 'GET' }, options);
-      localVarUrlObj.search = null;
-      localVarRequestOptions.headers = Object.assign({}, options.headers);
-      return { url: url.format(localVarUrlObj), options: localVarRequestOptions };
-    }
-  };
-};
-
-export const HealthApiFp = function(configuration?: Configuration) {
-  return {
-    healthControllerCheck(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<InlineResponse200> {
-      const localVarFetchArgs = HealthApiFetchParamCreator(configuration).healthControllerCheck(options);
-      return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
-        return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then(response => {
-          if (response.status >= 200 && response.status < 300) return response.json();
-          throw response;
-        });
-      };
-    }
-  };
-};
-
 export class HealthApi extends BaseAPI {
   public healthControllerCheck(options?: any) {
-    return HealthApiFp(this.configuration).healthControllerCheck(options)(this.fetch, this.basePath);
+    return this.fetch(this.basePath + '/health', Object.assign({ method: 'GET' }, options)).then(r => { if (r.status >= 200 && r.status < 300) return r.json(); throw r; });
   }
 }
 
 // --- Audit ---
-export const AuditApiFetchParamCreator = function(configuration?: Configuration) {
-  return {
-    auditControllerFindAll(entityType?: string, actor?: string, fromDate?: any, toDate?: any, limit?: number, offset?: number, options: any = {}): FetchArgs {
-      const localVarPath = `/api/audit`;
-      const localVarUrlObj = url.parse(localVarPath, true);
-      const localVarRequestOptions = Object.assign({ method: 'GET' }, options);
-      const localVarQueryParameter = {} as any;
-      if (entityType !== undefined) localVarQueryParameter['entityType'] = entityType;
-      if (actor !== undefined) localVarQueryParameter['actor'] = actor;
-      if (fromDate !== undefined) localVarQueryParameter['fromDate'] = fromDate;
-      if (toDate !== undefined) localVarQueryParameter['toDate'] = toDate;
-      if (limit !== undefined) localVarQueryParameter['limit'] = limit;
-      if (offset !== undefined) localVarQueryParameter['offset'] = offset;
-      localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
-      localVarUrlObj.search = null;
-      localVarRequestOptions.headers = Object.assign({}, options.headers);
-      return { url: url.format(localVarUrlObj), options: localVarRequestOptions };
-    }
-  };
-};
-
 export class AuditApi extends BaseAPI {
   public auditControllerFindAll(entityType?: string, actor?: string, fromDate?: any, toDate?: any, limit?: number, offset?: number, options?: any) {
-    const args = AuditApiFetchParamCreator(this.configuration).auditControllerFindAll(entityType, actor, fromDate, toDate, limit, offset, options);
-    return this.fetch(this.basePath + args.url, args.options).then(r => { if (r.status >= 200 && r.status < 300) return r.json(); throw r; });
+    const q = new URLSearchParams();
+    if (entityType !== undefined) q.set('entityType', entityType);
+    if (actor !== undefined) q.set('actor', actor);
+    if (fromDate !== undefined) q.set('fromDate', String(fromDate));
+    if (toDate !== undefined) q.set('toDate', String(toDate));
+    if (limit !== undefined) q.set('limit', String(limit));
+    if (offset !== undefined) q.set('offset', String(offset));
+    const qs = q.toString() ? '?' + q.toString() : '';
+    return this.fetch(this.basePath + '/api/audit' + qs, Object.assign({ method: 'GET' }, options)).then(r => { if (r.status >= 200 && r.status < 300) return r.json(); throw r; });
   }
 }
 
@@ -131,7 +88,6 @@ export class DocumentsApi extends BaseAPI {
     if (!id) throw new RequiredError('id', 'Required');
     return this.fetch(this.basePath + `/api/documents/${encodeURIComponent(String(id))}`, Object.assign({ method: 'GET' }, options)).then(r => { if (r.status >= 200 && r.status < 300) return r.json(); throw r; });
   }
-  // FIX: PUT (non PATCH) — l'endpoint NestJS usa @Put(':id')
   public documentsControllerUpdate(id: any, options?: any) {
     if (!id) throw new RequiredError('id', 'Required');
     return this.fetch(this.basePath + `/api/documents/${encodeURIComponent(String(id))}`, Object.assign({ method: 'PUT' }, options)).then(r => { if (r.status >= 200 && r.status < 300) return r.json(); throw r; });
@@ -149,7 +105,6 @@ export class DocumentsApi extends BaseAPI {
     if (!jobId) throw new RequiredError('jobId', 'Required');
     return this.fetch(this.basePath + `/api/documents/${encodeURIComponent(String(id))}/pdf-jobs/${encodeURIComponent(String(jobId))}/download`, Object.assign({ method: 'GET' }, options)).then(r => { if (r.status >= 200 && r.status < 300) return r.json(); throw r; });
   }
-  // changeStatus e rename usano correttamente PATCH
   public documentsControllerChangeStatus(id: any, options?: any) {
     if (!id) throw new RequiredError('id', 'Required');
     return this.fetch(this.basePath + `/api/documents/${encodeURIComponent(String(id))}/status`, Object.assign({ method: 'PATCH' }, options)).then(r => { if (r.status >= 200 && r.status < 300) return r.json(); throw r; });
