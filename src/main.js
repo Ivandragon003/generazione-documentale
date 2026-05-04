@@ -25,7 +25,6 @@ async function bootstrap() {
     .addTag('health',    'Stato applicazione')
     .addTag('templates', 'Gestione template documentali')
     .addTag('documents', 'Gestione documenti generati')
-    .addTag('pdf',       'Utilità generazione PDF')
     .build();
 
   const swaggerDoc = SwaggerModule.createDocument(app, swaggerConfig);

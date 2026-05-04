@@ -109,12 +109,6 @@ class TemplatesController {
     return this.templatesService.validateMarkdown(body.content);
   }
 
-  async validateFile(file) {
-    if (!file) throw new HttpException('File mancante', 400);
-    const content = readAndCleanupUpload(file);
-    return { filename: file.originalname, ...this.templatesService.validateMarkdown(content) };
-  }
-
   async update(id, body, req) {
     const { name, description, content, fields } = body;
     return this.templatesService.update(id, {
@@ -264,24 +258,6 @@ ApiBody({
 })(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
 Reflect.defineMetadata('design:paramtypes', [Object], proto, 'validateMd');
 Body()(proto, 'validateMd', 0);
-
-// POST /templates/validate-file
-Post('validate-file')(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
-HttpCode(HttpStatus.OK)(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
-UseInterceptors(FileInterceptor('file', multerOptions))(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
-ApiOperation({ summary: 'Valida file .md caricato senza creare il template' })(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
-ApiConsumes('multipart/form-data')(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
-ApiBody({
-  schema: {
-    title: 'ValidateMarkdownFileDto',
-    type: 'object',
-    properties: {
-      file: { type: 'string', format: 'binary' },
-    },
-  },
-})(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
-Reflect.defineMetadata('design:paramtypes', [Object], proto, 'validateFile');
-UploadedFile()(proto, 'validateFile', 0);
 
 // PUT /templates/:id
 Put(':id')(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
