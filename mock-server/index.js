@@ -13,7 +13,8 @@ var options = {
   },
 };
 
-var expressAppConfig = oas3Tools.expressAppConfig(path.join(__dirname, 'api/openapi.yaml'), options);
+// openapi.json is at the repo root, one level up from mock-server/
+var expressAppConfig = oas3Tools.expressAppConfig(path.join(__dirname, '../openapi.json'), options);
 var app = expressAppConfig.getApp();
 
 // Initialize the Swagger middleware
