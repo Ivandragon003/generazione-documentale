@@ -1,16 +1,9 @@
 'use strict';
 
-const { Controller } = require('@nestjs/common');
-const { ApiTags }   = require('@nestjs/swagger');
-
-// Il registro audit globale è stato rimosso.
-// L'audit è accessibile contestualmente:
+// Il registro audit globale non esiste come endpoint separato.
+// L'audit è accessibile contestualmente via:
 //   GET /api/templates/:id/audit  → TemplatesController
 //   GET /api/documents/:id/audit  → DocumentsController
+// Non serve un AuditController: rimuovendolo la sezione "audit" sparisce dallo Swagger.
 
-class AuditController {}
-
-ApiTags('audit')(AuditController);
-Controller('audit')(AuditController);
-
-module.exports = { AuditController };
+module.exports = {};

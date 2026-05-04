@@ -12,22 +12,19 @@ async function bootstrap() {
     logger: ['log', 'warn', 'error'],
   });
 
-  // Prefisso globale /api — /health escluso (standard per load balancer / k8s)
   app.setGlobalPrefix('api', {
     exclude: ['health'],
   });
 
-  // Swagger UI — solo le API pubbliche, nessuna route di test/dev
+  // Swagger UI — solo le API pubbliche
+  // Nota: audit non ha una sezione dedicata, le sue route sono dentro templates e documents
   const swaggerConfig = new DocumentBuilder()
     .setTitle('MAC Documents API')
-    .setDescription(
-      'API per la generazione documentale basata su template Markdown.',
-    )
+    .setDescription('API per la generazione documentale basata su template Markdown.')
     .setVersion('1.0.0')
     .addTag('health',    'Stato applicazione')
     .addTag('templates', 'Gestione template documentali')
     .addTag('documents', 'Gestione documenti generati')
-    .addTag('audit',     'Registro audit immutabile')
     .addTag('pdf',       'Utilità generazione PDF')
     .build();
 
@@ -39,7 +36,6 @@ async function bootstrap() {
     },
   });
 
-  // Esporta la spec OpenAPI su file (solo in sviluppo)
   if (process.env.NODE_ENV !== 'production') {
     fs.writeFileSync('./openapi.json', JSON.stringify(swaggerDoc, null, 2), 'utf8');
     console.log('   OpenAPI JSON: openapi.json salvato nella root del progetto');
