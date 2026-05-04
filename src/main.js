@@ -29,13 +29,15 @@ async function bootstrap() {
     .addTag('templates', 'Gestione template documentali')
     .addTag('documents', 'Gestione documenti generati')
     .addTag('audit',     'Registro audit immutabile')
+    .addTag('pdf',       'Utilità generazione PDF')
+    .addTag('dev',       'Strumenti di sviluppo e test (solo NODE_ENV=development)')
     .build();
 
   const swaggerDoc = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api-docs', app, swaggerDoc, {
     swaggerOptions: {
       persistAuthorization: true,
-      defaultModelsExpandDepth: 1,   // 0 = collassati, 1 = espansi, -1 = nascosti
+      defaultModelsExpandDepth: 1,
     },
   });
 
