@@ -2,6 +2,7 @@
 
 require('dotenv').config();
 
+const fs = require('fs');
 const { NestFactory }   = require('@nestjs/core');
 const { SwaggerModule, DocumentBuilder } = require('@nestjs/swagger');
 const { AppModule }     = require('./app.module');
@@ -38,16 +39,22 @@ async function bootstrap() {
     },
   });
 
+  // Esporta la spec OpenAPI su file (solo in sviluppo)
+  if (process.env.NODE_ENV !== 'production') {
+    fs.writeFileSync('./openapi.json', JSON.stringify(swaggerDoc, null, 2), 'utf8');
+    console.log('   OpenAPI JSON: openapi.json salvato nella root del progetto');
+  }
+
   const port = parseInt(process.env.PORT, 10) || 3000;
   await app.listen(port);
 
-  console.log(`\n\u2705 MAC Documents API avviata su http://localhost:${port}`);
+  console.log(`\n✅ MAC Documents API avviata su http://localhost:${port}`);
   console.log(`   Swagger UI  : http://localhost:${port}/api-docs`);
   console.log(`   Health check: http://localhost:${port}/health`);
   console.log(`   API routes  : http://localhost:${port}/api/...\n`);
 }
 
 bootstrap().catch((err) => {
-  console.error('\u274c Errore avvio applicazione:', err.message);
+  console.error('❌ Errore avvio applicazione:', err.message);
   process.exit(1);
 });

@@ -1,0 +1,1104 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "summary": "Health check applicazione",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Applicazione attiva",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/audit": {
+      "get": {
+        "operationId": "AuditController_findAll",
+        "summary": "Registro audit globale",
+        "parameters": [
+          {
+            "name": "entityType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "template",
+                "document"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "actor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fromDate",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "toDate",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/templates": {
+      "get": {
+        "operationId": "TemplatesController_findAll",
+        "summary": "Lista template",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "draft",
+                "published"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "templates"
+        ]
+      },
+      "post": {
+        "operationId": "TemplatesController_create",
+        "summary": "Crea template (JSON)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [
+                  "name",
+                  "content"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Template Contratto"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string",
+                    "example": "# {{titolo}}\n\nCliente: {{cliente}}"
+                  },
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/api/templates/{id}": {
+      "get": {
+        "operationId": "TemplatesController_findOne",
+        "summary": "Dettaglio template",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID template",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Template non trovato"
+          }
+        },
+        "tags": [
+          "templates"
+        ]
+      },
+      "put": {
+        "operationId": "TemplatesController_update",
+        "summary": "Aggiorna template (crea nuova versione)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID template",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "templates"
+        ]
+      },
+      "delete": {
+        "operationId": "TemplatesController_remove",
+        "summary": "Elimina template",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID template",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/api/templates/{id}/versions": {
+      "get": {
+        "operationId": "TemplatesController_getVersions",
+        "summary": "Cronologia versioni template",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID template",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/api/templates/{id}/versions/{version}": {
+      "get": {
+        "operationId": "TemplatesController_getVersionContent",
+        "summary": "Contenuto di una versione specifica",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID template",
+            "schema": {}
+          },
+          {
+            "name": "version",
+            "required": true,
+            "in": "path",
+            "description": "Numero versione (intero positivo)",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/api/templates/upload": {
+      "post": {
+        "operationId": "TemplatesController_importFile",
+        "summary": "Importa template da file .md (multipart)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/api/templates/validate-md": {
+      "post": {
+        "operationId": "TemplatesController_validateMd",
+        "summary": "Valida contenuto Markdown senza creare il template",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [
+                  "content"
+                ],
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/api/templates/validate-file": {
+      "post": {
+        "operationId": "TemplatesController_validateFile",
+        "summary": "Valida file .md caricato senza creare il template",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/api/templates/{id}/publish": {
+      "post": {
+        "operationId": "TemplatesController_publish",
+        "summary": "Pubblica il template",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID template",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/api/templates/{id}/restore/{version}": {
+      "post": {
+        "operationId": "TemplatesController_restore",
+        "summary": "Ripristina una versione precedente del template",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID template",
+            "schema": {}
+          },
+          {
+            "name": "version",
+            "required": true,
+            "in": "path",
+            "description": "Versione da ripristinare",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/api/templates/{id}/export": {
+      "get": {
+        "operationId": "TemplatesController_exportMd",
+        "summary": "Scarica il template come file .md",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID template",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File .md in download",
+            "content": {
+              "text/markdown": {}
+            }
+          }
+        },
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/api/documents": {
+      "get": {
+        "operationId": "DocumentsController_findAll",
+        "summary": "Lista documenti",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "draft",
+                "generated",
+                "published",
+                "archived"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      },
+      "post": {
+        "operationId": "DocumentsController_create",
+        "summary": "Crea documento da template",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "required": [
+                  "name",
+                  "templateId"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Capitolato Beta"
+                  },
+                  "templateId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}": {
+      "get": {
+        "operationId": "DocumentsController_findOne",
+        "summary": "Dettaglio documento",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Documento non trovato"
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      },
+      "put": {
+        "operationId": "DocumentsController_update",
+        "summary": "Aggiorna contenuto/fieldValues documento",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      },
+      "delete": {
+        "operationId": "DocumentsController_remove",
+        "summary": "Elimina documento",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}/rename": {
+      "patch": {
+        "operationId": "DocumentsController_rename",
+        "summary": "Rinomina documento",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}/status": {
+      "patch": {
+        "operationId": "DocumentsController_changeStatus",
+        "summary": "Cambia stato documento",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}/generate-pdf": {
+      "post": {
+        "operationId": "DocumentsController_generatePdf",
+        "summary": "Accoda generazione PDF asincrona",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Job PDF accodato"
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}/pdf-jobs": {
+      "get": {
+        "operationId": "DocumentsController_getPdfJobs",
+        "summary": "Lista job PDF del documento",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}/pdf-jobs/{jobId}": {
+      "get": {
+        "operationId": "DocumentsController_getPdfJob",
+        "summary": "Dettaglio job PDF",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          },
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "description": "UUID job PDF",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}/pdf-jobs/{jobId}/download": {
+      "get": {
+        "operationId": "DocumentsController_downloadPdf",
+        "summary": "Scarica PDF del job completato",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          },
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "description": "UUID job PDF",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}/latest-pdf": {
+      "get": {
+        "operationId": "DocumentsController_latestPdf",
+        "summary": "Scarica l'ultimo PDF completato",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}/preview-pdf": {
+      "get": {
+        "operationId": "DocumentsController_previewPdf",
+        "summary": "Anteprima PDF temporanea (non salvata)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}/versions": {
+      "get": {
+        "operationId": "DocumentsController_getVersions",
+        "summary": "Cronologia versioni documento",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}/versions/{version}": {
+      "get": {
+        "operationId": "DocumentsController_getVersionContent",
+        "summary": "Contenuto di una versione specifica del documento",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          },
+          {
+            "name": "version",
+            "required": true,
+            "in": "path",
+            "description": "Numero versione",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}/restore/{version}": {
+      "post": {
+        "operationId": "DocumentsController_restoreVersion",
+        "summary": "Ripristina una versione precedente del documento",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          },
+          {
+            "name": "version",
+            "required": true,
+            "in": "path",
+            "description": "Versione da ripristinare",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}/export-md": {
+      "get": {
+        "operationId": "DocumentsController_exportMd",
+        "summary": "Esporta documento come file .md",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/documents/{id}/audit": {
+      "get": {
+        "operationId": "DocumentsController_getAudit",
+        "summary": "Audit log del documento",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID documento",
+            "schema": {}
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/pdf/templates/{templateId}/validate": {
+      "post": {
+        "operationId": "PdfController_validateTemplate",
+        "summary": "Valida disponibilità template per generazione PDF",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "description": "UUID template",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stato disponibilità template"
+          },
+          "404": {
+            "description": "Template non trovato"
+          }
+        },
+        "tags": [
+          "pdf"
+        ]
+      }
+    },
+    "/api/dev/test-runs/execute": {
+      "post": {
+        "operationId": "DevController_executeTestRun",
+        "summary": "Esegue la suite di regression test API",
+        "description": "Bloccato in NODE_ENV=production.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Tutti i test superati"
+          },
+          "500": {
+            "description": "Almeno un test fallito"
+          }
+        },
+        "tags": [
+          "dev"
+        ]
+      }
+    },
+    "/api/dev/reset": {
+      "post": {
+        "operationId": "DevController_reset",
+        "summary": "Reset dati e storage (solo dev/test)",
+        "description": "Richiede header x-reset-confirm: true. Bloccato in produzione.",
+        "parameters": [
+          {
+            "name": "x-reset-confirm",
+            "in": "header",
+            "description": "Deve essere \"true\"",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reset completato con fixture"
+          },
+          "400": {
+            "description": "Header mancante"
+          },
+          "403": {
+            "description": "Non disponibile in produzione"
+          }
+        },
+        "tags": [
+          "dev"
+        ]
+      }
+    },
+    "/api/dev/seed-large-pdf": {
+      "post": {
+        "operationId": "DevController_seedLargePdf",
+        "summary": "Seed template grande con campi parziali + generazione PDF",
+        "description": "Crea un template contrattuale multi-sezione con 21 campi. Compila solo 9 campi (sede, CF cliente, CAP, durata, importi IVA/totale, modalita pagamento e firme rimangono come {{placeholder}} nel PDF). Il file PDF generato viene mantenuto in storage. Bloccato in produzione.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "PDF accodato, IDs restituiti"
+          },
+          "403": {
+            "description": "Non disponibile in produzione"
+          }
+        },
+        "tags": [
+          "dev"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "MAC Documents API",
+    "description": "API per la generazione documentale basata su template Markdown.\n\n**Ambienti di sviluppo:** le route /api/dev/* sono disponibili solo con NODE_ENV=development.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "health",
+      "description": "Stato applicazione"
+    },
+    {
+      "name": "templates",
+      "description": "Gestione template documentali"
+    },
+    {
+      "name": "documents",
+      "description": "Gestione documenti generati"
+    },
+    {
+      "name": "audit",
+      "description": "Registro audit immutabile"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "schemas": {}
+  }
+}

@@ -1,3 +1,5 @@
+'use strict';
+
 const { getPool } = require('../../database/database');
 
 /**
@@ -5,7 +7,8 @@ const { getPool } = require('../../database/database');
  */
 async function findAll({ status, limit = 20, offset = 0 } = {}) {
   const pool = getPool();
-  let query = 'SELECT id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at FROM documents WHERE 1=1';
+  let query =
+    'SELECT id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at FROM documents WHERE 1=1';
   const params = [];
   let paramIndex = 1;
 
@@ -34,7 +37,7 @@ async function findById(id) {
   const result = await pool.query(
     `SELECT id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at
      FROM documents WHERE id = $1`,
-    [id]
+    [id],
   );
   return result.rows[0] || null;
 }
@@ -47,7 +50,7 @@ async function insertDocument(client, { name, templateId, templateVersion, conte
     `INSERT INTO documents (name, template_id, template_version, content, created_by)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at`,
-    [name, templateId, templateVersion, content, createdBy]
+    [name, templateId, templateVersion, content, createdBy],
   );
   return result.rows[0];
 }
@@ -60,7 +63,7 @@ async function insertDocumentVersion(client, { documentId, version, content, fie
     `INSERT INTO document_versions (document_id, version, content, field_values, action, created_by)
      VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING id, document_id, version, content, field_values, action, created_by, created_at`,
-    [documentId, version, content, JSON.stringify(fieldValues), action, createdBy]
+    [documentId, version, content, JSON.stringify(fieldValues), action, createdBy],
   );
   return result.rows[0];
 }
@@ -73,7 +76,7 @@ async function updateDocument(client, { id, name, content, fieldValues }) {
     `UPDATE documents SET name = $1, content = $2, field_values = $3, updated_at = NOW()
      WHERE id = $4
      RETURNING id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at`,
-    [name, content, JSON.stringify(fieldValues), id]
+    [name, content, JSON.stringify(fieldValues), id],
   );
   return result.rows[0];
 }
@@ -85,7 +88,7 @@ async function getMaxVersion(id) {
   const pool = getPool();
   const result = await pool.query(
     `SELECT COALESCE(MAX(version), 0) as max_version FROM document_versions WHERE document_id = $1`,
-    [id]
+    [id],
   );
   return parseInt(result.rows[0].max_version, 10);
 }
@@ -98,7 +101,7 @@ async function changeDocumentStatus(id, newStatus) {
   const result = await pool.query(
     `UPDATE documents SET status = $1, updated_at = NOW() WHERE id = $2
      RETURNING id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at`,
-    [newStatus, id]
+    [newStatus, id],
   );
   return result.rows[0];
 }
@@ -111,7 +114,7 @@ async function renameDocument(id, newName) {
   const result = await pool.query(
     `UPDATE documents SET name = $1, updated_at = NOW() WHERE id = $2
      RETURNING id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at`,
-    [newName, id]
+    [newName, id],
   );
   return result.rows[0];
 }
@@ -123,7 +126,7 @@ async function restoreDocument(client, { id, content, fieldValues }) {
   const result = await client.query(
     `UPDATE documents SET content = $1, field_values = $2, updated_at = NOW() WHERE id = $3
      RETURNING id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at`,
-    [content, JSON.stringify(fieldValues), id]
+    [content, JSON.stringify(fieldValues), id],
   );
   return result.rows[0];
 }
@@ -136,7 +139,7 @@ async function findVersionById(id, version) {
   const result = await pool.query(
     `SELECT id, document_id, version, content, field_values, action, created_by, created_at
      FROM document_versions WHERE document_id = $1 AND version = $2`,
-    [id, version]
+    [id, version],
   );
   return result.rows[0] || null;
 }
@@ -149,7 +152,7 @@ async function findVersions(id) {
   const result = await pool.query(
     `SELECT id, document_id, version, content, field_values, action, created_by, created_at
      FROM document_versions WHERE document_id = $1 ORDER BY version DESC`,
-    [id]
+    [id],
   );
   return result.rows;
 }
@@ -161,13 +164,15 @@ async function deleteDocument(id) {
   const pool = getPool();
   const result = await pool.query(
     `DELETE FROM documents WHERE id = $1 RETURNING id`,
-    [id]
+    [id],
   );
   return result.rows[0];
 }
 
 /**
- * Inserisce un job per generare PDF
+ * Inserisce un job per generare PDF.
+ * Usa solo requested_by — created_by è rimosso perché ridondante
+ * (il job appartiene sempre a chi lo richiede).
  */
 async function insertPdfJob(documentId, actor = 'system') {
   const pool = getPool();
@@ -175,7 +180,7 @@ async function insertPdfJob(documentId, actor = 'system') {
     `INSERT INTO pdf_jobs (document_id, requested_by)
      VALUES ($1, $2)
      RETURNING id, document_id, status, filename, unresolved_fields, error, requested_by, created_at, started_at, completed_at`,
-    [documentId, actor]
+    [documentId, actor],
   );
   return result.rows[0];
 }
@@ -188,7 +193,7 @@ async function findPdfJobById(id) {
   const result = await pool.query(
     `SELECT id, document_id, status, filename, unresolved_fields, error, requested_by, created_at, started_at, completed_at
      FROM pdf_jobs WHERE id = $1`,
-    [id]
+    [id],
   );
   return result.rows[0] || null;
 }
@@ -200,7 +205,7 @@ async function updatePdfJobRunning(id) {
   const pool = getPool();
   await pool.query(
     `UPDATE pdf_jobs SET status = 'running', started_at = NOW() WHERE id = $1`,
-    [id]
+    [id],
   );
 }
 
@@ -212,7 +217,7 @@ async function updatePdfJobCompleted(id, filename, unresolvedFields) {
   await pool.query(
     `UPDATE pdf_jobs SET status = 'completed', filename = $1, unresolved_fields = $2, completed_at = NOW()
      WHERE id = $3`,
-    [filename, JSON.stringify(unresolvedFields), id]
+    [filename, JSON.stringify(unresolvedFields), id],
   );
 }
 
@@ -223,7 +228,7 @@ async function updatePdfJobFailed(id, errorMessage) {
   const pool = getPool();
   await pool.query(
     `UPDATE pdf_jobs SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2`,
-    [errorMessage, id]
+    [errorMessage, id],
   );
 }
 
@@ -234,7 +239,7 @@ async function updateDocumentStatusGenerated(id) {
   const pool = getPool();
   await pool.query(
     `UPDATE documents SET status = 'generated' WHERE id = $1`,
-    [id]
+    [id],
   );
 }
 
@@ -246,7 +251,7 @@ async function findPdfJob(documentId, jobId) {
   const result = await pool.query(
     `SELECT id, document_id, status, filename, unresolved_fields, error, requested_by, created_at, started_at, completed_at
      FROM pdf_jobs WHERE document_id = $1 AND id = $2`,
-    [documentId, jobId]
+    [documentId, jobId],
   );
   return result.rows[0] || null;
 }
@@ -259,7 +264,7 @@ async function findLatestCompletedPdfJob(documentId) {
   const result = await pool.query(
     `SELECT id, document_id, status, filename, unresolved_fields, error, requested_by, created_at, started_at, completed_at
      FROM pdf_jobs WHERE document_id = $1 AND status = 'completed' ORDER BY completed_at DESC LIMIT 1`,
-    [documentId]
+    [documentId],
   );
   return result.rows[0] || null;
 }
@@ -272,19 +277,19 @@ async function findPdfJobsByDocument(documentId) {
   const result = await pool.query(
     `SELECT id, document_id, status, filename, unresolved_fields, error, requested_by, created_at, started_at, completed_at
      FROM pdf_jobs WHERE document_id = $1 ORDER BY created_at DESC`,
-    [documentId]
+    [documentId],
   );
   return result.rows;
 }
 
 /**
- * Trova tutti i job PDF in coda
+ * Trova tutti i job PDF in coda (usato al riavvio per recovery)
  */
 async function findQueuedPdfJobs() {
   const pool = getPool();
   const result = await pool.query(
     `SELECT id, document_id, status, filename, unresolved_fields, error, requested_by, created_at, started_at, completed_at
-     FROM pdf_jobs WHERE status = 'queued' ORDER BY created_at ASC`
+     FROM pdf_jobs WHERE status = 'queued' ORDER BY created_at ASC`,
   );
   return result.rows;
 }

@@ -1,3 +1,5 @@
+'use strict';
+
 const { Injectable } = require('@nestjs/common');
 const q = require('./audit.queries');
 
@@ -15,8 +17,12 @@ class AuditService {
     return q.findByEntity(entityType, entityId, { limit, offset });
   }
 
+  /**
+   * Restituisce { data, total, limit, offset } coerente con gli altri moduli.
+   */
   async findAll({ entityType, actor, fromDate, toDate, limit = 50, offset = 0 } = {}) {
-    return q.findAll({ entityType, actor, fromDate, toDate, limit, offset });
+    const { data, total } = await q.findAll({ entityType, actor, fromDate, toDate, limit, offset });
+    return { data, total, limit, offset };
   }
 }
 

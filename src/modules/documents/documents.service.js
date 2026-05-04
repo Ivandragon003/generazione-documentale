@@ -9,8 +9,8 @@ const pdfService = require('./pdf.service');
 const q          = require('./documents.queries');
 
 const PDF_JOB_CONCURRENCY = Math.max(parseInt(process.env.PDF_JOB_CONCURRENCY || '1', 10), 1);
-let activePdfJobs     = 0;
-const queuedPdfJobs   = [];
+let activePdfJobs        = 0;
+const queuedPdfJobs      = [];
 let queueRecoveryStarted = false;
 
 function enqueuePdfJob(task) {
@@ -31,12 +31,11 @@ function drainPdfQueue() {
 
 class DocumentsService {
   constructor(auditService, templatesService) {
-    this.auditService      = auditService;
-    this.templatesService  = templatesService;
+    this.auditService     = auditService;
+    this.templatesService = templatesService;
     setImmediate(() => { this._ensureQueueRecovery().catch(() => {}); });
   }
 
-  // Helper interno: findOne + 404 se non trovato
   async _findOneOrThrow(id) {
     const doc = await this.findOne(id);
     if (!doc) throw makeError('Documento non trovato', 404);
@@ -62,7 +61,7 @@ class DocumentsService {
   async findOne(id) { return q.findById(id); }
 
   async create({ name, templateId, created_by = 'system' }) {
-    if (!name || name.trim().length === 0) throw makeError('Il nome documento e obbligatorio', 400);
+    if (!name || name.trim().length === 0) throw makeError('Il nome documento è obbligatorio', 400);
     const template = await this.templatesService.findOne(templateId);
     if (!template) throw makeError('Template non trovato', 404);
 
@@ -99,10 +98,10 @@ class DocumentsService {
       throw makeError('fieldValues deve essere un oggetto', 400);
     }
 
-    const maxVer       = await q.getMaxVersion(id);
-    const nextVersion  = maxVer + 1;
-    const newContent   = content      !== undefined ? content      : existing.content;
-    const newFieldValues = fieldValues !== undefined ? fieldValues : existing.field_values;
+    const maxVer         = await q.getMaxVersion(id);
+    const nextVersion    = maxVer + 1;
+    const newContent     = content      !== undefined ? content      : existing.content;
+    const newFieldValues = fieldValues  !== undefined ? fieldValues  : existing.field_values;
 
     const updated = await withTransaction(getPool(), async (client) => {
       const d = await q.updateDocument(client, {
@@ -120,9 +119,29 @@ class DocumentsService {
     return updated;
   }
 
+  /**
+   * Valida i campi obbligatori prima di accodare il job.
+   * Restituisce l'elenco dei campi mancanti senza lanciare eccezione —
+   * la decisione di bloccare o avvisare spetta al chiamante.
+   */
+  async _getMissingRequiredFields(doc) {
+    const fields = await this._getFieldDefinitions(doc);
+    return pdfService.getMissingRequiredFields(fields, doc.field_values || {});
+  }
+
   async enqueuePdfGeneration(id, actor = 'system') {
     await this._ensureQueueRecovery();
     const doc = await this._findOneOrThrow(id);
+
+    // Pre-validazione: blocca subito se mancano campi obbligatori
+    const missing = await this._getMissingRequiredFields(doc);
+    if (missing.length > 0) {
+      throw makeError(
+        `Campi obbligatori non compilati: ${missing.join(', ')}`,
+        422,
+      );
+    }
+
     const job = await q.insertPdfJob(id, actor);
     enqueuePdfJob(() => this.processPdfJob(job.id));
     await this.auditService.log('document', id, 'enqueue_pdf', actor, { job_id: job.id });
@@ -191,7 +210,7 @@ class DocumentsService {
   }
 
   async rename(id, newName, actor = 'system') {
-    if (!newName || newName.trim().length === 0) throw makeError('Il nome non puo essere vuoto', 400);
+    if (!newName || newName.trim().length === 0) throw makeError('Il nome non può essere vuoto', 400);
     if (newName.trim().length > 255) throw makeError('Nome troppo lungo (max 255 caratteri)', 400);
     const existing = await this._findOneOrThrow(id);
     const updated  = await q.renameDocument(id, newName.trim());
@@ -227,7 +246,7 @@ class DocumentsService {
     return restored;
   }
 
-  async getVersions(id)               { return q.findVersions(id); }
+  async getVersions(id)                { return q.findVersions(id); }
   async getVersionContent(id, version) { return q.findVersionById(id, version); }
 
   async delete(id, actor = 'system') {

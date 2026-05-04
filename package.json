@@ -5,7 +5,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "node src/main.js",
-    "start:dev": "nodemon src/main.js",
+    "start:dev": "nodemon --ignore openapi.json src/main.js",
     "migrate": "node migrations/run.js",
     "check:pandoc": "node scripts/check-pandoc.js",
     "test:api": "node scripts/run-api-tests.js"
