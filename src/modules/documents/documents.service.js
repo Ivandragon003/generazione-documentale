@@ -119,11 +119,6 @@ class DocumentsService {
     return updated;
   }
 
-  /**
-   * Valida i campi obbligatori prima di accodare il job.
-   * Restituisce l'elenco dei campi mancanti senza lanciare eccezione —
-   * la decisione di bloccare o avvisare spetta al chiamante.
-   */
   async _getMissingRequiredFields(doc) {
     const fields = await this._getFieldDefinitions(doc);
     return pdfService.getMissingRequiredFields(fields, doc.field_values || {});
@@ -133,7 +128,6 @@ class DocumentsService {
     await this._ensureQueueRecovery();
     const doc = await this._findOneOrThrow(id);
 
-    // Pre-validazione: blocca subito se mancano campi obbligatori
     const missing = await this._getMissingRequiredFields(doc);
     if (missing.length > 0) {
       throw makeError(
@@ -196,28 +190,6 @@ class DocumentsService {
       { title: doc.name, strict: false, fields },
     );
     return { filename };
-  }
-
-  async changeStatus(id, newStatus, actor = 'system') {
-    const allowed = ['draft', 'generated', 'published', 'archived'];
-    if (!allowed.includes(newStatus)) throw makeError('Stato non valido', 400);
-    const existing = await this._findOneOrThrow(id);
-    await q.changeDocumentStatus(id, newStatus);
-    await this.auditService.log('document', id, 'status_change', actor, {
-      from: existing.status, to: newStatus,
-    });
-    return { ...existing, status: newStatus };
-  }
-
-  async rename(id, newName, actor = 'system') {
-    if (!newName || newName.trim().length === 0) throw makeError('Il nome non può essere vuoto', 400);
-    if (newName.trim().length > 255) throw makeError('Nome troppo lungo (max 255 caratteri)', 400);
-    const existing = await this._findOneOrThrow(id);
-    const updated  = await q.renameDocument(id, newName.trim());
-    await this.auditService.log('document', id, 'rename', actor, {
-      from: existing.name, to: newName.trim(),
-    });
-    return updated;
   }
 
   async restore(id, targetVersion, actor = 'system') {
