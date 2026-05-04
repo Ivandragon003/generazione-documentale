@@ -202,12 +202,25 @@ HttpCode(HttpStatus.CREATED)(proto, 'create', Object.getOwnPropertyDescriptor(pr
 ApiOperation({ summary: 'Crea template (JSON)' })(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
 ApiBody({
   schema: {
+    title: 'CreateTemplateDto',
     required: ['name', 'content'],
     properties: {
       name:        { type: 'string', example: 'Template Contratto' },
       description: { type: 'string' },
       content:     { type: 'string', example: '# {{titolo}}\n\nCliente: {{cliente}}' },
-      fields:      { type: 'array', items: { type: 'object' } },
+      fields:      {
+        type: 'array',
+        items: {
+          title: 'TemplateFieldDto',
+          type: 'object',
+          properties: {
+            name:     { type: 'string', example: 'titolo' },
+            label:    { type: 'string', example: 'Titolo' },
+            type:     { type: 'string', enum: ['text', 'number', 'date', 'boolean'], example: 'text' },
+            required: { type: 'boolean', example: true },
+          },
+        },
+      },
     },
   },
 })(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
@@ -222,7 +235,14 @@ UseInterceptors(FileInterceptor('file', multerOptions))(proto, 'importFile', Obj
 ApiOperation({ summary: 'Importa template da file .md (multipart)' })(proto, 'importFile', Object.getOwnPropertyDescriptor(proto, 'importFile'));
 ApiConsumes('multipart/form-data')(proto, 'importFile', Object.getOwnPropertyDescriptor(proto, 'importFile'));
 ApiBody({
-  schema: { type: 'object', properties: { name: { type: 'string' }, file: { type: 'string', format: 'binary' } } },
+  schema: {
+    title: 'ImportTemplateFileDto',
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Nome del template (opzionale, default: nome file)' },
+      file: { type: 'string', format: 'binary' },
+    },
+  },
 })(proto, 'importFile', Object.getOwnPropertyDescriptor(proto, 'importFile'));
 Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'importFile');
 UploadedFile()(proto, 'importFile', 0);
@@ -234,7 +254,13 @@ Post('validate-md')(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 
 HttpCode(HttpStatus.OK)(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
 ApiOperation({ summary: 'Valida contenuto Markdown senza creare il template' })(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
 ApiBody({
-  schema: { required: ['content'], properties: { content: { type: 'string' } } },
+  schema: {
+    title: 'ValidateMarkdownDto',
+    required: ['content'],
+    properties: {
+      content: { type: 'string', example: '# {{titolo}}\n\nCliente: {{cliente}}' },
+    },
+  },
 })(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
 Reflect.defineMetadata('design:paramtypes', [Object], proto, 'validateMd');
 Body()(proto, 'validateMd', 0);
@@ -246,7 +272,13 @@ UseInterceptors(FileInterceptor('file', multerOptions))(proto, 'validateFile', O
 ApiOperation({ summary: 'Valida file .md caricato senza creare il template' })(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
 ApiConsumes('multipart/form-data')(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
 ApiBody({
-  schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
+  schema: {
+    title: 'ValidateMarkdownFileDto',
+    type: 'object',
+    properties: {
+      file: { type: 'string', format: 'binary' },
+    },
+  },
 })(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
 Reflect.defineMetadata('design:paramtypes', [Object], proto, 'validateFile');
 UploadedFile()(proto, 'validateFile', 0);
@@ -255,6 +287,17 @@ UploadedFile()(proto, 'validateFile', 0);
 Put(':id')(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
 ApiOperation({ summary: 'Aggiorna template (crea nuova versione)' })(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
+ApiBody({
+  schema: {
+    title: 'UpdateTemplateDto',
+    properties: {
+      name:        { type: 'string' },
+      description: { type: 'string' },
+      content:     { type: 'string' },
+      fields:      { type: 'array', items: { type: 'object' } },
+    },
+  },
+})(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
 Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'update');
 Param('id')(proto, 'update', 0);
 Body()(proto, 'update', 1);

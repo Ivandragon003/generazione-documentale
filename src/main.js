@@ -35,7 +35,7 @@ async function bootstrap() {
   SwaggerModule.setup('api-docs', app, swaggerDoc, {
     swaggerOptions: {
       persistAuthorization: true,
-      defaultModelsExpandDepth: -1,
+      defaultModelsExpandDepth: 1,   // 0 = collassati, 1 = espansi, -1 = nascosti
     },
   });
 

@@ -172,10 +172,11 @@ HttpCode(HttpStatus.CREATED)(proto, 'create', Object.getOwnPropertyDescriptor(pr
 ApiOperation({ summary: 'Crea documento da template' })(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
 ApiBody({
   schema: {
+    title: 'CreateDocumentDto',
     required: ['name', 'templateId'],
     properties: {
       name:       { type: 'string', example: 'Capitolato Beta' },
-      templateId: { type: 'string', format: 'uuid' },
+      templateId: { type: 'string', format: 'uuid', example: '123e4567-e89b-12d3-a456-426614174000' },
     },
   },
 })(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
@@ -187,6 +188,21 @@ Req()(proto, 'create', 1);
 Put(':id')(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
 ApiOperation({ summary: 'Aggiorna contenuto/fieldValues documento' })(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
+ApiBody({
+  schema: {
+    title: 'UpdateDocumentDto',
+    properties: {
+      name:        { type: 'string' },
+      content:     { type: 'string' },
+      fieldValues: {
+        type: 'object',
+        description: 'Mappa chiave-valore dei campi template',
+        additionalProperties: { type: 'string' },
+        example: { titolo: 'Contratto 2026', cliente: 'Mario Rossi', importo: '1000' },
+      },
+    },
+  },
+})(proto, 'update', Object.getOwnPropertyDescriptor(proto, 'update'));
 Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'update');
 Param('id')(proto, 'update', 0);
 Body()(proto, 'update', 1);
