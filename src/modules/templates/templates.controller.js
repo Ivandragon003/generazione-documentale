@@ -13,6 +13,7 @@ const {
 } = require('@nestjs/swagger');
 
 const { TemplatesService } = require('./templates.service');
+const { AuditService }     = require('../audit/audit.service');
 const {
   getActor, parsePagination, parseVersionOrThrow, readAndCleanupUpload,
 } = require('../common/http.utils');
@@ -41,8 +42,9 @@ function throwHttp(err) {
 }
 
 class TemplatesController {
-  constructor(templatesService) {
+  constructor(templatesService, auditService) {
     this.templatesService = templatesService;
+    this.auditService     = auditService;
   }
 
   async findAll(query) {
@@ -70,6 +72,21 @@ class TemplatesController {
     const content = await this.templatesService.getVersionContent(id, ver).catch(throwHttp);
     if (!content) throw new HttpException('Versione non trovata', 404);
     return content;
+  }
+
+  async getAudit(id, query) {
+    try {
+      const { limit, offset } = parsePagination(query, { limit: 50, offset: 0 });
+      return this.auditService.findAll({
+        entityType: 'template',
+        entityId:   id,
+        actor:      query.actor,
+        fromDate:   query.fromDate,
+        toDate:     query.toDate,
+        limit,
+        offset,
+      });
+    } catch (e) { throwHttp(e); }
   }
 
   async create(body, req) {
@@ -133,6 +150,7 @@ class TemplatesController {
 ApiTags('templates')(TemplatesController);
 Controller('templates')(TemplatesController);
 Inject(TemplatesService)(TemplatesController, undefined, 0);
+Inject(AuditService)(TemplatesController, undefined, 1);
 
 const proto = TemplatesController.prototype;
 
@@ -169,6 +187,19 @@ Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'getVersion
 Param('id')(proto, 'getVersionContent', 0);
 Param('version')(proto, 'getVersionContent', 1);
 
+// GET /templates/:id/audit
+Get(':id/audit')(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
+ApiOperation({ summary: 'Audit log del template' })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
+ApiParam({ name: 'id', description: 'UUID template' })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
+ApiQuery({ name: 'actor',    required: false, type: String })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
+ApiQuery({ name: 'fromDate', required: false })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
+ApiQuery({ name: 'toDate',   required: false })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
+ApiQuery({ name: 'limit',    required: false, type: Number, example: 50 })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
+ApiQuery({ name: 'offset',   required: false, type: Number, example: 0  })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
+Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'getAudit');
+Param('id')(proto, 'getAudit', 0);
+Query()(proto, 'getAudit', 1);
+
 // POST /templates
 Post()(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
 HttpCode(HttpStatus.CREATED)(proto, 'create', Object.getOwnPropertyDescriptor(proto, 'create'));
@@ -202,7 +233,7 @@ UploadedFile()(proto, 'importFile', 0);
 Body()(proto, 'importFile', 1);
 Req()(proto, 'importFile', 2);
 
-// POST /templates/validate-md  → 200 (non 201, richiesto dalla regression suite)
+// POST /templates/validate-md
 Post('validate-md')(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
 HttpCode(HttpStatus.OK)(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
 ApiOperation({ summary: 'Valida contenuto Markdown senza creare il template' })(proto, 'validateMd', Object.getOwnPropertyDescriptor(proto, 'validateMd'));
@@ -212,7 +243,7 @@ ApiBody({
 Reflect.defineMetadata('design:paramtypes', [Object], proto, 'validateMd');
 Body()(proto, 'validateMd', 0);
 
-// POST /templates/validate-file  → 200
+// POST /templates/validate-file
 Post('validate-file')(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
 HttpCode(HttpStatus.OK)(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
 UseInterceptors(FileInterceptor('file', multerOptions))(proto, 'validateFile', Object.getOwnPropertyDescriptor(proto, 'validateFile'));
@@ -233,7 +264,7 @@ Param('id')(proto, 'update', 0);
 Body()(proto, 'update', 1);
 Req()(proto, 'update', 2);
 
-// POST /templates/:id/publish  → 200 (richiesto dalla regression suite)
+// POST /templates/:id/publish
 Post(':id/publish')(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
 HttpCode(HttpStatus.OK)(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
 ApiOperation({ summary: 'Pubblica il template' })(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
