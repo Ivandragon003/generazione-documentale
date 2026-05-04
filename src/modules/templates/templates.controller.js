@@ -122,10 +122,6 @@ class TemplatesController {
     }).catch(throwHttp);
   }
 
-  async publish(id, req) {
-    return this.templatesService.publish(id, getActor(req)).catch(throwHttp);
-  }
-
   async restore(id, version, req) {
     let ver;
     try { ver = parseVersionOrThrow(version); } catch (e) { throwHttp(e); }
@@ -263,15 +259,6 @@ Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'up
 Param('id')(proto, 'update', 0);
 Body()(proto, 'update', 1);
 Req()(proto, 'update', 2);
-
-// POST /templates/:id/publish
-Post(':id/publish')(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
-HttpCode(HttpStatus.OK)(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
-ApiOperation({ summary: 'Pubblica il template' })(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
-ApiParam({ name: 'id', description: 'UUID template' })(proto, 'publish', Object.getOwnPropertyDescriptor(proto, 'publish'));
-Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'publish');
-Param('id')(proto, 'publish', 0);
-Req()(proto, 'publish', 1);
 
 // POST /templates/:id/restore/:version
 Post(':id/restore/:version')(proto, 'restore', Object.getOwnPropertyDescriptor(proto, 'restore'));

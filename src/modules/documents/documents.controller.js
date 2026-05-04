@@ -1,7 +1,7 @@
 'use strict';
 
 const {
-  Controller, Get, Post, Put, Patch, Delete,
+  Controller, Get, Post, Put, Delete,
   Param, Query, Body, Req, Res,
   HttpCode, HttpStatus, HttpException, Inject,
 } = require('@nestjs/common');
@@ -51,18 +51,6 @@ class DocumentsController {
     }).catch(throwHttp);
   }
 
-  async rename(id, body, req) {
-    const { name } = body;
-    if (!name) throw new HttpException('name è obbligatorio', 400);
-    return this.documentsService.rename(id, name, getActor(req)).catch(throwHttp);
-  }
-
-  async changeStatus(id, body, req) {
-    const { status } = body;
-    if (!status) throw new HttpException('status è obbligatorio', 400);
-    return this.documentsService.changeStatus(id, status, getActor(req)).catch(throwHttp);
-  }
-
   async generatePdf(id, req) {
     const job = await this.documentsService.enqueuePdfGeneration(id, getActor(req)).catch(throwHttp);
     return {
@@ -94,8 +82,6 @@ class DocumentsController {
     stream.pipe(res);
   }
 
-  // NOTA: questa route è definita PRIMA di ':id/pdf-jobs/:jobId/download'
-  // per evitare che NestJS matchi 'latest' come :jobId
   async latestPdf(id, res) {
     const job    = await this.documentsService.getLatestCompletedPdfJob(id).catch(throwHttp);
     const stream = await pdfService.getPdfStream(job.filename).catch(throwHttp);
@@ -206,24 +192,6 @@ Param('id')(proto, 'update', 0);
 Body()(proto, 'update', 1);
 Req()(proto, 'update', 2);
 
-// PATCH /documents/:id/rename
-Patch(':id/rename')(proto, 'rename', Object.getOwnPropertyDescriptor(proto, 'rename'));
-ApiOperation({ summary: 'Rinomina documento' })(proto, 'rename', Object.getOwnPropertyDescriptor(proto, 'rename'));
-ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'rename', Object.getOwnPropertyDescriptor(proto, 'rename'));
-Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'rename');
-Param('id')(proto, 'rename', 0);
-Body()(proto, 'rename', 1);
-Req()(proto, 'rename', 2);
-
-// PATCH /documents/:id/status
-Patch(':id/status')(proto, 'changeStatus', Object.getOwnPropertyDescriptor(proto, 'changeStatus'));
-ApiOperation({ summary: 'Cambia stato documento' })(proto, 'changeStatus', Object.getOwnPropertyDescriptor(proto, 'changeStatus'));
-ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'changeStatus', Object.getOwnPropertyDescriptor(proto, 'changeStatus'));
-Reflect.defineMetadata('design:paramtypes', [Object, Object, Object], proto, 'changeStatus');
-Param('id')(proto, 'changeStatus', 0);
-Body()(proto, 'changeStatus', 1);
-Req()(proto, 'changeStatus', 2);
-
 // POST /documents/:id/generate-pdf → 202
 Post(':id/generate-pdf')(proto, 'generatePdf', Object.getOwnPropertyDescriptor(proto, 'generatePdf'));
 HttpCode(HttpStatus.ACCEPTED)(proto, 'generatePdf', Object.getOwnPropertyDescriptor(proto, 'generatePdf'));
@@ -260,9 +228,9 @@ Param('id')(proto, 'downloadPdf', 0);
 Param('jobId')(proto, 'downloadPdf', 1);
 Res()(proto, 'downloadPdf', 2);
 
-// GET /documents/:id/latest-pdf  (era ':id/pdf-jobs/latest/download' → conflitto con :jobId)
+// GET /documents/:id/latest-pdf
 Get(':id/latest-pdf')(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
-ApiOperation({ summary: 'Scarica l\'ultimo PDF completato' })(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
+ApiOperation({ summary: "Scarica l'ultimo PDF completato" })(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
 ApiParam({ name: 'id', description: 'UUID documento' })(proto, 'latestPdf', Object.getOwnPropertyDescriptor(proto, 'latestPdf'));
 Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'latestPdf');
 Param('id')(proto, 'latestPdf', 0);
