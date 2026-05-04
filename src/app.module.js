@@ -2,17 +2,16 @@
 
 const { Module } = require('@nestjs/common');
 const { HealthModule }    = require('./modules/health/health.module');
-const { AuditModule }     = require('./modules/audit/audit.module');
 const { TemplatesModule } = require('./modules/templates/template.module');
 const { DocumentsModule } = require('./modules/documents/document.module');
 
-// DevModule NON viene mai registrato:
-// - le route /api/dev/* non esistono né in Swagger né nel server
-// - i test vengono eseguiti automaticamente all'avvio da main.js (solo in development)
+// AuditModule rimosso: non aveva route proprie.
+// AuditService viene importato direttamente da TemplatesModule e DocumentsModule.
+// DevModule non registrato: i test girano automaticamente all'avvio (solo development).
 class AppModule {}
 
 Module({
-  imports: [HealthModule, AuditModule, TemplatesModule, DocumentsModule],
+  imports: [HealthModule, TemplatesModule, DocumentsModule],
 })(AppModule);
 
 module.exports = { AppModule };

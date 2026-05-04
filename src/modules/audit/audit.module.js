@@ -1,16 +1,7 @@
 'use strict';
 
-const { Module }       = require('@nestjs/common');
-const { AuditService } = require('./audit.service');
+// AuditModule non viene più registrato in AppModule.
+// AuditService viene importato direttamente dai moduli che ne hanno bisogno.
+// Questo file esiste solo per compatibilità con eventuali import residui.
 
-// AuditController rimosso: nessuna route /api/audit/* da esporre.
-// AuditService rimane disponibile per gli altri moduli (templates, documents).
-class AuditModule {}
-
-Module({
-  controllers: [],
-  providers:   [AuditService],
-  exports:     [AuditService],
-})(AuditModule);
-
-module.exports = { AuditModule };
+module.exports = {};
