@@ -94,32 +94,6 @@ async function getMaxVersion(id) {
 }
 
 /**
- * Cambia lo stato di un documento
- */
-async function changeDocumentStatus(id, newStatus) {
-  const pool = getPool();
-  const result = await pool.query(
-    `UPDATE documents SET status = $1, updated_at = NOW() WHERE id = $2
-     RETURNING id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at`,
-    [newStatus, id],
-  );
-  return result.rows[0];
-}
-
-/**
- * Rinomina un documento
- */
-async function renameDocument(id, newName) {
-  const pool = getPool();
-  const result = await pool.query(
-    `UPDATE documents SET name = $1, updated_at = NOW() WHERE id = $2
-     RETURNING id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at`,
-    [newName, id],
-  );
-  return result.rows[0];
-}
-
-/**
  * Ripristina un documento da una versione precedente
  */
 async function restoreDocument(client, { id, content, fieldValues }) {
@@ -171,8 +145,6 @@ async function deleteDocument(id) {
 
 /**
  * Inserisce un job per generare PDF.
- * Usa solo requested_by — created_by è rimosso perché ridondante
- * (il job appartiene sempre a chi lo richiede).
  */
 async function insertPdfJob(documentId, actor = 'system') {
   const pool = getPool();
@@ -301,8 +273,6 @@ module.exports = {
   insertDocumentVersion,
   updateDocument,
   getMaxVersion,
-  changeDocumentStatus,
-  renameDocument,
   restoreDocument,
   findVersionById,
   findVersions,
