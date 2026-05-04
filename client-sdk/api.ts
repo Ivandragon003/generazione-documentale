@@ -131,9 +131,10 @@ export class DocumentsApi extends BaseAPI {
     if (!id) throw new RequiredError('id', 'Required');
     return this.fetch(this.basePath + `/api/documents/${encodeURIComponent(String(id))}`, Object.assign({ method: 'GET' }, options)).then(r => { if (r.status >= 200 && r.status < 300) return r.json(); throw r; });
   }
+  // FIX: PUT (non PATCH) — l'endpoint NestJS usa @Put(':id')
   public documentsControllerUpdate(id: any, options?: any) {
     if (!id) throw new RequiredError('id', 'Required');
-    return this.fetch(this.basePath + `/api/documents/${encodeURIComponent(String(id))}`, Object.assign({ method: 'PATCH' }, options)).then(r => { if (r.status >= 200 && r.status < 300) return r.json(); throw r; });
+    return this.fetch(this.basePath + `/api/documents/${encodeURIComponent(String(id))}`, Object.assign({ method: 'PUT' }, options)).then(r => { if (r.status >= 200 && r.status < 300) return r.json(); throw r; });
   }
   public documentsControllerRemove(id: any, options?: any) {
     if (!id) throw new RequiredError('id', 'Required');
@@ -148,6 +149,7 @@ export class DocumentsApi extends BaseAPI {
     if (!jobId) throw new RequiredError('jobId', 'Required');
     return this.fetch(this.basePath + `/api/documents/${encodeURIComponent(String(id))}/pdf-jobs/${encodeURIComponent(String(jobId))}/download`, Object.assign({ method: 'GET' }, options)).then(r => { if (r.status >= 200 && r.status < 300) return r.json(); throw r; });
   }
+  // changeStatus e rename usano correttamente PATCH
   public documentsControllerChangeStatus(id: any, options?: any) {
     if (!id) throw new RequiredError('id', 'Required');
     return this.fetch(this.basePath + `/api/documents/${encodeURIComponent(String(id))}/status`, Object.assign({ method: 'PATCH' }, options)).then(r => { if (r.status >= 200 && r.status < 300) return r.json(); throw r; });
