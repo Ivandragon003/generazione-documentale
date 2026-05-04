@@ -12,7 +12,7 @@ export interface FetchAPI { (url: string, init?: any): Promise<Response>; }
 export interface FetchArgs { url: string; options: any; }
 
 export class BaseAPI {
-  protected configuration: Configuration;
+  protected configuration?: Configuration;  // opzionale — non sempre passata
   constructor(configuration?: Configuration, protected basePath: string = BASE_PATH, protected fetch: FetchAPI = globalThis.fetch) {
     if (configuration) {
       this.configuration = configuration;
