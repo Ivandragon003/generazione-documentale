@@ -2,9 +2,6 @@
 
 const fs = require('fs');
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 /**
  * Crea un Error con proprieta `.status` per il filtro eccezioni.
  * Usare invece di `throw new Error(...)` nei service.
@@ -29,10 +26,6 @@ function readAndCleanupUpload(file) {
   return content;
 }
 
-function isValidUuid(value) {
-  return UUID_RE.test(value);
-}
-
 function parsePagination(query, defaults = { limit: 20, offset: 0 }) {
   const limit  = query.limit  === undefined ? defaults.limit  : Number.parseInt(query.limit,  10);
   const offset = query.offset === undefined ? defaults.offset : Number.parseInt(query.offset, 10);
@@ -49,18 +42,10 @@ function parseVersionOrThrow(value) {
   return parsed;
 }
 
-function wrapAsync(fn) {
-  return function (req, res, next) {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
-}
-
 module.exports = {
   makeError,
   getActor,
   readAndCleanupUpload,
-  isValidUuid,
   parsePagination,
   parseVersionOrThrow,
-  wrapAsync,
 };

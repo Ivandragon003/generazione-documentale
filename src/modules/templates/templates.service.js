@@ -66,8 +66,14 @@ function validateMarkdownContent(content) {
     errors.push(`Template troppo grande. Limite: ${MAX_TEMPLATE_CONTENT_BYTES} byte`);
   }
 
-  const fields           = extractFields(content);
-  const duplicateFields  = fields.filter((f) => (content.match(new RegExp(`\\{\\{${f}\\}\\}`, 'g')) || []).length > 1);
+  const matches = content.match(/\{\{(\w+)\}\}/g) || [];
+  const fieldCounts = new Map();
+  for (const placeholder of matches) {
+    const name = placeholder.slice(2, -2);
+    fieldCounts.set(name, (fieldCounts.get(name) || 0) + 1);
+  }
+  const fields = Array.from(fieldCounts.keys());
+  const duplicateFields = fields.filter((f) => fieldCounts.get(f) > 1);
   const invalidPlaceholders = content.match(/\{\{[^}\n]*\}\}/g)?.filter((p) => !/^\{\{\w+\}\}$/.test(p)) || [];
 
   const open  = (content.match(/\{\{/g) || []).length;

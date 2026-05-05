@@ -95,10 +95,8 @@ mac-documents/
 │   │   └── database.js                  # Pool PostgreSQL + withTransaction()
 │   └── modules/
 │       ├── common/
-│       │   └── http.utils.js            # makeError, wrapAsync, parsePagination...
+│       │   └── http.utils.js            # makeError, parsePagination, parseVersionOrThrow...
 │       ├── audit/
-│       │   ├── audit.module.js
-│       │   ├── audit.controller.js
 │       │   ├── audit.service.js
 │       │   └── audit.queries.js
 │       ├── templates/
@@ -117,7 +115,6 @@ mac-documents/
 │           ├── dev.module.js
 │           ├── dev.controller.js
 │           ├── dev.queries.js
-│           ├── reset.controller.js
 │           └── api-regression.service.js
 ├── db/                                  # File .sql (schema, seed)
 ├── migrations/
