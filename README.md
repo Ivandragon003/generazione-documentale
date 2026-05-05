@@ -136,25 +136,26 @@ mac-documents/
 
 ## API Endpoints
 
-### Templates — `/api/templates`
+### Templates - `/api/templates`
 
 | Metodo | Endpoint | Descrizione |
 |---|---|---|
 | `GET` | `/api/templates` | Lista template (filtro `status`, paginazione) |
 | `POST` | `/api/templates` | Crea template da JSON |
 | `GET` | `/api/templates/:id` | Dettaglio template |
-| `PUT` | `/api/templates/:id` | Aggiorna (crea nuova versione) |
-| `DELETE` | `/api/templates/:id` | Elimina (solo se nessun documento attivo) |
-| `POST` | `/api/templates/:id/publish` | Pubblica il template |
+| `PUT` | `/api/templates/:id` | Aggiorna template e crea una nuova versione |
+| `DELETE` | `/api/templates/:id` | Elimina template |
 | `GET` | `/api/templates/:id/versions` | Cronologia versioni |
 | `GET` | `/api/templates/:id/versions/:v` | Contenuto versione specifica |
 | `POST` | `/api/templates/:id/restore/:v` | Ripristina versione precedente |
 | `GET` | `/api/templates/:id/export` | Scarica template come file `.md` |
+| `GET` | `/api/templates/:id/audit` | Audit log del template |
 | `POST` | `/api/templates/upload` | Importa template da file `.md` (multipart) |
 | `POST` | `/api/templates/validate-md` | Valida contenuto Markdown senza salvare |
-| `POST` | `/api/templates/validate-file` | Valida file `.md` senza salvare |
 
-### Documents — `/api/documents`
+Endpoint rimossi/non esposti attualmente: `POST /api/templates/:id/publish`, `POST /api/templates/validate-file`.
+
+### Documents - `/api/documents`
 
 | Metodo | Endpoint | Descrizione |
 |---|---|---|
@@ -163,13 +164,8 @@ mac-documents/
 | `GET` | `/api/documents/:id` | Dettaglio documento |
 | `PUT` | `/api/documents/:id` | Aggiorna contenuto / `fieldValues` |
 | `DELETE` | `/api/documents/:id` | Elimina documento |
-| `PATCH` | `/api/documents/:id/rename` | Rinomina documento |
-| `PATCH` | `/api/documents/:id/status` | Cambia stato (`draft` → `published` → `archived`) |
-| `POST` | `/api/documents/:id/generate-pdf` | Accoda generazione PDF asincrona → risponde `202` |
-| `GET` | `/api/documents/:id/pdf-jobs` | Lista job PDF del documento |
-| `GET` | `/api/documents/:id/pdf-jobs/:jobId` | Stato job (`queued` / `running` / `completed` / `failed`) |
-| `GET` | `/api/documents/:id/pdf-jobs/:jobId/download` | Scarica PDF del job completato |
-| `GET` | `/api/documents/:id/latest-pdf` | Scarica l'ultimo PDF completato |
+| `POST` | `/api/documents/:id/generate-pdf` | Accoda generazione PDF asincrona e risponde `202` |
+| `GET` | `/api/documents/:id/pdf/latest` | Scarica l'ultimo PDF completato |
 | `GET` | `/api/documents/:id/preview-pdf` | Anteprima PDF temporanea (non salvata) |
 | `GET` | `/api/documents/:id/versions` | Cronologia versioni documento |
 | `GET` | `/api/documents/:id/versions/:v` | Contenuto versione specifica |
@@ -177,41 +173,46 @@ mac-documents/
 | `GET` | `/api/documents/:id/export-md` | Esporta documento come file `.md` |
 | `GET` | `/api/documents/:id/audit` | Audit log del documento |
 
-### Audit — `/api/audit`
+Endpoint rimossi/non esposti attualmente: `PATCH /api/documents/:id/rename`, `PATCH /api/documents/:id/status`, `GET /api/documents/:id/pdf-jobs*`, `GET /api/documents/:id/latest-pdf`.
+
+### Audit
+
+Non esiste una route globale `/api/audit`. L'audit e' esposto sulle entita':
 
 | Metodo | Endpoint | Descrizione |
 |---|---|---|
-| `GET` | `/api/audit` | Registro globale (immutabile) |
+| `GET` | `/api/templates/:id/audit` | Audit log del template |
+| `GET` | `/api/documents/:id/audit` | Audit log del documento |
 
-### PDF — `/api/pdf`
+### PDF - `/api/pdf`
 
 | Metodo | Endpoint | Descrizione |
 |---|---|---|
-| `POST` | `/api/pdf/templates/:templateId/validate` | Verifica disponibilità template per generazione |
+| `POST` | `/api/pdf/templates/:templateId/validate` | Verifica disponibilita template per generazione PDF |
 
-### Dev/Test — `/api/dev` _(solo `NODE_ENV=development`)_
+### Dev - `/api/dev`
 
 | Metodo | Endpoint | Descrizione |
 |---|---|---|
 | `POST` | `/api/dev/reset` | Svuota DB e storage, ricrea fixture stabili |
-| `POST` | `/api/dev/test-runs/execute` | Esegue la suite di regression test |
 | `POST` | `/api/dev/seed-large-pdf` | Crea contratto 21 campi, compila 9/21, accoda PDF |
 
 `/api/dev/reset` richiede header `x-reset-confirm: true`.
+
+La route tecnica `POST /api/dev/test-runs/execute` esiste, ma non e' nella collection Bruno/Postman: la regression suite parte automaticamente all'avvio del backend.
 
 ---
 
 ## Flusso di utilizzo tipico
 
 ```
-1. POST /api/templates/validate-md       → verifica il Markdown
-2. POST /api/templates                   → crea il template
-3. POST /api/templates/:id/publish       → pubblica (obbligatorio prima di usarlo)
-4. POST /api/documents                   → crea documento dal template
-5. PUT  /api/documents/:id               → compila i fieldValues
-6. POST /api/documents/:id/generate-pdf  → accoda generazione → ricevi jobId
-7. GET  /api/documents/:id/pdf-jobs/:jobId → polling finché status = "completed"
-8. GET  /api/documents/:id/pdf-jobs/:jobId/download → scarica il PDF
+1. POST /api/dev/reset                   -> reset fixture stabili (opzionale, ambiente dev)
+2. POST /api/templates/validate-md       -> verifica il Markdown
+3. POST /api/templates                   -> crea il template
+4. POST /api/documents                   -> crea documento dal template
+5. PUT  /api/documents/:id               -> compila i fieldValues
+6. POST /api/documents/:id/generate-pdf  -> accoda generazione e ricevi jobId
+7. GET  /api/documents/:id/pdf/latest    -> scarica l'ultimo PDF completato
 ```
 
 ---
@@ -230,25 +231,26 @@ I template usano placeholder `{{nome_campo}}` nel Markdown.
 }
 ```
 
-- Campi `required: true` → bloccano la generazione PDF se non compilati (`strict: true`)
-- Campi facoltativi non compilati → sostituiti con `defaultValue` o stringa vuota
-- `GET /api/documents/:id/preview-pdf` usa `strict: false` — genera PDF anche con campi mancanti (i `{{placeholder}}` restano visibili)
+- Campi `required: true`: bloccano la generazione PDF se non compilati (`strict: true`).
+- Campi facoltativi non compilati: sostituiti con `defaultValue` o stringa vuota.
+- `GET /api/documents/:id/preview-pdf` usa `strict: false`: genera PDF anche con campi mancanti; i placeholder restano visibili.
 
 ---
 
 ## PDF asincroni
 
 `POST /api/documents/:id/generate-pdf` risponde subito con `202 Accepted` e un `jobId`.
-La generazione avviene in background tramite un worker in-process (coda FIFO con concorrenza configurabile via `PDF_JOB_CONCURRENCY`).
+La generazione avviene in background tramite un worker in-process.
 
-```bash
-# Polling manuale
-GET /api/documents/:id/pdf-jobs/:jobId
-# → { "status": "queued" | "running" | "completed" | "failed", "filename": "..." }
+Attualmente non sono esposte route di polling `pdf-jobs`. Per scaricare il PDF completato usa:
+
+```http
+GET /api/documents/:id/pdf/latest
 ```
 
-I PDF completati sono **persistenti** in `./storage/pdf/` e scaricabili in qualsiasi momento.
-La preview è invece temporanea: genera e serve il file inline, poi lo cancella.
+Se la generazione non e' ancora conclusa, la richiesta puo' rispondere `404` finche' non esiste un PDF completato.
+
+I PDF completati sono persistenti in `./storage/pdf/`. La preview e' temporanea: genera e serve il file inline, poi lo cancella.
 
 ---
 
@@ -260,27 +262,30 @@ POST /api/dev/reset
 x-reset-confirm: true
 ```
 
-Crea fixture con UUID fissi (utili nelle collezioni Bruno/Postman):
+Crea fixture con UUID fissi, usati anche nella collection Bruno/Postman:
+
 ```
-templateId:  11111111-1111-4111-8111-111111111111
-documentId:  22222222-2222-4222-8222-222222222222
-pdfJobId:    33333333-3333-4333-8333-333333333333
+template_id:         11111111-1111-4111-8111-111111111111
+template_delete_id:  11111111-1111-4111-8111-111111111112
+document_id:         22222222-2222-4222-8222-222222222222
+pdf_job_id:          33333333-3333-4333-8333-333333333333
 ```
 
-### Regression suite completa
+### Regression suite
+
+La regression suite viene eseguita automaticamente all'avvio del backend. Per questo la collection `MAC-Documents-API.postman_collection.json` non richiama `/api/dev/test-runs/execute`.
+
+Per lanciarla manualmente da terminale:
+
 ```bash
 npm run test:api
-# oppure via API:
-POST /api/dev/test-runs/execute
-{ "suite": "api-regression" }
 ```
-
-Risponde `200` con `ok: true` se tutti i test passano, `500` con `failedTest` al primo fallimento.
 
 ### Test PDF con campi parziali
 ```http
 POST /api/dev/seed-large-pdf
 ```
+
 Crea un contratto multi-sezione con 21 campi, ne compila 9 e accoda la generazione PDF.
 Il file rimane in storage per ispezione.
 
@@ -288,14 +293,19 @@ Il file rimane in storage per ispezione.
 
 ## Header opzionale
 
-`x-user: <nome>` → traccia l'autore nell'audit log. Se assente viene usato `system`.
+`x-user: <nome>` traccia l'autore nell'audit log. Se assente viene usato `system`.
 
 ---
 
 ## Collezione Bruno / Postman
 
-- Bruno: cartella `bruno/` nella repo (consigliato — variabili d'ambiente, sequenze salvate)
-- Postman: importa `MAC-Documents-API.postman_collection.json`
+Usa Bruno importando il file:
+
+```
+MAC-Documents-API.postman_collection.json
+```
+
+La collection non contiene script Postman `pm.*` e non richiama la suite test automatica.
 
 ---
 
