@@ -306,26 +306,6 @@
             "schema": {}
           },
           {
-            "name": "actor",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "fromDate",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "toDate",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
             "name": "limit",
             "required": false,
             "in": "query",

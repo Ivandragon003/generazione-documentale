@@ -1,12 +1,13 @@
-'use strict';
+﻿'use strict';
 
 require('dotenv').config();
-const fs   = require('fs');
+const fs = require('fs');
 const path = require('path');
 const { getPool } = require('../../src/database/database');
 
-const fsp                   = fs.promises;
-const SCHEMA_FILE           = path.join(__dirname, '..', 'schema.sql');
+const fsp = fs.promises;
+const SCHEMA_FILE = path.join(__dirname, '..', 'schema.sql');
+const MIGRATIONS_DIR = __dirname;
 const TEMPLATE_STORAGE_PATH = process.env.TEMPLATE_STORAGE_PATH || './storage/templates';
 
 async function columnExists(client, table, col) {
@@ -26,7 +27,7 @@ async function writeTemplateFile(id, version, content) {
 }
 
 async function backfillTemplateFiles(client) {
-  const hasTpl = await columnExists(client, 'templates',         'content');
+  const hasTpl = await columnExists(client, 'templates', 'content');
   const hasVer = await columnExists(client, 'template_versions', 'content');
   if (!hasTpl && !hasVer) return;
 
@@ -56,17 +57,30 @@ async function backfillTemplateFiles(client) {
   }
 }
 
+async function runIncrementalMigrations(client) {
+  const files = (await fsp.readdir(MIGRATIONS_DIR))
+    .filter((name) => /^\d+.*\.sql$/i.test(name))
+    .sort((a, b) => a.localeCompare(b));
+
+  for (const file of files) {
+    const sql = await fsp.readFile(path.join(MIGRATIONS_DIR, file), 'utf8');
+    await client.query(sql);
+    console.log(`Executed incremental migration: ${file}`);
+  }
+}
+
 async function runMigrations() {
-  const pool   = getPool();
+  const pool = getPool();
   const client = await pool.connect();
   try {
-    console.log('▶ Avvio migration...');
+    console.log('Starting migrations...');
     const sql = await fsp.readFile(SCHEMA_FILE, 'utf8');
     await client.query(sql);
+    await runIncrementalMigrations(client);
     await backfillTemplateFiles(client);
-    console.log('✅ Migration completata.');
+    console.log('Migrations completed.');
   } catch (err) {
-    console.error('❌ Errore:', err.message);
+    console.error('Migration error:', err.message);
     process.exit(1);
   } finally {
     client.release();
