@@ -7,22 +7,23 @@ const { getPool } = require('../../database/database');
  */
 async function findAll({ status, limit = 20, offset = 0 } = {}) {
   const pool = getPool();
-  let query =
-    'SELECT id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at FROM documents WHERE 1=1';
+  const selectClause =
+    'SELECT id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at';
+  let fromWhereClause = 'FROM documents WHERE 1=1';
   const params = [];
   let paramIndex = 1;
 
   if (status) {
-    query += ` AND status = $${paramIndex}`;
+    fromWhereClause += ` AND status = $${paramIndex}`;
     params.push(status);
     paramIndex += 1;
   }
 
-  const countQuery = query.replace(/SELECT.*FROM/, 'SELECT COUNT(*) as total FROM');
+  const countQuery = `SELECT COUNT(*) as total ${fromWhereClause}`;
   const countResult = await pool.query(countQuery, params);
   const total = parseInt(countResult.rows[0].total, 10);
 
-  query += ` ORDER BY updated_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+  const query = `${selectClause} ${fromWhereClause} ORDER BY updated_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
   params.push(limit, offset);
 
   const result = await pool.query(query, params);
@@ -71,12 +72,12 @@ async function insertDocumentVersion(client, { documentId, version, content, fie
 /**
  * Aggiorna un documento
  */
-async function updateDocument(client, { id, name, content, fieldValues }) {
+async function updateDocument(client, { id, name, content, fieldValues, version }) {
   const result = await client.query(
-    `UPDATE documents SET name = $1, content = $2, field_values = $3, updated_at = NOW()
-     WHERE id = $4
+    `UPDATE documents SET name = $1, content = $2, field_values = $3, version = $4, updated_at = NOW()
+     WHERE id = $5
      RETURNING id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at`,
-    [name, content, JSON.stringify(fieldValues), id],
+    [name, content, JSON.stringify(fieldValues), version, id],
   );
   return result.rows[0];
 }
@@ -96,11 +97,11 @@ async function getMaxVersion(id) {
 /**
  * Ripristina un documento da una versione precedente
  */
-async function restoreDocument(client, { id, content, fieldValues }) {
+async function restoreDocument(client, { id, content, fieldValues, version }) {
   const result = await client.query(
-    `UPDATE documents SET content = $1, field_values = $2, updated_at = NOW() WHERE id = $3
+    `UPDATE documents SET content = $1, field_values = $2, version = $3, updated_at = NOW() WHERE id = $4
      RETURNING id, name, template_id, template_version, content, field_values, status, created_by, created_at, updated_at`,
-    [content, JSON.stringify(fieldValues), id],
+    [content, JSON.stringify(fieldValues), version, id],
   );
   return result.rows[0];
 }

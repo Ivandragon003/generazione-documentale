@@ -76,8 +76,15 @@ class DocumentsController {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="preview-temporanea.pdf"');
     stream.on('error', (err) => res.status(500).end(err.message));
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      pdfService.deletePdf(filename).catch(() => {});
+    };
+    res.on('finish', cleanup);
+    res.on('close', cleanup);
     stream.pipe(res);
-    stream.on('end', () => { pdfService.deletePdf(filename).catch(() => {}); });
   }
 
   async getVersions(id) {

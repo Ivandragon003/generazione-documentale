@@ -5,21 +5,22 @@ const { getPool } = require('../../database/database');
  */
 async function findAll({ status, limit = 20, offset = 0 } = {}) {
   const pool = getPool();
-  let query = 'SELECT id, name, description, content_path, status, version, fields, created_by, created_at, updated_at FROM templates WHERE 1=1';
+  const selectClause = 'SELECT id, name, description, content_path, status, version, fields, created_by, created_at, updated_at';
+  let fromWhereClause = 'FROM templates WHERE 1=1';
   const params = [];
   let paramIndex = 1;
 
   if (status) {
-    query += ` AND status = $${paramIndex}`;
+    fromWhereClause += ` AND status = $${paramIndex}`;
     params.push(status);
     paramIndex += 1;
   }
 
-  const countQuery = query.replace(/SELECT.*FROM/, 'SELECT COUNT(*) as total FROM');
+  const countQuery = `SELECT COUNT(*) as total ${fromWhereClause}`;
   const countResult = await pool.query(countQuery, params);
   const total = parseInt(countResult.rows[0].total, 10);
 
-  query += ` ORDER BY updated_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+  const query = `${selectClause} ${fromWhereClause} ORDER BY updated_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
   params.push(limit, offset);
 
   const result = await pool.query(query, params);

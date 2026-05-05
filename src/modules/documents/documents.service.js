@@ -8,10 +8,12 @@ const { makeError }                = require('../common/http.utils');
 const pdfService = require('./pdf.service');
 const q          = require('./documents.queries');
 
-const PDF_JOB_CONCURRENCY = Math.max(parseInt(process.env.PDF_JOB_CONCURRENCY || '1', 10), 1);
+const PDF_JOB_CONCURRENCY = 1;
+const QUEUE_RECOVERY_RETRY_MS = Math.max(parseInt(process.env.PDF_QUEUE_RECOVERY_RETRY_MS || '10000', 10), 1000);
 let activePdfJobs        = 0;
 const queuedPdfJobs      = [];
 let queueRecoveryStarted = false;
+let queueRecoveryTimer   = null;
 
 function enqueuePdfJob(task) {
   queuedPdfJobs.push(task);
@@ -50,6 +52,12 @@ class DocumentsService {
       for (const row of rows) enqueuePdfJob(() => this.processPdfJob(row.id));
     } catch (_) {
       queueRecoveryStarted = false;
+      if (!queueRecoveryTimer) {
+        queueRecoveryTimer = setTimeout(() => {
+          queueRecoveryTimer = null;
+          this._ensureQueueRecovery().catch(() => {});
+        }, QUEUE_RECOVERY_RETRY_MS);
+      }
     }
   }
 
@@ -106,7 +114,7 @@ class DocumentsService {
     const updated = await withTransaction(getPool(), async (client) => {
       const d = await q.updateDocument(client, {
         id, name: name ? name.trim() : existing.name,
-        content: newContent, fieldValues: newFieldValues,
+        content: newContent, fieldValues: newFieldValues, version: nextVersion,
       });
       await q.insertDocumentVersion(client, {
         documentId: id, version: nextVersion, content: newContent,
@@ -202,7 +210,7 @@ class DocumentsService {
 
     const restored = await withTransaction(getPool(), async (client) => {
       const d = await q.restoreDocument(client, {
-        id, content: versionRow.content, fieldValues: versionRow.field_values,
+        id, content: versionRow.content, fieldValues: versionRow.field_values, version: nextVersion,
       });
       await q.insertDocumentVersion(client, {
         documentId: id, version: nextVersion,

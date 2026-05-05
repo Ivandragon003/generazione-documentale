@@ -77,15 +77,7 @@ class TemplatesController {
   async getAudit(id, query) {
     try {
       const { limit, offset } = parsePagination(query, { limit: 50, offset: 0 });
-      return this.auditService.findAll({
-        entityType: 'template',
-        entityId:   id,
-        actor:      query.actor,
-        fromDate:   query.fromDate,
-        toDate:     query.toDate,
-        limit,
-        offset,
-      });
+      return this.auditService.findByEntity('template', id, { limit, offset });
     } catch (e) { throwHttp(e); }
   }
 
@@ -181,9 +173,6 @@ Param('version')(proto, 'getVersionContent', 1);
 Get(':id/audit')(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
 ApiOperation({ summary: 'Audit log del template' })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
 ApiParam({ name: 'id', description: 'UUID template' })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
-ApiQuery({ name: 'actor',    required: false, type: String })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
-ApiQuery({ name: 'fromDate', required: false })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
-ApiQuery({ name: 'toDate',   required: false })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
 ApiQuery({ name: 'limit',    required: false, type: Number, example: 50 })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
 ApiQuery({ name: 'offset',   required: false, type: Number, example: 0  })(proto, 'getAudit', Object.getOwnPropertyDescriptor(proto, 'getAudit'));
 Reflect.defineMetadata('design:paramtypes', [Object, Object], proto, 'getAudit');
