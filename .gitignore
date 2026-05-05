@@ -39,6 +39,7 @@ storage/pdf/*
 !storage/pdf/.gitkeep
 storage/templates/*
 !storage/templates/.gitkeep
+!storage/templates/CATALOG.md
 
 # Test artifacts
 storage/test-runs/*.json
