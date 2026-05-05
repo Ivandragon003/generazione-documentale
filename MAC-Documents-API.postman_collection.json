@@ -1,12 +1,15 @@
 {
   "info": {
     "name": "MAC Documents API",
-    "_postman_id": "mac-documents-api-v4",
-    "description": "API per la generazione documentale basata su template Markdown.\n\nGli ID vengono creati automaticamente dal pre-request script se non sono già presenti nell'environment.",
+    "_postman_id": "mac-documents-api-v5",
+    "description": "API per la generazione documentale basata su template Markdown.\n\nImporta e usa subito — nessun environment richiesto.\nbaseUrl default: http://localhost:3000\n\nGli ID (templateId, documentId) vengono creati automaticamente se mancanti.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" }
+    { "key": "baseUrl",    "value": "http://localhost:3000", "type": "string" },
+    { "key": "templateId", "value": "",                      "type": "string" },
+    { "key": "documentId", "value": "",                      "type": "string" },
+    { "key": "pdfJobId",   "value": "",                      "type": "string" }
   ],
   "event": [
     {
@@ -14,9 +17,10 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "const needsTemplate = !pm.environment.get('templateId');",
-          "const needsDocument = !pm.environment.get('documentId');",
-          "const base = pm.variables.get('baseUrl') || 'http://localhost:3000';",
+          "// Usa sempre la collection variable come fallback — nessun environment necessario",
+          "const base = pm.collectionVariables.get('baseUrl') || 'http://localhost:3000';",
+          "const needsTemplate = !pm.collectionVariables.get('templateId');",
+          "const needsDocument = !pm.collectionVariables.get('documentId');",
           "",
           "if (!needsTemplate && !needsDocument) return;",
           "",
@@ -29,7 +33,7 @@
           "  }, function(err, res) {",
           "    if (!err && res.code === 201) {",
           "      const tpl = res.json();",
-          "      pm.environment.set('templateId', tpl.id);",
+          "      pm.collectionVariables.set('templateId', tpl.id);",
           "      console.log('[auto] templateId:', tpl.id);",
           "      if (needsDocument) {",
           "        pm.sendRequest({",
@@ -39,7 +43,7 @@
           "          body: { mode: 'raw', raw: JSON.stringify({ name: 'Documento Auto ' + Date.now(), templateId: tpl.id }) }",
           "        }, function(err2, res2) {",
           "          if (!err2 && res2.code === 201) {",
-          "            pm.environment.set('documentId', res2.json().id);",
+          "            pm.collectionVariables.set('documentId', res2.json().id);",
           "            console.log('[auto] documentId:', res2.json().id);",
           "          }",
           "        });",
@@ -51,10 +55,10 @@
           "    url: base + '/api/documents',",
           "    method: 'POST',",
           "    header: [{ key: 'Content-Type', value: 'application/json' }, { key: 'x-user', value: 'postman-auto' }],",
-          "    body: { mode: 'raw', raw: JSON.stringify({ name: 'Documento Auto ' + Date.now(), templateId: pm.environment.get('templateId') }) }",
+          "    body: { mode: 'raw', raw: JSON.stringify({ name: 'Documento Auto ' + Date.now(), templateId: pm.collectionVariables.get('templateId') }) }",
           "  }, function(err, res) {",
           "    if (!err && res.code === 201) {",
-          "      pm.environment.set('documentId', res.json().id);",
+          "      pm.collectionVariables.set('documentId', res.json().id);",
           "      console.log('[auto] documentId:', res.json().id);",
           "    }",
           "  });",
@@ -73,10 +77,10 @@
             "listen": "test",
             "script": {
               "exec": [
-                "pm.environment.unset('templateId');",
-                "pm.environment.unset('documentId');",
-                "pm.environment.unset('pdfJobId');",
-                "console.log('[reset] variabili environment pulite');"
+                "pm.collectionVariables.set('templateId', '');",
+                "pm.collectionVariables.set('documentId', '');",
+                "pm.collectionVariables.set('pdfJobId', '');",
+                "console.log('[reset] variabili collection pulite');"
               ],
               "type": "text/javascript"
             }
@@ -135,7 +139,7 @@
             "script": {
               "exec": [
                 "const res = pm.response.json();",
-                "if (res.id) { pm.environment.set('templateId', res.id); console.log('templateId:', res.id); }"
+                "if (res.id) { pm.collectionVariables.set('templateId', res.id); console.log('templateId:', res.id); }"
               ],
               "type": "text/javascript"
             }
@@ -185,7 +189,7 @@
             "listen": "test",
             "script": {
               "exec": [
-                "if ([200,204].includes(pm.response.code)) { pm.environment.unset('templateId'); pm.environment.unset('documentId'); }"
+                "if ([200,204].includes(pm.response.code)) { pm.collectionVariables.set('templateId', ''); pm.collectionVariables.set('documentId', ''); }"
               ],
               "type": "text/javascript"
             }
@@ -244,7 +248,7 @@
             "script": {
               "exec": [
                 "const res = pm.response.json();",
-                "if (res.id) { pm.environment.set('documentId', res.id); console.log('documentId:', res.id); }"
+                "if (res.id) { pm.collectionVariables.set('documentId', res.id); console.log('documentId:', res.id); }"
               ],
               "type": "text/javascript"
             }
@@ -291,7 +295,7 @@
             "listen": "test",
             "script": {
               "exec": [
-                "if ([200,204].includes(pm.response.code)) { pm.environment.unset('documentId'); }"
+                "if ([200,204].includes(pm.response.code)) { pm.collectionVariables.set('documentId', ''); }"
               ],
               "type": "text/javascript"
             }
@@ -309,7 +313,7 @@
             "script": {
               "exec": [
                 "const res = pm.response.json();",
-                "if (res.jobId) { pm.environment.set('pdfJobId', res.jobId); console.log('pdfJobId:', res.jobId); }"
+                "if (res.jobId) { pm.collectionVariables.set('pdfJobId', res.jobId); console.log('pdfJobId:', res.jobId); }"
               ],
               "type": "text/javascript"
             }
@@ -352,7 +356,8 @@
           "name": "Ripristina versione documento",
           "request": {
             "method": "POST",
-            "header": [{ "key": "x-user", "value": "postman" }],
+            "header": [{ "key": "x-user", "value": "postman" }
+            ],
             "url": { "raw": "{{baseUrl}}/api/documents/{{documentId}}/restore/1", "host": ["{{baseUrl}}"], "path": ["api","documents","{{documentId}}","restore","1"] }
           }
         },
