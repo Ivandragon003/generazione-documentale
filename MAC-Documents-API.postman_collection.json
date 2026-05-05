@@ -1,67 +1,23 @@
 {
   "info": {
     "name": "MAC Documents API",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Collection degli endpoint reali. Gli scenari particolari vengono eseguiti dalla singola API tecnica POST /api/dev/test-runs/execute."
+    "_postman_id": "mac-documents-api-v2",
+    "description": "API per la generazione documentale basata su template Markdown.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    {
-      "key": "base_url",
-      "value": "http://127.0.0.1:3000"
-    },
-    {
-      "key": "user",
-      "value": "daniele"
-    },
-    {
-      "key": "template_id",
-      "value": "11111111-1111-4111-8111-111111111111"
-    },
-    {
-      "key": "template_delete_id",
-      "value": "11111111-1111-4111-8111-111111111112"
-    },
-    {
-      "key": "document_id",
-      "value": "22222222-2222-4222-8222-222222222222"
-    },
-    {
-      "key": "pdf_job_id",
-      "value": "33333333-3333-4333-8333-333333333333"
-    }
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" }
   ],
   "item": [
     {
       "name": "00 Internal",
       "item": [
         {
-          "name": "POST /api/dev/reset",
+          "name": "Reset DB (dev only)",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "x-reset-confirm",
-                "value": "true"
-              }
-            ],
-            "url": "{{base_url}}/api/dev/reset"
-          }
-        },
-        {
-          "name": "POST /api/dev/test-runs/execute",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/api/dev/test-runs/execute",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"suite\": \"api-regression\"\n}"
-            }
+            "header": [{ "key": "x-reset-confirm", "value": "true" }],
+            "url": { "raw": "{{baseUrl}}/api/dev/reset", "host": ["{{baseUrl}}"], "path": ["api","dev","reset"] }
           }
         }
       ]
@@ -70,10 +26,10 @@
       "name": "01 Health",
       "item": [
         {
-          "name": "GET /health",
+          "name": "Health check",
           "request": {
             "method": "GET",
-            "url": "{{base_url}}/health"
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
           }
         }
       ]
@@ -82,180 +38,112 @@
       "name": "02 Templates",
       "item": [
         {
-          "name": "POST /api/templates/validate-md",
+          "name": "Valida Markdown (testo)",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/api/templates/validate-md",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"content\": \"# {{titolo}}\\n\\nQuesto paragrafo e testo normale e deve restare uguale nel documento.\\n\\n## Dati generali\\n- Committente: {{committente}}\\n- Responsabile: {{responsabile}}\\n- Data emissione: {{data}}\\n\\n## Oggetto\\n{{descrizione}}\\n\\n## Importi\\nBudget previsto: {{budget}}\\nSconto applicato: {{sconto}}\\n\\n## Note interne\\nQuesta frase non contiene campi dinamici.\\n\\nFirma: {{firma}}\"\n}"
-            }
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"# {{titolo}}\\n\\nCliente: {{cliente}}\\nImporto: {{importo}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/templates/validate-md", "host": ["{{baseUrl}}"], "path": ["api","templates","validate-md"] }
           }
         },
         {
-          "name": "POST /api/templates/validate-file",
+          "name": "Importa template da file .md",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/templates/validate-file",
+            "header": [],
             "body": {
               "mode": "formdata",
               "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": "C:\\Users\\ivand\\OneDrive\\Desktop\\mac-documents\\storage\\samples\\template-upload-valido.md"
-                }
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "name", "value": "Template da file", "type": "text" }
               ]
-            }
+            },
+            "url": { "raw": "{{baseUrl}}/api/templates/upload", "host": ["{{baseUrl}}"], "path": ["api","templates","upload"] }
           }
         },
         {
-          "name": "POST /api/templates",
+          "name": "Crea template (JSON)",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user", "value": "postman" }
             ],
-            "url": "{{base_url}}/api/templates",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Template Capitolato Tecnico Esteso\",\n  \"description\": \"Template di test con testo fisso, liste, tabella e campi compilati solo in parte\",\n  \"content\": \"# {{titolo}}\\n\\nQuesto documento contiene testo normale che non deve cambiare quando vengono valorizzati i campi. Serve per verificare la differenza tra content e field_values.\\n\\n## 1. Dati generali\\n\\n| Campo | Valore |\\n| --- | --- |\\n| Committente | {{committente}} |\\n| Responsabile | {{responsabile}} |\\n| Data emissione | {{data}} |\\n| Codice gara | {{codice_gara}} |\\n\\n## 2. Oggetto della fornitura\\n\\n{{descrizione}}\\n\\nIl fornitore dovra garantire assistenza, documentazione tecnica e formazione iniziale. Questa riga e testo fisso.\\n\\n## 3. Requisiti\\n\\n- Ambiente cloud con backup giornaliero.\\n- Tracciamento audit delle operazioni principali.\\n- Integrazione con il sistema {{sistema_esterno}}.\\n- SLA richiesto: {{sla}}.\\n\\n## 4. Quadro economico\\n\\nBudget massimo: {{budget}}\\nSconto previsto: {{sconto}}\\nPenale giornaliera: {{penale}}\\n\\n## 5. Chiusura\\n\\nNote finali: {{note_finali}}\\n\\nFirma autorizzata: {{firma}}\",\n  \"fields\": [\n    {\n      \"name\": \"titolo\",\n      \"label\": \"titolo\",\n      \"type\": \"text\",\n      \"required\": true,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"committente\",\n      \"label\": \"committente\",\n      \"type\": \"text\",\n      \"required\": true,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"responsabile\",\n      \"label\": \"responsabile\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"Da assegnare\"\n    },\n    {\n      \"name\": \"data\",\n      \"label\": \"data\",\n      \"type\": \"date\",\n      \"required\": true,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"codice_gara\",\n      \"label\": \"codice gara\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"descrizione\",\n      \"label\": \"descrizione\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"sistema_esterno\",\n      \"label\": \"sistema esterno\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"sla\",\n      \"label\": \"sla\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"budget\",\n      \"label\": \"budget\",\n      \"type\": \"text\",\n      \"required\": true,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"sconto\",\n      \"label\": \"sconto\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"0%\"\n    },\n    {\n      \"name\": \"penale\",\n      \"label\": \"penale\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"N/A\"\n    },\n    {\n      \"name\": \"note_finali\",\n      \"label\": \"note finali\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"Nessuna nota\"\n    },\n    {\n      \"name\": \"firma\",\n      \"label\": \"firma\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"\"\n    }\n  ]\n}"
-            }
+              "raw": "{\n  \"name\": \"Template Contratto\",\n  \"description\": \"Contratto standard\",\n  \"content\": \"# {{titolo}}\\n\\nCliente: {{cliente}}\\nImporto: {{importo}}\\nData: {{data}}\",\n  \"fields\": [\n    { \"name\": \"titolo\",  \"label\": \"Titolo\",  \"type\": \"text\",   \"required\": true },\n    { \"name\": \"cliente\", \"label\": \"Cliente\", \"type\": \"text\",   \"required\": true },\n    { \"name\": \"importo\", \"label\": \"Importo\", \"type\": \"number\", \"required\": true },\n    { \"name\": \"data\",    \"label\": \"Data\",    \"type\": \"date\",   \"required\": true }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/templates", "host": ["{{baseUrl}}"], "path": ["api","templates"] }
           }
         },
         {
-          "name": "PUT /api/templates/:id",
+          "name": "Lista template",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/templates", "host": ["{{baseUrl}}"], "path": ["api","templates"] }
+          }
+        },
+        {
+          "name": "Dettaglio template",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/templates/:id", "host": ["{{baseUrl}}"], "path": ["api","templates",":id"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        },
+        {
+          "name": "Aggiorna template",
           "request": {
             "method": "PUT",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user", "value": "postman" }
             ],
-            "url": "{{base_url}}/api/templates/{{template_id}}",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"description\": \"Seconda versione temporanea per testare versioning e ripristino\",\n  \"content\": \"# {{titolo}}\\n\\nVERSIONE 2 TEMPORANEA: questa riga deve sparire dopo il ripristino.\\n\\n## Cliente\\n{{committente}}\\n\\n## Responsabile\\n{{responsabile}}\\n\\n## Data\\n{{data}}\\n\\n## Dettaglio tecnico\\n{{descrizione}}\\n\\n## Budget\\n{{budget}}\\n\\n## Approvazione\\nFirma: {{firma}}\"\n}"
-            }
+            "body": { "mode": "raw", "raw": "{\n  \"description\": \"Descrizione aggiornata\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/templates/:id", "host": ["{{baseUrl}}"], "path": ["api","templates",":id"], "variable": [{ "key": "id", "value": "" }] }
           }
         },
         {
-          "name": "POST /api/templates/:id/restore/:version",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/templates/{{template_id}}/restore/1"
-          }
-        },
-        {
-          "name": "POST /api/templates",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/templates",
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "name",
-                  "value": "Template caricato da upload",
-                  "type": "text"
-                },
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": "C:\\Users\\ivand\\OneDrive\\Desktop\\mac-documents\\storage\\samples\\template-upload-valido.md"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET /api/templates",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/templates?limit=20&offset=0"
-          }
-        },
-        {
-          "name": "GET /api/templates/:id",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/templates/{{template_id}}"
-          }
-        },
-        {
-          "name": "POST /api/templates/:id/publish",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/templates/{{template_id}}/publish"
-          }
-        },
-        {
-          "name": "GET /api/templates/:id/versions",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/templates/{{template_id}}/versions"
-          }
-        },
-        {
-          "name": "GET /api/templates/:id/export",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/templates/{{template_id}}/export"
-          }
-        },
-        {
-          "name": "DELETE /api/templates/:id",
+          "name": "Elimina template",
           "request": {
             "method": "DELETE",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/templates/{{template_delete_id}}"
+            "header": [{ "key": "x-user", "value": "postman" }],
+            "url": { "raw": "{{baseUrl}}/api/templates/:id", "host": ["{{baseUrl}}"], "path": ["api","templates",":id"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        },
+        {
+          "name": "Cronologia versioni template",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/templates/:id/versions", "host": ["{{baseUrl}}"], "path": ["api","templates",":id","versions"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        },
+        {
+          "name": "Contenuto versione specifica",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/templates/:id/versions/:version", "host": ["{{baseUrl}}"], "path": ["api","templates",":id","versions",":version"], "variable": [{ "key": "id", "value": "" }, { "key": "version", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Ripristina versione template",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "x-user", "value": "postman" }],
+            "url": { "raw": "{{baseUrl}}/api/templates/:id/restore/:version", "host": ["{{baseUrl}}"], "path": ["api","templates",":id","restore",":version"], "variable": [{ "key": "id", "value": "" }, { "key": "version", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Esporta template come .md",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/templates/:id/export", "host": ["{{baseUrl}}"], "path": ["api","templates",":id","export"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        },
+        {
+          "name": "Audit log template",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/templates/:id/audit", "host": ["{{baseUrl}}"], "path": ["api","templates",":id","audit"], "variable": [{ "key": "id", "value": "" }] }
           }
         }
       ]
@@ -264,153 +152,107 @@
       "name": "03 Documents",
       "item": [
         {
-          "name": "POST /api/documents",
+          "name": "Crea documento da template",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user", "value": "postman" }
             ],
-            "url": "{{base_url}}/api/documents",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Capitolato Beta\",\n  \"templateId\": \"{{template_id}}\"\n}"
-            }
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Documento Test\",\n  \"templateId\": \"\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/documents", "host": ["{{baseUrl}}"], "path": ["api","documents"] }
           }
         },
         {
-          "name": "PUT /api/documents/:id",
+          "name": "Lista documenti",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/documents", "host": ["{{baseUrl}}"], "path": ["api","documents"] }
+          }
+        },
+        {
+          "name": "Dettaglio documento",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/documents/:id", "host": ["{{baseUrl}}"], "path": ["api","documents",":id"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        },
+        {
+          "name": "Aggiorna documento (fieldValues)",
           "request": {
             "method": "PUT",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user", "value": "postman" }
             ],
-            "url": "{{base_url}}/api/documents/{{document_id}}",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fieldValues\": {\n    \"titolo\": \"Capitolato Tecnico Beta\",\n    \"committente\": \"Azienda Sanitaria Locale Roma 2\",\n    \"responsabile\": \"Giulia Bianchi\",\n    \"data\": \"2026-04-29\",\n    \"codice_gara\": \"GARA-2026-118\",\n    \"descrizione\": \"Realizzazione di una piattaforma documentale con gestione template, versioni e generazione PDF.\",\n    \"sistema_esterno\": \"protocollo informatico aziendale\",\n    \"sla\": \"99,5% mensile\",\n    \"budget\": \"120.000 EUR\",\n    \"sconto\": \"3%\",\n    \"penale\": \"250 EUR\",\n    \"note_finali\": \"Il collaudo deve essere concluso entro 30 giorni dalla consegna.\",\n    \"firma\": \"Direzione Acquisti\"\n  }\n}"
-            }
+            "body": { "mode": "raw", "raw": "{\n  \"fieldValues\": {\n    \"titolo\": \"Contratto 2026\",\n    \"cliente\": \"Mario Rossi\",\n    \"importo\": \"1000\",\n    \"data\": \"2026-05-01\"\n  }\n}" },
+            "url": { "raw": "{{baseUrl}}/api/documents/:id", "host": ["{{baseUrl}}"], "path": ["api","documents",":id"], "variable": [{ "key": "id", "value": "" }] }
           }
         },
         {
-          "name": "GET /api/documents",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/documents?limit=20&offset=0"
-          }
-        },
-        {
-          "name": "GET /api/documents/:id",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/documents/{{document_id}}"
-          }
-        },
-        {
-          "name": "POST /api/documents/:id/generate-pdf",
-          "request": {
-            "method": "POST",
-            "url": "{{base_url}}/api/documents/{{document_id}}/generate-pdf",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "GET /api/documents/:id/pdf-jobs",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/documents/{{document_id}}/pdf-jobs"
-          }
-        },
-        {
-          "name": "GET /api/documents/:id/pdf-jobs/:jobId",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/documents/{{document_id}}/pdf-jobs/{{pdf_job_id}}"
-          }
-        },
-        {
-          "name": "GET /api/documents/:id/pdf-jobs/:jobId/download",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/documents/{{document_id}}/pdf-jobs/{{pdf_job_id}}/download"
-          }
-        },
-        {
-          "name": "GET /api/documents/:id/latest-pdf",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/documents/{{document_id}}/latest-pdf"
-          }
-        },
-        {
-          "name": "GET /api/documents/:id/preview-pdf",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/documents/{{document_id}}/preview-pdf"
-          }
-        },
-        {
-          "name": "GET /api/documents/:id/export-md",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/documents/{{document_id}}/export-md"
-          }
-        },
-        {
-          "name": "GET /api/documents/:id/versions",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/documents/{{document_id}}/versions"
-          }
-        },
-        {
-          "name": "GET /api/documents/:id/audit",
-          "request": {
-            "method": "GET",
-            "url": "{{base_url}}/api/documents/{{document_id}}/audit"
-          }
-        },
-        {
-          "name": "DELETE /api/documents/:id",
+          "name": "Elimina documento",
           "request": {
             "method": "DELETE",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/documents/{{document_id}}"
+            "header": [{ "key": "x-user", "value": "postman" }],
+            "url": { "raw": "{{baseUrl}}/api/documents/:id", "host": ["{{baseUrl}}"], "path": ["api","documents",":id"], "variable": [{ "key": "id", "value": "" }] }
           }
-        }
-      ]
-    },
-    {
-      "name": "04 Audit",
-      "item": [
+        },
         {
-          "name": "GET /api/audit",
+          "name": "Accoda generazione PDF",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "x-user", "value": "postman" }],
+            "url": { "raw": "{{baseUrl}}/api/documents/:id/generate-pdf", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","generate-pdf"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        },
+        {
+          "name": "Scarica ultimo PDF",
           "request": {
             "method": "GET",
-            "url": "{{base_url}}/api/audit?limit=50"
+            "url": { "raw": "{{baseUrl}}/api/documents/:id/pdf/latest", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","pdf","latest"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        },
+        {
+          "name": "Anteprima PDF (temporanea)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/documents/:id/preview-pdf", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","preview-pdf"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        },
+        {
+          "name": "Cronologia versioni documento",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/documents/:id/versions", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","versions"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        },
+        {
+          "name": "Contenuto versione specifica documento",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/documents/:id/versions/:version", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","versions",":version"], "variable": [{ "key": "id", "value": "" }, { "key": "version", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Ripristina versione documento",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "x-user", "value": "postman" }],
+            "url": { "raw": "{{baseUrl}}/api/documents/:id/restore/:version", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","restore",":version"], "variable": [{ "key": "id", "value": "" }, { "key": "version", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Esporta documento come .md",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/documents/:id/export-md", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","export-md"], "variable": [{ "key": "id", "value": "" }] }
+          }
+        },
+        {
+          "name": "Audit log documento",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/documents/:id/audit", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","audit"], "variable": [{ "key": "id", "value": "" }] }
           }
         }
       ]
