@@ -1,12 +1,67 @@
 {
   "info": {
     "name": "MAC Documents API",
-    "_postman_id": "mac-documents-api-v3",
-    "description": "API per la generazione documentale basata su template Markdown.\n\nGli ID vengono salvati automaticamente nelle variabili di ambiente dopo ogni creazione.",
+    "_postman_id": "mac-documents-api-v4",
+    "description": "API per la generazione documentale basata su template Markdown.\n\nGli ID vengono creati automaticamente dal pre-request script se non sono già presenti nell'environment.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const needsTemplate = !pm.environment.get('templateId');",
+          "const needsDocument = !pm.environment.get('documentId');",
+          "const base = pm.variables.get('baseUrl') || 'http://localhost:3000';",
+          "",
+          "if (!needsTemplate && !needsDocument) return;",
+          "",
+          "if (needsTemplate) {",
+          "  pm.sendRequest({",
+          "    url: base + '/api/templates',",
+          "    method: 'POST',",
+          "    header: [{ key: 'Content-Type', value: 'application/json' }, { key: 'x-user', value: 'postman-auto' }],",
+          "    body: { mode: 'raw', raw: JSON.stringify({ name: 'Template Auto ' + Date.now(), description: 'Creato automaticamente', content: '# {{titolo}}\\n\\nCliente: {{cliente}}\\nImporto: {{importo}}\\nData: {{data}}', fields: [{ name: 'titolo', label: 'Titolo', type: 'text', required: true }, { name: 'cliente', label: 'Cliente', type: 'text', required: true }, { name: 'importo', label: 'Importo', type: 'number', required: true }, { name: 'data', label: 'Data', type: 'date', required: true }] }) }",
+          "  }, function(err, res) {",
+          "    if (!err && res.code === 201) {",
+          "      const tpl = res.json();",
+          "      pm.environment.set('templateId', tpl.id);",
+          "      console.log('[auto] templateId:', tpl.id);",
+          "      if (needsDocument) {",
+          "        pm.sendRequest({",
+          "          url: base + '/api/documents',",
+          "          method: 'POST',",
+          "          header: [{ key: 'Content-Type', value: 'application/json' }, { key: 'x-user', value: 'postman-auto' }],",
+          "          body: { mode: 'raw', raw: JSON.stringify({ name: 'Documento Auto ' + Date.now(), templateId: tpl.id }) }",
+          "        }, function(err2, res2) {",
+          "          if (!err2 && res2.code === 201) {",
+          "            pm.environment.set('documentId', res2.json().id);",
+          "            console.log('[auto] documentId:', res2.json().id);",
+          "          }",
+          "        });",
+          "      }",
+          "    }",
+          "  });",
+          "} else if (needsDocument) {",
+          "  pm.sendRequest({",
+          "    url: base + '/api/documents',",
+          "    method: 'POST',",
+          "    header: [{ key: 'Content-Type', value: 'application/json' }, { key: 'x-user', value: 'postman-auto' }],",
+          "    body: { mode: 'raw', raw: JSON.stringify({ name: 'Documento Auto ' + Date.now(), templateId: pm.environment.get('templateId') }) }",
+          "  }, function(err, res) {",
+          "    if (!err && res.code === 201) {",
+          "      pm.environment.set('documentId', res.json().id);",
+          "      console.log('[auto] documentId:', res.json().id);",
+          "    }",
+          "  });",
+          "}"
+        ]
+      }
+    }
   ],
   "item": [
     {
@@ -14,6 +69,18 @@
       "item": [
         {
           "name": "Reset DB",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.environment.unset('templateId');",
+                "pm.environment.unset('documentId');",
+                "pm.environment.unset('pdfJobId');",
+                "console.log('[reset] variabili environment pulite');"
+              ],
+              "type": "text/javascript"
+            }
+          }],
           "request": {
             "method": "POST",
             "header": [{ "key": "x-reset-confirm", "value": "true" }],
@@ -68,10 +135,7 @@
             "script": {
               "exec": [
                 "const res = pm.response.json();",
-                "if (res.id) {",
-                "  pm.environment.set('templateId', res.id);",
-                "  console.log('templateId salvato:', res.id);",
-                "}"
+                "if (res.id) { pm.environment.set('templateId', res.id); console.log('templateId:', res.id); }"
               ],
               "type": "text/javascript"
             }
@@ -117,6 +181,15 @@
         },
         {
           "name": "Elimina template",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if ([200,204].includes(pm.response.code)) { pm.environment.unset('templateId'); pm.environment.unset('documentId'); }"
+              ],
+              "type": "text/javascript"
+            }
+          }],
           "request": {
             "method": "DELETE",
             "header": [{ "key": "x-user", "value": "postman" }],
@@ -171,10 +244,7 @@
             "script": {
               "exec": [
                 "const res = pm.response.json();",
-                "if (res.id) {",
-                "  pm.environment.set('documentId', res.id);",
-                "  console.log('documentId salvato:', res.id);",
-                "}"
+                "if (res.id) { pm.environment.set('documentId', res.id); console.log('documentId:', res.id); }"
               ],
               "type": "text/javascript"
             }
@@ -217,6 +287,15 @@
         },
         {
           "name": "Elimina documento",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if ([200,204].includes(pm.response.code)) { pm.environment.unset('documentId'); }"
+              ],
+              "type": "text/javascript"
+            }
+          }],
           "request": {
             "method": "DELETE",
             "header": [{ "key": "x-user", "value": "postman" }],
@@ -230,10 +309,7 @@
             "script": {
               "exec": [
                 "const res = pm.response.json();",
-                "if (res.jobId) {",
-                "  pm.environment.set('pdfJobId', res.jobId);",
-                "  console.log('pdfJobId salvato:', res.jobId);",
-                "}"
+                "if (res.jobId) { pm.environment.set('pdfJobId', res.jobId); console.log('pdfJobId:', res.jobId); }"
               ],
               "type": "text/javascript"
             }
