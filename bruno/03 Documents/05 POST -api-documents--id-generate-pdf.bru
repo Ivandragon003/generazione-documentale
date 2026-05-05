@@ -1,0 +1,20 @@
+meta {
+  name: POST /api/documents/:id/generate-pdf
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/api/documents/{{document_id}}/generate-pdf
+  body: none
+  auth: none
+}
+
+headers {
+  x-user: {{user}}
+}
+
+script:post-response {
+  const data = res.getBody();
+  if (data && data.jobId) bru.setVar('pdf_job_id', data.jobId);
+}

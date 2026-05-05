@@ -1,0 +1,15 @@
+meta {
+  name: DELETE /api/documents/:id
+  type: http
+  seq: 13
+}
+
+delete {
+  url: {{base_url}}/api/documents/{{document_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-user: {{user}}
+}

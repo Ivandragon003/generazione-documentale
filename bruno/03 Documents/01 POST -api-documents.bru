@@ -1,0 +1,28 @@
+meta {
+  name: POST /api/documents
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/api/documents
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  x-user: {{user}}
+}
+
+body:json {
+  {
+    "name": "Capitolato Beta",
+    "templateId": "{{template_id}}"
+  }
+}
+
+script:post-response {
+  const data = res.getBody();
+  if (data && data.id) bru.setVar('document_id', data.id);
+}

@@ -1,0 +1,44 @@
+meta {
+  name: POST /api/templates
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/api/templates
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  x-user: {{user}}
+}
+
+body:json {
+  {
+    "name": "Template Capitolato Tecnico Esteso",
+    "description": "Template di test con testo fisso, liste, tabella e campi compilati solo in parte",
+    "content": "# {{titolo}}\n\nQuesto documento contiene testo normale che non deve cambiare quando vengono valorizzati i campi. Serve per verificare la differenza tra content e field_values.\n\n## 1. Dati generali\n\n| Campo | Valore |\n| --- | --- |\n| Committente | {{committente}} |\n| Responsabile | {{responsabile}} |\n| Data emissione | {{data}} |\n| Codice gara | {{codice_gara}} |\n\n## 2. Oggetto della fornitura\n\n{{descrizione}}\n\nIl fornitore dovra garantire assistenza, documentazione tecnica e formazione iniziale. Questa riga e testo fisso.\n\n## 3. Requisiti\n\n- Ambiente cloud con backup giornaliero.\n- Tracciamento audit delle operazioni principali.\n- Integrazione con il sistema {{sistema_esterno}}.\n- SLA richiesto: {{sla}}.\n\n## 4. Quadro economico\n\nBudget massimo: {{budget}}\nSconto previsto: {{sconto}}\nPenale giornaliera: {{penale}}\n\n## 5. Chiusura\n\nNote finali: {{note_finali}}\n\nFirma autorizzata: {{firma}}",
+    "fields": [
+      { "name": "titolo", "label": "titolo", "type": "text", "required": true, "defaultValue": "" },
+      { "name": "committente", "label": "committente", "type": "text", "required": true, "defaultValue": "" },
+      { "name": "responsabile", "label": "responsabile", "type": "text", "required": false, "defaultValue": "Da assegnare" },
+      { "name": "data", "label": "data", "type": "date", "required": true, "defaultValue": "" },
+      { "name": "codice_gara", "label": "codice gara", "type": "text", "required": false, "defaultValue": "" },
+      { "name": "descrizione", "label": "descrizione", "type": "text", "required": false, "defaultValue": "" },
+      { "name": "sistema_esterno", "label": "sistema esterno", "type": "text", "required": false, "defaultValue": "" },
+      { "name": "sla", "label": "sla", "type": "text", "required": false, "defaultValue": "" },
+      { "name": "budget", "label": "budget", "type": "text", "required": true, "defaultValue": "" },
+      { "name": "sconto", "label": "sconto", "type": "text", "required": false, "defaultValue": "0%" },
+      { "name": "penale", "label": "penale", "type": "text", "required": false, "defaultValue": "N/A" },
+      { "name": "note_finali", "label": "note finali", "type": "text", "required": false, "defaultValue": "Nessuna nota" },
+      { "name": "firma", "label": "firma", "type": "text", "required": false, "defaultValue": "" }
+    ]
+  }
+}
+
+script:post-response {
+  const data = res.getBody();
+  if (data && data.id) bru.setVar('template_id', data.id);
+}

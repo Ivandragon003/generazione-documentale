@@ -1,0 +1,11 @@
+meta {
+  name: GET /api/documents/:id/preview-pdf
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{base_url}}/api/documents/{{document_id}}/preview-pdf
+  body: none
+  auth: none
+}

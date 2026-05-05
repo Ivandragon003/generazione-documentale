@@ -1,0 +1,15 @@
+meta {
+  name: POST /api/dev/reset
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/api/dev/reset
+  body: none
+  auth: none
+}
+
+headers {
+  x-reset-confirm: true
+}

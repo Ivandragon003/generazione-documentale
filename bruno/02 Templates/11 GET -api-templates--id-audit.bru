@@ -1,0 +1,11 @@
+meta {
+  name: GET /api/templates/:id/audit
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{base_url}}/api/templates/{{template_id}}/audit?limit=50
+  body: none
+  auth: none
+}
