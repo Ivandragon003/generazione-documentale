@@ -1,8 +1,8 @@
 {
   "info": {
     "name": "MAC Documents API",
-    "_postman_id": "mac-documents-api-v2",
-    "description": "API per la generazione documentale basata su template Markdown.",
+    "_postman_id": "mac-documents-api-v3",
+    "description": "API per la generazione documentale basata su template Markdown.\n\nGli ID vengono salvati automaticamente nelle variabili di ambiente dopo ogni creazione.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -13,7 +13,7 @@
       "name": "00 Internal",
       "item": [
         {
-          "name": "Reset DB (dev only)",
+          "name": "Reset DB",
           "request": {
             "method": "POST",
             "header": [{ "key": "x-reset-confirm", "value": "true" }],
@@ -63,6 +63,19 @@
         },
         {
           "name": "Crea template (JSON)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const res = pm.response.json();",
+                "if (res.id) {",
+                "  pm.environment.set('templateId', res.id);",
+                "  console.log('templateId salvato:', res.id);",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }],
           "request": {
             "method": "POST",
             "header": [
@@ -87,7 +100,7 @@
           "name": "Dettaglio template",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/templates/:id", "host": ["{{baseUrl}}"], "path": ["api","templates",":id"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/templates/{{templateId}}", "host": ["{{baseUrl}}"], "path": ["api","templates","{{templateId}}"] }
           }
         },
         {
@@ -99,7 +112,7 @@
               { "key": "x-user", "value": "postman" }
             ],
             "body": { "mode": "raw", "raw": "{\n  \"description\": \"Descrizione aggiornata\"\n}" },
-            "url": { "raw": "{{baseUrl}}/api/templates/:id", "host": ["{{baseUrl}}"], "path": ["api","templates",":id"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/templates/{{templateId}}", "host": ["{{baseUrl}}"], "path": ["api","templates","{{templateId}}"] }
           }
         },
         {
@@ -107,21 +120,21 @@
           "request": {
             "method": "DELETE",
             "header": [{ "key": "x-user", "value": "postman" }],
-            "url": { "raw": "{{baseUrl}}/api/templates/:id", "host": ["{{baseUrl}}"], "path": ["api","templates",":id"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/templates/{{templateId}}", "host": ["{{baseUrl}}"], "path": ["api","templates","{{templateId}}"] }
           }
         },
         {
           "name": "Cronologia versioni template",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/templates/:id/versions", "host": ["{{baseUrl}}"], "path": ["api","templates",":id","versions"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/templates/{{templateId}}/versions", "host": ["{{baseUrl}}"], "path": ["api","templates","{{templateId}}","versions"] }
           }
         },
         {
           "name": "Contenuto versione specifica",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/templates/:id/versions/:version", "host": ["{{baseUrl}}"], "path": ["api","templates",":id","versions",":version"], "variable": [{ "key": "id", "value": "" }, { "key": "version", "value": "1" }] }
+            "url": { "raw": "{{baseUrl}}/api/templates/{{templateId}}/versions/1", "host": ["{{baseUrl}}"], "path": ["api","templates","{{templateId}}","versions","1"] }
           }
         },
         {
@@ -129,21 +142,21 @@
           "request": {
             "method": "POST",
             "header": [{ "key": "x-user", "value": "postman" }],
-            "url": { "raw": "{{baseUrl}}/api/templates/:id/restore/:version", "host": ["{{baseUrl}}"], "path": ["api","templates",":id","restore",":version"], "variable": [{ "key": "id", "value": "" }, { "key": "version", "value": "1" }] }
+            "url": { "raw": "{{baseUrl}}/api/templates/{{templateId}}/restore/1", "host": ["{{baseUrl}}"], "path": ["api","templates","{{templateId}}","restore","1"] }
           }
         },
         {
           "name": "Esporta template come .md",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/templates/:id/export", "host": ["{{baseUrl}}"], "path": ["api","templates",":id","export"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/templates/{{templateId}}/export", "host": ["{{baseUrl}}"], "path": ["api","templates","{{templateId}}","export"] }
           }
         },
         {
           "name": "Audit log template",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/templates/:id/audit", "host": ["{{baseUrl}}"], "path": ["api","templates",":id","audit"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/templates/{{templateId}}/audit", "host": ["{{baseUrl}}"], "path": ["api","templates","{{templateId}}","audit"] }
           }
         }
       ]
@@ -153,13 +166,26 @@
       "item": [
         {
           "name": "Crea documento da template",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const res = pm.response.json();",
+                "if (res.id) {",
+                "  pm.environment.set('documentId', res.id);",
+                "  console.log('documentId salvato:', res.id);",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }],
           "request": {
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
               { "key": "x-user", "value": "postman" }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Documento Test\",\n  \"templateId\": \"\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Documento Test\",\n  \"templateId\": \"{{templateId}}\"\n}" },
             "url": { "raw": "{{baseUrl}}/api/documents", "host": ["{{baseUrl}}"], "path": ["api","documents"] }
           }
         },
@@ -174,7 +200,7 @@
           "name": "Dettaglio documento",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/documents/:id", "host": ["{{baseUrl}}"], "path": ["api","documents",":id"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/documents/{{documentId}}", "host": ["{{baseUrl}}"], "path": ["api","documents","{{documentId}}"] }
           }
         },
         {
@@ -186,7 +212,7 @@
               { "key": "x-user", "value": "postman" }
             ],
             "body": { "mode": "raw", "raw": "{\n  \"fieldValues\": {\n    \"titolo\": \"Contratto 2026\",\n    \"cliente\": \"Mario Rossi\",\n    \"importo\": \"1000\",\n    \"data\": \"2026-05-01\"\n  }\n}" },
-            "url": { "raw": "{{baseUrl}}/api/documents/:id", "host": ["{{baseUrl}}"], "path": ["api","documents",":id"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/documents/{{documentId}}", "host": ["{{baseUrl}}"], "path": ["api","documents","{{documentId}}"] }
           }
         },
         {
@@ -194,43 +220,56 @@
           "request": {
             "method": "DELETE",
             "header": [{ "key": "x-user", "value": "postman" }],
-            "url": { "raw": "{{baseUrl}}/api/documents/:id", "host": ["{{baseUrl}}"], "path": ["api","documents",":id"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/documents/{{documentId}}", "host": ["{{baseUrl}}"], "path": ["api","documents","{{documentId}}"] }
           }
         },
         {
           "name": "Accoda generazione PDF",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const res = pm.response.json();",
+                "if (res.jobId) {",
+                "  pm.environment.set('pdfJobId', res.jobId);",
+                "  console.log('pdfJobId salvato:', res.jobId);",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }],
           "request": {
             "method": "POST",
             "header": [{ "key": "x-user", "value": "postman" }],
-            "url": { "raw": "{{baseUrl}}/api/documents/:id/generate-pdf", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","generate-pdf"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/documents/{{documentId}}/generate-pdf", "host": ["{{baseUrl}}"], "path": ["api","documents","{{documentId}}","generate-pdf"] }
           }
         },
         {
           "name": "Scarica ultimo PDF",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/documents/:id/pdf/latest", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","pdf","latest"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/documents/{{documentId}}/pdf/latest", "host": ["{{baseUrl}}"], "path": ["api","documents","{{documentId}}","pdf","latest"] }
           }
         },
         {
           "name": "Anteprima PDF (temporanea)",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/documents/:id/preview-pdf", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","preview-pdf"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/documents/{{documentId}}/preview-pdf", "host": ["{{baseUrl}}"], "path": ["api","documents","{{documentId}}","preview-pdf"] }
           }
         },
         {
           "name": "Cronologia versioni documento",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/documents/:id/versions", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","versions"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/documents/{{documentId}}/versions", "host": ["{{baseUrl}}"], "path": ["api","documents","{{documentId}}","versions"] }
           }
         },
         {
           "name": "Contenuto versione specifica documento",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/documents/:id/versions/:version", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","versions",":version"], "variable": [{ "key": "id", "value": "" }, { "key": "version", "value": "1" }] }
+            "url": { "raw": "{{baseUrl}}/api/documents/{{documentId}}/versions/1", "host": ["{{baseUrl}}"], "path": ["api","documents","{{documentId}}","versions","1"] }
           }
         },
         {
@@ -238,21 +277,33 @@
           "request": {
             "method": "POST",
             "header": [{ "key": "x-user", "value": "postman" }],
-            "url": { "raw": "{{baseUrl}}/api/documents/:id/restore/:version", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","restore",":version"], "variable": [{ "key": "id", "value": "" }, { "key": "version", "value": "1" }] }
+            "url": { "raw": "{{baseUrl}}/api/documents/{{documentId}}/restore/1", "host": ["{{baseUrl}}"], "path": ["api","documents","{{documentId}}","restore","1"] }
           }
         },
         {
           "name": "Esporta documento come .md",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/documents/:id/export-md", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","export-md"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/documents/{{documentId}}/export-md", "host": ["{{baseUrl}}"], "path": ["api","documents","{{documentId}}","export-md"] }
           }
         },
         {
           "name": "Audit log documento",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/documents/:id/audit", "host": ["{{baseUrl}}"], "path": ["api","documents",":id","audit"], "variable": [{ "key": "id", "value": "" }] }
+            "url": { "raw": "{{baseUrl}}/api/documents/{{documentId}}/audit", "host": ["{{baseUrl}}"], "path": ["api","documents","{{documentId}}","audit"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 PDF",
+      "item": [
+        {
+          "name": "Valida template per PDF",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/pdf/templates/{{templateId}}/validate", "host": ["{{baseUrl}}"], "path": ["api","pdf","templates","{{templateId}}","validate"] }
           }
         }
       ]

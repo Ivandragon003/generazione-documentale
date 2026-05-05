@@ -16,8 +16,6 @@ async function bootstrap() {
     exclude: ['health'],
   });
 
-  // Swagger UI — solo le API pubbliche
-  // Nota: audit non ha una sezione dedicata, le sue route sono dentro templates e documents
   const swaggerConfig = new DocumentBuilder()
     .setTitle('MAC Documents API')
     .setDescription('API per la generazione documentale basata su template Markdown.')
@@ -25,6 +23,7 @@ async function bootstrap() {
     .addTag('health',    'Stato applicazione')
     .addTag('templates', 'Gestione template documentali')
     .addTag('documents', 'Gestione documenti generati')
+    .addTag('pdf',       'Utilità generazione PDF')
     .build();
 
   const swaggerDoc = SwaggerModule.createDocument(app, swaggerConfig);
@@ -48,21 +47,26 @@ async function bootstrap() {
   console.log(`   Health check: http://localhost:${port}/health`);
   console.log(`   API routes  : http://localhost:${port}/api/...\n`);
 
-  // Esegue i test di regressione automaticamente all'avvio (solo in development)
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🧪 NODE_ENV=development — avvio suite di regression test...\n');
+  // Test di regressione — girano sempre all'avvio (solo locale, non in production)
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('🧪 Avvio suite di regression test...\n');
     try {
       const { runApiRegressionSuite } = require('./modules/dev/api-regression.service');
       const result = await runApiRegressionSuite({
         baseUrl: `http://localhost:${port}`,
         reset:   true,
       });
-      const passed = result.tests?.filter(t => t.ok).length ?? 0;
+      const passed = result.tests?.filter(t => t.status === 'passed').length ?? 0;
       const total  = result.tests?.length ?? 0;
-      console.log(`✅ Regression test completati: ${passed}/${total} passati\n`);
+      console.log(`\n✅ Regression test completati: ${passed}/${total} passati\n`);
+      result.tests.forEach(t => {
+        const icon = t.status === 'passed' ? '  ✅' : '  ❌';
+        console.log(`${icon} ${t.name}${t.error ? ' — ' + t.error : ''}`);
+      });
+      console.log('');
     } catch (err) {
       console.error('❌ Regression test FALLITI:', err.message);
-      if (err.failedTest) console.error('   Test fallito:', err.failedTest);
+      if (err.failedTest) console.error('   Test fallito:', err.failedTest.name, '—', err.failedTest.error);
     }
   }
 }
