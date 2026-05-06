@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import { InjectDataSource } from "@nestjs/typeorm";
 import type { DataSource } from "typeorm";
 import { makeError } from "../common/utils/errors";
 import { appConfig } from "../config/app.config";
@@ -32,6 +33,7 @@ export class DocumentsService {
   private processorRunning = false;
 
   constructor(
+    @InjectDataSource()
     private readonly dataSource: DataSource,
     @Inject(DocumentsRepository)
     private readonly documentsRepository: DocumentsRepository,

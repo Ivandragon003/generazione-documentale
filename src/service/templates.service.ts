@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable, Logger } from "@nestjs/common";
+import { InjectDataSource } from "@nestjs/typeorm";
 import type { DataSource } from "typeorm";
 import type { FieldDefinition } from "../common/types/field-definition.type";
 import { makeError } from "../common/utils/errors";
@@ -37,6 +38,7 @@ export class TemplatesService {
   private readonly logger = new Logger(TemplatesService.name);
 
   constructor(
+    @InjectDataSource()
     private readonly dataSource: DataSource,
     @Inject(TemplatesRepository)
     private readonly templatesRepository: TemplatesRepository,
