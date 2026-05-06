@@ -26,12 +26,7 @@ Thumbs.db
 !.vscode/extensions.json
 .idea
 
-# env
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+
 
 # storage runtime artifacts
 storage/uploads/*
