@@ -24,6 +24,6 @@ export class Configuration {
     this.password = param.password;
     this.accessToken = param.accessToken;
     // Default to the real local API server.
-    this.basePath = param.basePath || 'http://localhost:3000';
+    this.basePath = param.basePath || "http://localhost:3000";
   }
 }

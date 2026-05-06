@@ -26,9 +26,7 @@
             }
           }
         },
-        "tags": [
-          "health"
-        ]
+        "tags": ["health"]
       }
     },
     "/api/templates": {
@@ -41,10 +39,7 @@
             "required": false,
             "in": "query",
             "schema": {
-              "enum": [
-                "draft",
-                "published"
-              ],
+              "enum": ["draft", "published"],
               "type": "string"
             }
           },
@@ -72,9 +67,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       },
       "post": {
         "operationId": "TemplatesController_create",
@@ -86,10 +79,7 @@
             "application/json": {
               "schema": {
                 "title": "CreateTemplateDto",
-                "required": [
-                  "name",
-                  "content"
-                ],
+                "required": ["name", "content"],
                 "properties": {
                   "name": {
                     "type": "string",
@@ -118,12 +108,7 @@
                         },
                         "type": {
                           "type": "string",
-                          "enum": [
-                            "text",
-                            "number",
-                            "date",
-                            "boolean"
-                          ],
+                          "enum": ["text", "number", "date", "boolean"],
                           "example": "text"
                         },
                         "required": {
@@ -143,9 +128,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       }
     },
     "/api/templates/{id}": {
@@ -166,9 +149,7 @@
             "description": "Template non trovato"
           }
         },
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       },
       "put": {
         "operationId": "TemplatesController_update",
@@ -214,9 +195,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       },
       "delete": {
         "operationId": "TemplatesController_remove",
@@ -235,9 +214,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       }
     },
     "/api/templates/{id}/versions": {
@@ -258,9 +235,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       }
     },
     "/api/templates/{id}/versions/{version}": {
@@ -288,9 +263,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       }
     },
     "/api/templates/{id}/audit": {
@@ -329,9 +302,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       }
     },
     "/api/templates/upload": {
@@ -365,9 +336,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       }
     },
     "/api/templates/validate-md": {
@@ -381,9 +350,7 @@
             "application/json": {
               "schema": {
                 "title": "ValidateMarkdownDto",
-                "required": [
-                  "content"
-                ],
+                "required": ["content"],
                 "properties": {
                   "content": {
                     "type": "string",
@@ -399,9 +366,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       }
     },
     "/api/templates/{id}/restore/{version}": {
@@ -429,9 +394,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       }
     },
     "/api/templates/{id}/export": {
@@ -455,9 +418,7 @@
             }
           }
         },
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       }
     },
     "/api/documents": {
@@ -470,12 +431,7 @@
             "required": false,
             "in": "query",
             "schema": {
-              "enum": [
-                "draft",
-                "generated",
-                "published",
-                "archived"
-              ],
+              "enum": ["draft", "generated", "published", "archived"],
               "type": "string"
             }
           },
@@ -503,9 +459,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "documents"
-        ]
+        "tags": ["documents"]
       },
       "post": {
         "operationId": "DocumentsController_create",
@@ -517,10 +471,7 @@
             "application/json": {
               "schema": {
                 "title": "CreateDocumentDto",
-                "required": [
-                  "name",
-                  "templateId"
-                ],
+                "required": ["name", "templateId"],
                 "properties": {
                   "name": {
                     "type": "string",
@@ -541,9 +492,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "documents"
-        ]
+        "tags": ["documents"]
       }
     },
     "/api/documents/{id}": {
@@ -564,9 +513,7 @@
             "description": "Documento non trovato"
           }
         },
-        "tags": [
-          "documents"
-        ]
+        "tags": ["documents"]
       },
       "put": {
         "operationId": "DocumentsController_update",
@@ -615,9 +562,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "documents"
-        ]
+        "tags": ["documents"]
       },
       "delete": {
         "operationId": "DocumentsController_remove",
@@ -636,9 +581,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "documents"
-        ]
+        "tags": ["documents"]
       }
     },
     "/api/documents/{id}/generate-pdf": {
@@ -659,9 +602,7 @@
             "description": "Job PDF accodato"
           }
         },
-        "tags": [
-          "documents"
-        ]
+        "tags": ["documents"]
       }
     },
     "/api/documents/{id}/pdf/latest": {
@@ -688,9 +629,7 @@
             "description": "Nessun PDF disponibile"
           }
         },
-        "tags": [
-          "documents"
-        ]
+        "tags": ["documents"]
       }
     },
     "/api/documents/{id}/preview-pdf": {
@@ -711,9 +650,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "documents"
-        ]
+        "tags": ["documents"]
       }
     },
     "/api/documents/{id}/versions": {
@@ -734,9 +671,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "documents"
-        ]
+        "tags": ["documents"]
       }
     },
     "/api/documents/{id}/versions/{version}": {
@@ -764,9 +699,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "documents"
-        ]
+        "tags": ["documents"]
       }
     },
     "/api/documents/{id}/restore/{version}": {
@@ -794,9 +727,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "documents"
-        ]
+        "tags": ["documents"]
       }
     },
     "/api/documents/{id}/export-md": {
@@ -817,9 +748,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "documents"
-        ]
+        "tags": ["documents"]
       }
     },
     "/api/documents/{id}/audit": {
@@ -858,9 +787,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "documents"
-        ]
+        "tags": ["documents"]
       }
     },
     "/api/pdf/templates/{templateId}/validate": {
@@ -884,9 +811,7 @@
             "description": "Template non trovato"
           }
         },
-        "tags": [
-          "pdf"
-        ]
+        "tags": ["pdf"]
       }
     },
     "/api/dev/test-runs/execute": {
@@ -903,9 +828,7 @@
             "description": "Almeno un test fallito"
           }
         },
-        "tags": [
-          "dev"
-        ]
+        "tags": ["dev"]
       }
     },
     "/api/dev/reset": {
@@ -935,9 +858,7 @@
             "description": "Non disponibile in produzione"
           }
         },
-        "tags": [
-          "dev"
-        ]
+        "tags": ["dev"]
       }
     },
     "/api/dev/seed-large-pdf": {
@@ -954,9 +875,7 @@
             "description": "Non disponibile in produzione"
           }
         },
-        "tags": [
-          "dev"
-        ]
+        "tags": ["dev"]
       }
     }
   },

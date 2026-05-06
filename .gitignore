@@ -1,38 +1,39 @@
-# Dependencies
-node_modules/
-package-lock.json
-yarn.lock
+/dist
+/node_modules
+/coverage
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*.swn
-*.sublime-workspace
-*.sublime-project
-
-# OS
-.DS_Store
-Thumbs.db
-.thumb
-
-# Logs
-logs/
+# logs
+logs
 *.log
 npm-debug.log*
+pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Build/Dist
-dist/
-build/
+# runtime
+tmp
+.temp
+*.pid
+*.pid.lock
 
-# Runtime
-.cache
-.tmp
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea
 
-# Storage — file generati a runtime (non tracciare contenuto, solo cartella)
+# env
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# storage runtime artifacts
 storage/uploads/*
 !storage/uploads/.gitkeep
 storage/pdf/*
@@ -40,13 +41,8 @@ storage/pdf/*
 storage/templates/*
 !storage/templates/.gitkeep
 !storage/templates/CATALOG.md
-
-# Test artifacts
 storage/test-runs/*.json
 
-# ─── Database ─────────────────────────────────────────────────────────────────
-# I file SQL in db/ sono SEMPRE tracciati (schema, migration, seed).
-# NON aggiungere db/ o *.sql a questo file.
-# Fanno eccezione solo i dump produzione (mai nel repo):
+# database dumps
 *.dump
 *.pgdump
