@@ -2,18 +2,31 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
 import type { FieldDefinition } from "../../common/types/field-definition.type";
 import { DocumentEntity } from "./document.entity";
-import { TemplateVersionEntity } from "./template-version.entity";
+import { SectionEntity } from "./section.entity";
 
 @Entity({ name: "templates" })
 export class TemplateEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
+
+  @Column({ type: "uuid", nullable: true })
+  section_id!: string | null;
+
+  @ManyToOne(
+    () => SectionEntity,
+    (section) => section.templates,
+    { onDelete: "SET NULL" },
+  )
+  @JoinColumn({ name: "section_id" })
+  section?: SectionEntity | null;
 
   @Column({ type: "varchar", length: 255 })
   name!: string;
@@ -27,9 +40,6 @@ export class TemplateEntity {
   @Column({ type: "varchar", length: 50, default: "draft" })
   status!: "draft" | "published";
 
-  @Column({ type: "integer", default: 1 })
-  version!: number;
-
   @Column({ type: "jsonb", default: () => "'[]'" })
   fields!: FieldDefinition[];
 
@@ -41,12 +51,6 @@ export class TemplateEntity {
 
   @UpdateDateColumn({ type: "timestamptz" })
   updated_at!: Date;
-
-  @OneToMany(
-    () => TemplateVersionEntity,
-    (version) => version.template,
-  )
-  versions?: TemplateVersionEntity[];
 
   @OneToMany(
     () => DocumentEntity,

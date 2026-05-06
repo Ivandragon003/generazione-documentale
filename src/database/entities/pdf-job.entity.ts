@@ -41,9 +41,6 @@ export class PdfJobEntity {
   @Column({ type: "varchar", length: 255, default: "system" })
   requested_by!: string;
 
-  @Column({ type: "varchar", length: 255, default: "system" })
-  created_by!: string;
-
   @CreateDateColumn({ type: "timestamptz" })
   created_at!: Date;
 

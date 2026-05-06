@@ -2,7 +2,6 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { EntityManager, Repository } from "typeorm";
 import { DocumentEntity } from "../database/entities/document.entity";
-import { DocumentVersionEntity } from "../database/entities/document-version.entity";
 import { PdfJobEntity } from "../database/entities/pdf-job.entity";
 
 interface FindAllOptions {
@@ -14,17 +13,7 @@ interface FindAllOptions {
 interface InsertDocumentPayload {
   name: string;
   templateId: string;
-  templateVersion: number;
   content: string;
-  createdBy: string;
-}
-
-interface InsertDocumentVersionPayload {
-  documentId: string;
-  version: number;
-  content: string;
-  fieldValues: Record<string, string | number | boolean | null>;
-  action: string;
   createdBy: string;
 }
 
@@ -33,8 +22,6 @@ export class DocumentsRepository {
   constructor(
     @InjectRepository(DocumentEntity)
     private readonly documentRepository: Repository<DocumentEntity>,
-    @InjectRepository(DocumentVersionEntity)
-    private readonly documentVersionRepository: Repository<DocumentVersionEntity>,
     @InjectRepository(PdfJobEntity)
     private readonly pdfJobRepository: Repository<PdfJobEntity>,
   ) {}
@@ -65,29 +52,12 @@ export class DocumentsRepository {
     const document = manager.create(DocumentEntity, {
       name: payload.name,
       template_id: payload.templateId,
-      template_version: payload.templateVersion,
       content: payload.content,
       field_values: {},
-      version: 1,
       status: "draft",
       created_by: payload.createdBy,
     });
     return manager.save(DocumentEntity, document);
-  }
-
-  async insertDocumentVersion(
-    manager: EntityManager,
-    payload: InsertDocumentVersionPayload,
-  ): Promise<DocumentVersionEntity> {
-    const version = manager.create(DocumentVersionEntity, {
-      document_id: payload.documentId,
-      version: payload.version,
-      content: payload.content,
-      field_values: payload.fieldValues,
-      action: payload.action,
-      created_by: payload.createdBy,
-    });
-    return manager.save(DocumentVersionEntity, version);
   }
 
   async updateDocument(
@@ -97,7 +67,6 @@ export class DocumentsRepository {
       name: string;
       content: string;
       fieldValues: Record<string, string | number | boolean | null>;
-      version: number;
     },
   ): Promise<DocumentEntity> {
     await manager.update(
@@ -107,7 +76,6 @@ export class DocumentsRepository {
         name: payload.name,
         content: payload.content,
         field_values: payload.fieldValues,
-        version: payload.version,
       },
     );
     const updated = await manager.findOne(DocumentEntity, {
@@ -115,31 +83,6 @@ export class DocumentsRepository {
     });
     if (!updated) throw new Error("Documento non trovato dopo update");
     return updated;
-  }
-
-  async getMaxVersion(documentId: string): Promise<number> {
-    const result = await this.documentVersionRepository
-      .createQueryBuilder("dv")
-      .select("MAX(dv.version)", "max")
-      .where("dv.document_id = :documentId", { documentId })
-      .getRawOne<{ max: number | null }>();
-    return result?.max ?? 0;
-  }
-
-  async findVersions(documentId: string): Promise<DocumentVersionEntity[]> {
-    return this.documentVersionRepository.find({
-      where: { document_id: documentId },
-      order: { version: "DESC" },
-    });
-  }
-
-  async findVersionById(
-    documentId: string,
-    version: number,
-  ): Promise<DocumentVersionEntity | null> {
-    return this.documentVersionRepository.findOne({
-      where: { document_id: documentId, version },
-    });
   }
 
   async insertPdfJob(
@@ -200,13 +143,6 @@ export class DocumentsRepository {
       where: { document_id: documentId, status: "completed" },
       order: { created_at: "DESC" },
     });
-  }
-
-  async updatePdfJobRunning(jobId: string): Promise<void> {
-    await this.pdfJobRepository.update(
-      { id: jobId },
-      { status: "running", started_at: new Date() },
-    );
   }
 
   async updatePdfJobCompleted(

@@ -1,19 +1,21 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import type { EntityManager, Repository } from "typeorm";
+import type { EntityManager, Repository, SelectQueryBuilder } from "typeorm";
 import type { FieldDefinition } from "../common/types/field-definition.type";
 import { DocumentEntity } from "../database/entities/document.entity";
 import { TemplateEntity } from "../database/entities/template.entity";
-import { TemplateVersionEntity } from "../database/entities/template-version.entity";
 
 interface FindAllOptions {
   status?: "draft" | "published";
+  sectionId?: string;
+  categoryId?: string;
   limit: number;
   offset: number;
 }
 
 interface InsertTemplatePayload {
   id: string;
+  sectionId?: string;
   name: string;
   description?: string;
   contentPath: string;
@@ -21,23 +23,13 @@ interface InsertTemplatePayload {
   createdBy: string;
 }
 
-interface InsertTemplateVersionPayload {
-  templateId: string;
-  version: number;
-  contentPath: string;
-  fields: FieldDefinition[];
-  status: string;
-  action: string;
-  createdBy: string;
-}
-
 interface UpdateTemplatePayload {
   id: string;
+  sectionId: string | null;
   name: string;
   description: string | null;
   contentPath: string;
   fields: FieldDefinition[];
-  newVersion: number;
 }
 
 @Injectable()
@@ -45,24 +37,43 @@ export class TemplatesRepository {
   constructor(
     @InjectRepository(TemplateEntity)
     private readonly templateRepository: Repository<TemplateEntity>,
-    @InjectRepository(TemplateVersionEntity)
-    private readonly templateVersionRepository: Repository<TemplateVersionEntity>,
     @InjectRepository(DocumentEntity)
     private readonly documentRepository: Repository<DocumentEntity>,
   ) {}
 
+  private withFilters(
+    qb: SelectQueryBuilder<TemplateEntity>,
+    { status, sectionId, categoryId }: Omit<FindAllOptions, "limit" | "offset">,
+  ): SelectQueryBuilder<TemplateEntity> {
+    if (status) {
+      qb.andWhere("template.status = :status", { status });
+    }
+    if (sectionId) {
+      qb.andWhere("template.section_id = :sectionId", { sectionId });
+    }
+    if (categoryId) {
+      qb.innerJoin("sections", "section", "section.id = template.section_id");
+      qb.andWhere("section.category_id = :categoryId", { categoryId });
+    }
+    return qb;
+  }
+
   async findAll({
     status,
+    sectionId,
+    categoryId,
     limit,
     offset,
   }: FindAllOptions): Promise<{ data: TemplateEntity[]; total: number }> {
-    const where = status ? { status } : {};
-    const [data, total] = await this.templateRepository.findAndCount({
-      where,
-      order: { updated_at: "DESC" },
-      take: limit,
-      skip: offset,
-    });
+    const baseQuery = this.templateRepository
+      .createQueryBuilder("template")
+      .orderBy("template.updated_at", "DESC");
+
+    this.withFilters(baseQuery, { status, sectionId, categoryId });
+    const [data, total] = await baseQuery
+      .take(limit)
+      .skip(offset)
+      .getManyAndCount();
     return { data, total };
   }
 
@@ -76,31 +87,15 @@ export class TemplatesRepository {
   ): Promise<TemplateEntity> {
     const template = manager.create(TemplateEntity, {
       id: payload.id,
+      section_id: payload.sectionId ?? null,
       name: payload.name,
       description: payload.description ?? null,
       content_path: payload.contentPath,
       fields: payload.fields,
-      version: 1,
       status: "draft",
       created_by: payload.createdBy,
     });
     return manager.save(TemplateEntity, template);
-  }
-
-  async insertTemplateVersion(
-    manager: EntityManager,
-    payload: InsertTemplateVersionPayload,
-  ): Promise<TemplateVersionEntity> {
-    const version = manager.create(TemplateVersionEntity, {
-      template_id: payload.templateId,
-      version: payload.version,
-      content_path: payload.contentPath,
-      fields: payload.fields,
-      status: payload.status,
-      action: payload.action,
-      created_by: payload.createdBy,
-    });
-    return manager.save(TemplateVersionEntity, version);
   }
 
   async updateTemplate(
@@ -111,11 +106,11 @@ export class TemplatesRepository {
       TemplateEntity,
       { id: payload.id },
       {
+        section_id: payload.sectionId,
         name: payload.name,
         description: payload.description,
         content_path: payload.contentPath,
         fields: payload.fields,
-        version: payload.newVersion,
       },
     );
     const updated = await manager.findOne(TemplateEntity, {
@@ -123,44 +118,6 @@ export class TemplatesRepository {
     });
     if (!updated) throw new Error("Template non trovato dopo update");
     return updated;
-  }
-
-  async restoreTemplate(
-    manager: EntityManager,
-    id: string,
-    contentPath: string,
-    fields: FieldDefinition[],
-    newVersion: number,
-  ): Promise<TemplateEntity> {
-    await manager.update(
-      TemplateEntity,
-      { id },
-      {
-        content_path: contentPath,
-        fields,
-        version: newVersion,
-        status: "draft",
-      },
-    );
-    const updated = await manager.findOne(TemplateEntity, { where: { id } });
-    if (!updated) throw new Error("Template non trovato dopo restore");
-    return updated;
-  }
-
-  async findVersions(templateId: string): Promise<TemplateVersionEntity[]> {
-    return this.templateVersionRepository.find({
-      where: { template_id: templateId },
-      order: { version: "DESC" },
-    });
-  }
-
-  async findVersionById(
-    templateId: string,
-    version: number,
-  ): Promise<TemplateVersionEntity | null> {
-    return this.templateVersionRepository.findOne({
-      where: { template_id: templateId, version },
-    });
   }
 
   async countActiveDocuments(templateId: string): Promise<number> {

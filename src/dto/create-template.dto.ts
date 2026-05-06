@@ -4,6 +4,11 @@ import { IsArray, IsOptional, IsString, ValidateNested } from "class-validator";
 import { TemplateFieldDto } from "./template-field.dto";
 
 export class CreateTemplateDto {
+  @ApiPropertyOptional({ example: "123e4567-e89b-12d3-a456-426614174000" })
+  @IsOptional()
+  @IsString()
+  sectionId?: string;
+
   @ApiProperty({ example: "Template Contratto" })
   @IsString()
   name!: string;

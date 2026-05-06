@@ -1,18 +1,9 @@
-export interface GithubConfig {
-  owner: string;
-  repo: string;
-  branch: string;
-  templatesDir: string;
-  catalogPath: string;
-  token?: string;
-}
-
 export interface AppConfig {
   uploadPath: string;
+  templatesStoragePath: string;
   maxFileSizeBytes: number;
   maxTemplateContentBytes: number;
   pdfQueueRecoveryRetryMs: number;
-  github: GithubConfig;
 }
 
 const readPositiveInt = (
@@ -32,6 +23,8 @@ const buildAppConfig = (): AppConfig => {
 
   return {
     uploadPath: process.env.UPLOAD_PATH ?? "./storage/uploads",
+    templatesStoragePath:
+      process.env.TEMPLATES_STORAGE_PATH ?? "./storage/templates",
     maxFileSizeBytes: maxFileSizeMb * 1024 * 1024,
     maxTemplateContentBytes: readPositiveInt(
       process.env.MAX_TEMPLATE_CONTENT_BYTES,
@@ -43,16 +36,6 @@ const buildAppConfig = (): AppConfig => {
       10000,
       1000,
     ),
-    github: {
-      owner: process.env.GITHUB_TEMPLATES_OWNER ?? "",
-      repo: process.env.GITHUB_TEMPLATES_REPO ?? "",
-      branch: process.env.GITHUB_TEMPLATES_BRANCH ?? "main",
-      templatesDir: process.env.GITHUB_TEMPLATES_DIR ?? "templates-catalog",
-      catalogPath:
-        process.env.GITHUB_TEMPLATES_CATALOG_PATH ??
-        "templates-catalog/CATALOG.json",
-      token: process.env.GITHUB_TOKEN,
-    },
   };
 };
 

@@ -23,7 +23,6 @@ export interface UpdateDocumentInput {
   name?: string;
   content?: string;
   fieldValues?: Record<string, string | number | boolean | null>;
-  created_by?: string;
 }
 
 @Injectable()
@@ -113,25 +112,14 @@ export class DocumentsService {
     }
     const template = await this.templatesService.findOne(templateId);
     if (!template) throw makeError("Template non trovato", 404);
-    const document = await this.dataSource.transaction(async (manager) => {
-      const created = await this.documentsRepository.insertDocument(manager, {
+    return this.dataSource.transaction(async (manager) =>
+      this.documentsRepository.insertDocument(manager, {
         name: name.trim(),
         templateId,
-        templateVersion: template.version,
         content: template.content,
         createdBy: created_by,
-      });
-      await this.documentsRepository.insertDocumentVersion(manager, {
-        documentId: created.id,
-        version: 1,
-        content: template.content,
-        fieldValues: {},
-        action: "create",
-        createdBy: created_by,
-      });
-      return created;
-    });
-    return document;
+      }),
+    );
   }
 
   private async getFieldDefinitions(document: { template_id: string | null }) {
@@ -142,7 +130,7 @@ export class DocumentsService {
 
   async update(
     id: string,
-    { name, content, fieldValues, created_by = "system" }: UpdateDocumentInput,
+    { name, content, fieldValues }: UpdateDocumentInput,
   ) {
     const existing = await this.findOneOrThrow(id);
     if (
@@ -151,29 +139,16 @@ export class DocumentsService {
     ) {
       throw makeError("fieldValues deve essere un oggetto", 400);
     }
-    const maxVersion = await this.documentsRepository.getMaxVersion(id);
-    const nextVersion = maxVersion + 1;
     const nextContent = content ?? existing.content;
     const nextFieldValues = fieldValues ?? existing.field_values;
-    const updated = await this.dataSource.transaction(async (manager) => {
-      const row = await this.documentsRepository.updateDocument(manager, {
+    return this.dataSource.transaction(async (manager) =>
+      this.documentsRepository.updateDocument(manager, {
         id,
         name: name?.trim() || existing.name,
         content: nextContent,
         fieldValues: nextFieldValues,
-        version: nextVersion,
-      });
-      await this.documentsRepository.insertDocumentVersion(manager, {
-        documentId: id,
-        version: nextVersion,
-        content: nextContent,
-        fieldValues: nextFieldValues,
-        action: "update",
-        createdBy: created_by,
-      });
-      return row;
-    });
-    return updated;
+      }),
+    );
   }
 
   private async getMissingRequiredFields(document: {
@@ -265,46 +240,6 @@ export class DocumentsService {
       { title: document.name, strict: false, fields },
     );
     return { filename };
-  }
-
-  async restore(id: string, targetVersion: number, actor = "system") {
-    const existing = await this.findOneOrThrow(id);
-    const versionRow = await this.documentsRepository.findVersionById(
-      id,
-      targetVersion,
-    );
-    if (!versionRow)
-      throw makeError(`Versione ${targetVersion} non trovata`, 404);
-    const nextVersion = (await this.documentsRepository.getMaxVersion(id)) + 1;
-    const updated = await this.dataSource.transaction(async (manager) => {
-      const row = await this.documentsRepository.updateDocument(manager, {
-        id,
-        name: existing.name,
-        content: versionRow.content,
-        fieldValues: versionRow.field_values,
-        version: nextVersion,
-      });
-      await this.documentsRepository.insertDocumentVersion(manager, {
-        documentId: id,
-        version: nextVersion,
-        content: versionRow.content,
-        fieldValues: versionRow.field_values,
-        action: `restore_from_v${targetVersion}`,
-        createdBy: actor,
-      });
-      return row;
-    });
-    return updated;
-  }
-
-  async getVersions(id: string) {
-    await this.findOneOrThrow(id);
-    return this.documentsRepository.findVersions(id);
-  }
-
-  async getVersionContent(id: string, version: number) {
-    await this.findOneOrThrow(id);
-    return this.documentsRepository.findVersionById(id, version);
   }
 
   async delete(id: string) {

@@ -1,9 +1,9 @@
 import type { TypeOrmModuleOptions } from "@nestjs/typeorm";
+import { CategoryEntity } from "./entities/category.entity";
 import { DocumentEntity } from "./entities/document.entity";
-import { DocumentVersionEntity } from "./entities/document-version.entity";
 import { PdfJobEntity } from "./entities/pdf-job.entity";
+import { SectionEntity } from "./entities/section.entity";
 import { TemplateEntity } from "./entities/template.entity";
-import { TemplateVersionEntity } from "./entities/template-version.entity";
 
 const parsePort = (value: string | undefined, fallback: number): number => {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -18,10 +18,10 @@ export const buildTypeOrmOptions = (): TypeOrmModuleOptions => ({
   password: process.env.DB_PASSWORD ?? "postgres",
   database: process.env.DB_NAME ?? "mac_documents",
   entities: [
+    CategoryEntity,
+    SectionEntity,
     TemplateEntity,
-    TemplateVersionEntity,
     DocumentEntity,
-    DocumentVersionEntity,
     PdfJobEntity,
   ],
   synchronize: false,

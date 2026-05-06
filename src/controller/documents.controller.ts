@@ -22,11 +22,7 @@ import {
 } from "@nestjs/swagger";
 import type { Request, Response } from "express";
 import { makeError } from "../common/utils/errors";
-import {
-  getActor,
-  parsePagination,
-  parseVersionOrThrow,
-} from "../common/utils/http.utils";
+import { getActor, parsePagination } from "../common/utils/http.utils";
 import type { CreateDocumentDto } from "../dto/create-document.dto";
 import type { DocumentQueryDto } from "../dto/document-query.dto";
 import type { UpdateDocumentDto } from "../dto/update-document.dto";
@@ -85,16 +81,11 @@ export class DocumentsController {
   @Put(":id")
   @ApiOperation({ summary: "Aggiorna documento" })
   @ApiParam({ name: "id", description: "UUID documento" })
-  update(
-    @Param("id") id: string,
-    @Body() body: UpdateDocumentDto,
-    @Req() request: Request,
-  ) {
+  update(@Param("id") id: string, @Body() body: UpdateDocumentDto) {
     return this.documentsService.update(id, {
       name: body.name,
       content: body.content,
       fieldValues: body.fieldValues,
-      created_by: getActor(request),
     });
   }
 
@@ -104,35 +95,6 @@ export class DocumentsController {
   @ApiParam({ name: "id", description: "UUID documento" })
   delete(@Param("id") id: string) {
     return this.documentsService.delete(id);
-  }
-
-  @Post(":id/restore/:version")
-  @ApiOperation({ summary: "Ripristina versione documento" })
-  restore(
-    @Param("id") id: string,
-    @Param("version") version: string,
-    @Req() request: Request,
-  ) {
-    const v = parseVersionOrThrow(version);
-    return this.documentsService.restore(id, v, getActor(request));
-  }
-
-  @Get(":id/versions")
-  @ApiOperation({ summary: "Cronologia versioni documento" })
-  getVersions(@Param("id") id: string) {
-    return this.documentsService.getVersions(id);
-  }
-
-  @Get(":id/versions/:version")
-  @ApiOperation({ summary: "Contenuto versione specifica" })
-  async getVersionContent(
-    @Param("id") id: string,
-    @Param("version") version: string,
-  ) {
-    const v = parseVersionOrThrow(version);
-    const result = await this.documentsService.getVersionContent(id, v);
-    if (!result) throw makeError("Versione non trovata", 404);
-    return result;
   }
 
   @Post(":id/pdf")

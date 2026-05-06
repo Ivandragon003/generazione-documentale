@@ -30,7 +30,6 @@ import { makeError } from "../common/utils/errors";
 import {
   getActor,
   parsePagination,
-  parseVersionOrThrow,
   readAndCleanupUpload,
 } from "../common/utils/http.utils";
 import { appConfig } from "../config/app.config";
@@ -81,12 +80,16 @@ export class TemplatesController {
   @Get()
   @ApiOperation({ summary: "Lista template" })
   @ApiQuery({ name: "status", required: false, enum: ["draft", "published"] })
+  @ApiQuery({ name: "sectionId", required: false, type: String })
+  @ApiQuery({ name: "categoryId", required: false, type: String })
   @ApiQuery({ name: "limit", required: false, type: Number, example: 20 })
   @ApiQuery({ name: "offset", required: false, type: Number, example: 0 })
   findAll(@Query() query: TemplateQueryDto) {
     const { limit, offset } = parsePagination(query);
     return this.templatesService.findAll({
       status: query.status,
+      sectionId: query.sectionId,
+      categoryId: query.categoryId,
       limit,
       offset,
     });
@@ -104,34 +107,12 @@ export class TemplatesController {
     return template;
   }
 
-  @Get(":id/versions")
-  @ApiOperation({ summary: "Cronologia versioni template" })
-  @ApiParam({ name: "id", description: "UUID template" })
-  getVersions(@Param("id") id: string) {
-    return this.templatesService.getVersions(id);
-  }
-
-  @Get(":id/versions/:version")
-  @ApiOperation({ summary: "Contenuto di una versione specifica" })
-  @ApiParam({ name: "id", description: "UUID template" })
-  @ApiParam({ name: "version", description: "Numero versione" })
-  async getVersionContent(
-    @Param("id") id: string,
-    @Param("version") version: string,
-  ) {
-    const v = parseVersionOrThrow(version);
-    const result = await this.templatesService.getVersionContent(id, v);
-    if (!result) {
-      throw makeError("Versione non trovata", 404);
-    }
-    return result;
-  }
-
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Crea template" })
   create(@Body() body: CreateTemplateDto, @Req() request: Request) {
     return this.templatesService.create({
+      section_id: body.sectionId,
       name: body.name,
       description: body.description,
       content: body.content,
@@ -143,31 +124,14 @@ export class TemplatesController {
   @Put(":id")
   @ApiOperation({ summary: "Aggiorna template" })
   @ApiParam({ name: "id", description: "UUID template" })
-  update(
-    @Param("id") id: string,
-    @Body() body: UpdateTemplateDto,
-    @Req() request: Request,
-  ) {
+  update(@Param("id") id: string, @Body() body: UpdateTemplateDto) {
     return this.templatesService.update(id, {
+      section_id: body.sectionId,
       name: body.name,
       description: body.description,
       content: body.content,
       fields: body.fields,
-      created_by: getActor(request),
     });
-  }
-
-  @Post(":id/restore/:version")
-  @ApiOperation({ summary: "Ripristina versione precedente" })
-  @ApiParam({ name: "id", description: "UUID template" })
-  @ApiParam({ name: "version", description: "Numero versione da ripristinare" })
-  restore(
-    @Param("id") id: string,
-    @Param("version") version: string,
-    @Req() request: Request,
-  ) {
-    const v = parseVersionOrThrow(version);
-    return this.templatesService.restore(id, v, getActor(request));
   }
 
   @Delete(":id")
@@ -215,6 +179,7 @@ export class TemplatesController {
       content,
       name,
       getActor(request),
+      body.sectionId,
     );
   }
 
