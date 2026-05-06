@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Post,
   Put,
@@ -38,7 +39,7 @@ import { ImportTemplateFileDto } from "../dto/import-template-file.dto";
 import type { TemplateQueryDto } from "../dto/template-query.dto";
 import type { UpdateTemplateDto } from "../dto/update-template.dto";
 import type { ValidateMarkdownDto } from "../dto/validate-markdown.dto";
-import type { TemplatesService } from "../service/templates.service";
+import { TemplatesService } from "../service/templates.service";
 
 const UPLOAD_PATH = appConfig.uploadPath;
 const MAX_FILE_SIZE = appConfig.maxFileSizeBytes;
@@ -72,7 +73,10 @@ const multerOptions = {
 @ApiTags("templates")
 @Controller("templates")
 export class TemplatesController {
-  constructor(private readonly templatesService: TemplatesService) {}
+  constructor(
+    @Inject(TemplatesService)
+    private readonly templatesService: TemplatesService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: "Lista template" })

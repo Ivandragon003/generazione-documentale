@@ -7,13 +7,12 @@ Costruita con **NestJS** su Node.js, database **PostgreSQL**, generazione PDF tr
 
 ## Stack tecnico
 
-| Layer | Tecnologia |
-|---|---|
-| Framework | [NestJS](https://nestjs.com/) v11 + TypeScript |
-| Database | PostgreSQL + TypeORM |
-| PDF | Pandoc + XeLaTeX |
-| Documentazione API | Swagger UI â€” `http://localhost:3000/api-docs` |
-
+| Layer              | Tecnologia                                     |
+| ------------------ | ---------------------------------------------- |
+| Framework          | [NestJS](https://nestjs.com/) v11 + TypeScript |
+| Database           | PostgreSQL + TypeORM                           |
+| PDF                | Pandoc + XeLaTeX                               |
+| Documentazione API | Swagger UI â€” `http://localhost:3000/api-docs`  |
 
 ---
 
@@ -22,6 +21,7 @@ Costruita con **NestJS** su Node.js, database **PostgreSQL**, generazione PDF tr
 - Node.js >= 18
 - PostgreSQL in esecuzione (locale o Docker)
 - Pandoc installato
+
   ```bash
   # Ubuntu/Debian
   sudo apt install pandoc texlive-latex-base
@@ -36,11 +36,13 @@ Costruita con **NestJS** su Node.js, database **PostgreSQL**, generazione PDF tr
 ## Setup rapido
 
 ### 1. Installa le dipendenze
+
 ```bash
 npm install
 ```
 
 ### 2. Configura `.env`
+
 ```env
 DB_HOST=localhost
 DB_PORT=5432
@@ -61,16 +63,19 @@ PANDOC_PDF_ENGINE=pdflatex
 ```
 
 ### 3. Crea il database
+
 ```sql
 CREATE DATABASE mac_documents;
 ```
 
 ### 4. Esegui le migrazioni
+
 ```bash
 npm run migrate
 ```
 
 ### 5. Avvia il server
+
 ```bash
 npm run start:dev   # con nodemon (riavvio automatico)
 npm start           # senza nodemon
@@ -133,40 +138,40 @@ mac-documents/
 
 ### Templates - `/api/templates`
 
-| Metodo | Endpoint | Descrizione |
-|---|---|---|
-| `GET` | `/api/templates` | Lista template (filtro `status`, paginazione) |
-| `POST` | `/api/templates` | Crea template da JSON |
-| `GET` | `/api/templates/:id` | Dettaglio template |
-| `PUT` | `/api/templates/:id` | Aggiorna template e crea una nuova versione |
-| `DELETE` | `/api/templates/:id` | Elimina template |
-| `GET` | `/api/templates/:id/versions` | Cronologia versioni |
-| `GET` | `/api/templates/:id/versions/:v` | Contenuto versione specifica |
-| `POST` | `/api/templates/:id/restore/:v` | Ripristina versione precedente |
-| `GET` | `/api/templates/:id/export` | Scarica template come file `.md` |
-| `GET` | `/api/templates/:id/audit` | Audit log del template |
-| `POST` | `/api/templates/upload` | Importa template da file `.md` (multipart) |
-| `POST` | `/api/templates/validate-md` | Valida contenuto Markdown senza salvare |
+| Metodo   | Endpoint                         | Descrizione                                   |
+| -------- | -------------------------------- | --------------------------------------------- |
+| `GET`    | `/api/templates`                 | Lista template (filtro `status`, paginazione) |
+| `POST`   | `/api/templates`                 | Crea template da JSON                         |
+| `GET`    | `/api/templates/:id`             | Dettaglio template                            |
+| `PUT`    | `/api/templates/:id`             | Aggiorna template e crea una nuova versione   |
+| `DELETE` | `/api/templates/:id`             | Elimina template                              |
+| `GET`    | `/api/templates/:id/versions`    | Cronologia versioni                           |
+| `GET`    | `/api/templates/:id/versions/:v` | Contenuto versione specifica                  |
+| `POST`   | `/api/templates/:id/restore/:v`  | Ripristina versione precedente                |
+| `GET`    | `/api/templates/:id/export`      | Scarica template come file `.md`              |
+| `GET`    | `/api/templates/:id/audit`       | Audit log del template                        |
+| `POST`   | `/api/templates/upload`          | Importa template da file `.md` (multipart)    |
+| `POST`   | `/api/templates/validate-md`     | Valida contenuto Markdown senza salvare       |
 
 Endpoint rimossi/non esposti attualmente: `POST /api/templates/:id/publish`, `POST /api/templates/validate-file`.
 
 ### Documents - `/api/documents`
 
-| Metodo | Endpoint | Descrizione |
-|---|---|---|
-| `GET` | `/api/documents` | Lista documenti (filtro `status`, paginazione) |
-| `POST` | `/api/documents` | Crea documento da template |
-| `GET` | `/api/documents/:id` | Dettaglio documento |
-| `PUT` | `/api/documents/:id` | Aggiorna contenuto / `fieldValues` |
-| `DELETE` | `/api/documents/:id` | Elimina documento |
-| `POST` | `/api/documents/:id/generate-pdf` | Accoda generazione PDF asincrona e risponde `202` |
-| `GET` | `/api/documents/:id/pdf/latest` | Scarica l'ultimo PDF completato |
-| `GET` | `/api/documents/:id/preview-pdf` | Anteprima PDF temporanea (non salvata) |
-| `GET` | `/api/documents/:id/versions` | Cronologia versioni documento |
-| `GET` | `/api/documents/:id/versions/:v` | Contenuto versione specifica |
-| `POST` | `/api/documents/:id/restore/:v` | Ripristina versione precedente |
-| `GET` | `/api/documents/:id/export-md` | Esporta documento come file `.md` |
-| `GET` | `/api/documents/:id/audit` | Audit log del documento |
+| Metodo   | Endpoint                          | Descrizione                                       |
+| -------- | --------------------------------- | ------------------------------------------------- |
+| `GET`    | `/api/documents`                  | Lista documenti (filtro `status`, paginazione)    |
+| `POST`   | `/api/documents`                  | Crea documento da template                        |
+| `GET`    | `/api/documents/:id`              | Dettaglio documento                               |
+| `PUT`    | `/api/documents/:id`              | Aggiorna contenuto / `fieldValues`                |
+| `DELETE` | `/api/documents/:id`              | Elimina documento                                 |
+| `POST`   | `/api/documents/:id/generate-pdf` | Accoda generazione PDF asincrona e risponde `202` |
+| `GET`    | `/api/documents/:id/pdf/latest`   | Scarica l'ultimo PDF completato                   |
+| `GET`    | `/api/documents/:id/preview-pdf`  | Anteprima PDF temporanea (non salvata)            |
+| `GET`    | `/api/documents/:id/versions`     | Cronologia versioni documento                     |
+| `GET`    | `/api/documents/:id/versions/:v`  | Contenuto versione specifica                      |
+| `POST`   | `/api/documents/:id/restore/:v`   | Ripristina versione precedente                    |
+| `GET`    | `/api/documents/:id/export-md`    | Esporta documento come file `.md`                 |
+| `GET`    | `/api/documents/:id/audit`        | Audit log del documento                           |
 
 Endpoint rimossi/non esposti attualmente: `PATCH /api/documents/:id/rename`, `PATCH /api/documents/:id/status`, `GET /api/documents/:id/pdf-jobs*`, `GET /api/documents/:id/latest-pdf`.
 
@@ -174,22 +179,22 @@ Endpoint rimossi/non esposti attualmente: `PATCH /api/documents/:id/rename`, `PA
 
 Non esiste una route globale `/api/audit`. L'audit e' esposto sulle entita':
 
-| Metodo | Endpoint | Descrizione |
-|---|---|---|
-| `GET` | `/api/templates/:id/audit` | Audit log del template |
-| `GET` | `/api/documents/:id/audit` | Audit log del documento |
+| Metodo | Endpoint                   | Descrizione             |
+| ------ | -------------------------- | ----------------------- |
+| `GET`  | `/api/templates/:id/audit` | Audit log del template  |
+| `GET`  | `/api/documents/:id/audit` | Audit log del documento |
 
 ### PDF - `/api/pdf`
 
-| Metodo | Endpoint | Descrizione |
-|---|---|---|
+| Metodo | Endpoint                                  | Descrizione                                         |
+| ------ | ----------------------------------------- | --------------------------------------------------- |
 | `POST` | `/api/pdf/templates/:templateId/validate` | Verifica disponibilita template per generazione PDF |
 
 ### Dev - `/api/dev`
 
-| Metodo | Endpoint | Descrizione |
-|---|---|---|
-| `POST` | `/api/dev/reset` | Svuota DB e storage, ricrea fixture stabili |
+| Metodo | Endpoint                  | Descrizione                                       |
+| ------ | ------------------------- | ------------------------------------------------- |
+| `POST` | `/api/dev/reset`          | Svuota DB e storage, ricrea fixture stabili       |
 | `POST` | `/api/dev/seed-large-pdf` | Crea contratto 21 campi, compila 9/21, accoda PDF |
 
 `/api/dev/reset` richiede header `x-reset-confirm: true`.
@@ -252,6 +257,7 @@ I PDF completati sono persistenti in `./storage/pdf/`. La preview e' temporanea:
 ## Testing
 
 ### Reset + fixture stabili
+
 ```http
 POST /api/dev/reset
 x-reset-confirm: true
@@ -277,6 +283,7 @@ npm run test:api
 ```
 
 ### Test PDF con campi parziali
+
 ```http
 POST /api/dev/seed-large-pdf
 ```
@@ -306,5 +313,4 @@ La collection non contiene script Postman `pm.*` e non richiama la suite test au
 
 ## Note su TypeScript
 
-Il progetto è già in TypeScript (src/**/*.ts) con validazione DTO (class-validator) e dependency injection NestJS standard.
-
+Il progetto ï¿½ giï¿½ in TypeScript (src/\*_/_.ts) con validazione DTO (class-validator) e dependency injection NestJS standard.

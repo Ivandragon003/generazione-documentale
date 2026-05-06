@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Post,
   Put,
@@ -29,13 +30,16 @@ import {
 import type { CreateDocumentDto } from "../dto/create-document.dto";
 import type { DocumentQueryDto } from "../dto/document-query.dto";
 import type { UpdateDocumentDto } from "../dto/update-document.dto";
-import type { DocumentsService } from "../service/documents.service";
+import { DocumentsService } from "../service/documents.service";
 import { deletePdf, getPdfStream } from "../service/pdf.service";
 
 @ApiTags("documents")
 @Controller("documents")
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(
+    @Inject(DocumentsService)
+    private readonly documentsService: DocumentsService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: "Lista documenti" })
@@ -98,8 +102,8 @@ export class DocumentsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Elimina documento" })
   @ApiParam({ name: "id", description: "UUID documento" })
-  delete(@Param("id") id: string, @Req() request: Request) {
-    return this.documentsService.delete(id, getActor(request));
+  delete(@Param("id") id: string) {
+    return this.documentsService.delete(id);
   }
 
   @Post(":id/restore/:version")

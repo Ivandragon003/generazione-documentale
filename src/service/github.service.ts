@@ -163,7 +163,7 @@ export class GithubService {
   async pushCatalog(catalog: CatalogEntry[]): Promise<void> {
     await this.pushFile(
       this.catalogPath,
-      JSON.stringify(catalog, null, 2) + "\n",
+      `${JSON.stringify(catalog, null, 2)}\n`,
       "chore: aggiorna CATALOG.json",
     );
   }

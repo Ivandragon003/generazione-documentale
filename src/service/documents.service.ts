@@ -1,14 +1,14 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type { DataSource } from "typeorm";
 import { makeError } from "../common/utils/errors";
 import { appConfig } from "../config/app.config";
-import type { DocumentsRepository } from "../repository/documents.repository";
+import { DocumentsRepository } from "../repository/documents.repository";
 import {
   generatePdf,
   getMissingRequiredFields,
   type PdfGenerateOptions,
 } from "./pdf.service";
-import type { TemplatesService } from "./templates.service";
+import { TemplatesService } from "./templates.service";
 
 const QUEUE_RECOVERY_RETRY_MS = appConfig.pdfQueueRecoveryRetryMs;
 
@@ -33,7 +33,9 @@ export class DocumentsService {
 
   constructor(
     private readonly dataSource: DataSource,
+    @Inject(DocumentsRepository)
     private readonly documentsRepository: DocumentsRepository,
+    @Inject(TemplatesService)
     private readonly templatesService: TemplatesService,
   ) {
     setImmediate(() => {
@@ -303,7 +305,7 @@ export class DocumentsService {
     return this.documentsRepository.findVersionById(id, version);
   }
 
-  async delete(id: string, actor = "system") {
+  async delete(id: string) {
     await this.findOneOrThrow(id);
     await this.documentsRepository.deleteDocument(id);
     return { deleted: true };

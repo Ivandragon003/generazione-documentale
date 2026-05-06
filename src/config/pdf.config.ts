@@ -48,7 +48,7 @@ export interface PdfConfig {
 // ─── Validatori ──────────────────────────────────────────────────────────
 
 const ALLOWED_ENGINES = ["xelatex", "lualatex", "pdflatex"] as const;
-const ALLOWED_PAPERS  = ["a4", "a3", "a5", "letter", "legal"] as const;
+const ALLOWED_PAPERS = ["a4", "a3", "a5", "letter", "legal"] as const;
 const ALLOWED_FONT_SIZES = ["9pt", "10pt", "11pt", "12pt", "14pt"] as const;
 const MARGIN_PATTERN = /^\d+(\.\d+)?(cm|mm|in|pt|em)$/;
 const LINE_STRETCH_MIN = 1.0;
@@ -102,7 +102,11 @@ const validateLineStretch = (
   raw: string | undefined,
 ): { value: number; error?: ValidationError } => {
   const parsed = Number.parseFloat(raw ?? "");
-  if (!Number.isNaN(parsed) && parsed >= LINE_STRETCH_MIN && parsed <= LINE_STRETCH_MAX) {
+  if (
+    !Number.isNaN(parsed) &&
+    parsed >= LINE_STRETCH_MIN &&
+    parsed <= LINE_STRETCH_MAX
+  ) {
     return { value: Math.round(parsed * 100) / 100 };
   }
   return {
@@ -148,19 +152,58 @@ const buildPdfConfig = (): PdfConfig => {
     ),
   );
 
-  const marginTop    = track(validateMargin(process.env.PDF_MARGIN_TOP,    "PDF_MARGIN_TOP",    "2.5cm"));
-  const marginBottom = track(validateMargin(process.env.PDF_MARGIN_BOTTOM, "PDF_MARGIN_BOTTOM", "2.5cm"));
-  const marginLeft   = track(validateMargin(process.env.PDF_MARGIN_LEFT,   "PDF_MARGIN_LEFT",   "2.5cm"));
-  const marginRight  = track(validateMargin(process.env.PDF_MARGIN_RIGHT,  "PDF_MARGIN_RIGHT",  "2.5cm"));
-  const lineStretch  = track(validateLineStretch(process.env.PDF_LINE_STRETCH));
+  const marginTop = track(
+    validateMargin(process.env.PDF_MARGIN_TOP, "PDF_MARGIN_TOP", "2.5cm"),
+  );
+  const marginBottom = track(
+    validateMargin(process.env.PDF_MARGIN_BOTTOM, "PDF_MARGIN_BOTTOM", "2.5cm"),
+  );
+  const marginLeft = track(
+    validateMargin(process.env.PDF_MARGIN_LEFT, "PDF_MARGIN_LEFT", "2.5cm"),
+  );
+  const marginRight = track(
+    validateMargin(process.env.PDF_MARGIN_RIGHT, "PDF_MARGIN_RIGHT", "2.5cm"),
+  );
+  const lineStretch = track(validateLineStretch(process.env.PDF_LINE_STRETCH));
 
-  const timeoutMs    = track(validatePositiveInt(process.env.PDF_GENERATION_TIMEOUT_MS,    "PDF_GENERATION_TIMEOUT_MS",    120000, 5000));
-  const retries      = track(validatePositiveInt(process.env.PDF_GENERATION_RETRIES,       "PDF_GENERATION_RETRIES",       2,      0));
-  const retryDelayMs = track(validatePositiveInt(process.env.PDF_GENERATION_RETRY_DELAY_MS,"PDF_GENERATION_RETRY_DELAY_MS",1000,   100));
-  const maxMarkdownBytes = track(validatePositiveInt(process.env.MAX_PDF_MARKDOWN_BYTES,   "MAX_PDF_MARKDOWN_BYTES",       300000, 1000));
+  const timeoutMs = track(
+    validatePositiveInt(
+      process.env.PDF_GENERATION_TIMEOUT_MS,
+      "PDF_GENERATION_TIMEOUT_MS",
+      120000,
+      5000,
+    ),
+  );
+  const retries = track(
+    validatePositiveInt(
+      process.env.PDF_GENERATION_RETRIES,
+      "PDF_GENERATION_RETRIES",
+      2,
+      0,
+    ),
+  );
+  const retryDelayMs = track(
+    validatePositiveInt(
+      process.env.PDF_GENERATION_RETRY_DELAY_MS,
+      "PDF_GENERATION_RETRY_DELAY_MS",
+      1000,
+      100,
+    ),
+  );
+  const maxMarkdownBytes = track(
+    validatePositiveInt(
+      process.env.MAX_PDF_MARKDOWN_BYTES,
+      "MAX_PDF_MARKDOWN_BYTES",
+      300000,
+      1000,
+    ),
+  );
 
   if (warnings.length > 0) {
-    console.warn("[pdf.config] Avvisi configurazione PDF:\n" + warnings.map(w => `  ⚠ ${w}`).join("\n"));
+    console.warn(
+      "[pdf.config] Avvisi configurazione PDF:\n" +
+        warnings.map((w) => `  ⚠ ${w}`).join("\n"),
+    );
   }
 
   return {
@@ -175,7 +218,7 @@ const buildPdfConfig = (): PdfConfig => {
     sansFont: process.env.PDF_SANS_FONT || "Liberation Sans",
     monoFont: process.env.PDF_MONO_FONT || "Liberation Mono",
     lineStretch,
-    pandocPath:  process.env.PANDOC_PATH  || "pandoc",
+    pandocPath: process.env.PANDOC_PATH || "pandoc",
     storagePath: process.env.STORAGE_PATH || "./storage/pdf",
     timeoutMs,
     retries,

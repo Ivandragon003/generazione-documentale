@@ -19,7 +19,9 @@ export class PdfJobEntity {
   @ManyToOne(
     () => DocumentEntity,
     (document) => document.pdf_jobs,
-    { onDelete: "CASCADE" },
+    {
+      onDelete: "CASCADE",
+    },
   )
   @JoinColumn({ name: "document_id" })
   document?: DocumentEntity;

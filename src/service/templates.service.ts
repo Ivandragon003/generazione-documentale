@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import type { DataSource } from "typeorm";
 import type { FieldDefinition } from "../common/types/field-definition.type";
 import { makeError } from "../common/utils/errors";
@@ -11,8 +11,8 @@ import {
 } from "../common/utils/markdown.utils";
 import { appConfig } from "../config/app.config";
 import type { TemplateEntity } from "../database/entities/template.entity";
-import type { TemplatesRepository } from "../repository/templates.repository";
-import type { CatalogEntry, GithubService } from "./github.service";
+import { TemplatesRepository } from "../repository/templates.repository";
+import { type CatalogEntry, GithubService } from "./github.service";
 
 export interface CreateTemplateInput {
   name: string;
@@ -38,7 +38,9 @@ export class TemplatesService {
 
   constructor(
     private readonly dataSource: DataSource,
+    @Inject(TemplatesRepository)
     private readonly templatesRepository: TemplatesRepository,
+    @Inject(GithubService)
     private readonly githubService: GithubService,
   ) {}
 
@@ -357,7 +359,7 @@ export class TemplatesService {
   // ─── Delete ──────────────────────────────────────────────────────────────
 
   async delete(id: string) {
-    const existing = await this.findOneOrThrow(id);
+    await this.findOneOrThrow(id);
     const activeDocuments =
       await this.templatesRepository.countActiveDocuments(id);
     if (activeDocuments > 0) {

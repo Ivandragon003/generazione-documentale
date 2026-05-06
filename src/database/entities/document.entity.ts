@@ -26,7 +26,9 @@ export class DocumentEntity {
   @ManyToOne(
     () => TemplateEntity,
     (template) => template.documents,
-    { onDelete: "SET NULL" },
+    {
+      onDelete: "SET NULL",
+    },
   )
   @JoinColumn({ name: "template_id" })
   template?: TemplateEntity | null;
@@ -37,8 +39,7 @@ export class DocumentEntity {
   @Column({ type: "text" })
   content!: string;
 
-  @Column({ type: "jsonb", default: () => "'{}'"
-  })
+  @Column({ type: "jsonb", default: () => "'{}'" })
   field_values!: Record<string, string | number | boolean | null>;
 
   @Column({ type: "varchar", length: 50, default: "draft" })

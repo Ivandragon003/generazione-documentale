@@ -21,7 +21,9 @@ export class DocumentVersionEntity {
   @ManyToOne(
     () => DocumentEntity,
     (document) => document.versions,
-    { onDelete: "CASCADE" },
+    {
+      onDelete: "CASCADE",
+    },
   )
   @JoinColumn({ name: "document_id" })
   document?: DocumentEntity;
@@ -32,8 +34,7 @@ export class DocumentVersionEntity {
   @Column({ type: "text" })
   content!: string;
 
-  @Column({ type: "jsonb", default: () => "'{}'"
-  })
+  @Column({ type: "jsonb", default: () => "'{}'" })
   field_values!: Record<string, string | number | boolean | null>;
 
   @Column({ type: "varchar", length: 100, default: "update" })

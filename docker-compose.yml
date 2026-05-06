@@ -11,7 +11,6 @@
 # =============================================================================
 
 services:
-
   # ---------------------------------------------------------------------------
   # PostgreSQL 16
   # ---------------------------------------------------------------------------
@@ -20,9 +19,9 @@ services:
     container_name: mac_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER:     ${DB_USER:-postgres}
+      POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB:       ${DB_NAME:-mac_documents}
+      POSTGRES_DB: ${DB_NAME:-mac_documents}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Schema applicato all'avvio solo se il volume è nuovo
@@ -30,7 +29,11 @@ services:
     ports:
       - "${DB_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-mac_documents}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-mac_documents}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -54,41 +57,41 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      NODE_ENV:    production
-      PORT:        ${PORT:-3000}
+      NODE_ENV: production
+      PORT: ${PORT:-3000}
 
       # Database
-      DB_HOST:     postgres
-      DB_PORT:     5432
-      DB_USER:     ${DB_USER:-postgres}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      DB_NAME:     ${DB_NAME:-mac_documents}
+      DB_NAME: ${DB_NAME:-mac_documents}
 
       # Storage
-      STORAGE_PATH:  /app/storage/pdf
-      UPLOAD_PATH:   /app/storage/uploads
+      STORAGE_PATH: /app/storage/pdf
+      UPLOAD_PATH: /app/storage/uploads
 
       # GitHub template source
       GITHUB_TEMPLATES_OWNER: ${GITHUB_TEMPLATES_OWNER:-}
-      GITHUB_TEMPLATES_REPO:  ${GITHUB_TEMPLATES_REPO:-}
+      GITHUB_TEMPLATES_REPO: ${GITHUB_TEMPLATES_REPO:-}
       GITHUB_TEMPLATES_BRANCH: ${GITHUB_TEMPLATES_BRANCH:-main}
-      GITHUB_TEMPLATES_DIR:   ${GITHUB_TEMPLATES_DIR:-templates-catalog}
+      GITHUB_TEMPLATES_DIR: ${GITHUB_TEMPLATES_DIR:-templates-catalog}
       GITHUB_TEMPLATES_CATALOG_PATH: ${GITHUB_TEMPLATES_CATALOG_PATH:-templates-catalog/CATALOG.json}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
 
       # PDF / XeLaTeX
-      PANDOC_PATH:                  /usr/local/bin/pandoc
-      PDF_ENGINE:                   xelatex
-      PDF_GENERATION_TIMEOUT_MS:    ${PDF_GENERATION_TIMEOUT_MS:-120000}
-      PDF_GENERATION_RETRIES:       ${PDF_GENERATION_RETRIES:-2}
+      PANDOC_PATH: /usr/local/bin/pandoc
+      PDF_ENGINE: xelatex
+      PDF_GENERATION_TIMEOUT_MS: ${PDF_GENERATION_TIMEOUT_MS:-120000}
+      PDF_GENERATION_RETRIES: ${PDF_GENERATION_RETRIES:-2}
       PDF_GENERATION_RETRY_DELAY_MS: ${PDF_GENERATION_RETRY_DELAY_MS:-1000}
-      MAX_PDF_MARKDOWN_BYTES:       ${MAX_PDF_MARKDOWN_BYTES:-300000}
-      PDF_PAPER:      ${PDF_PAPER:-a4}
-      PDF_FONT_SIZE:  ${PDF_FONT_SIZE:-11pt}
+      MAX_PDF_MARKDOWN_BYTES: ${MAX_PDF_MARKDOWN_BYTES:-300000}
+      PDF_PAPER: ${PDF_PAPER:-a4}
+      PDF_FONT_SIZE: ${PDF_FONT_SIZE:-11pt}
       PDF_MARGIN_TOP: ${PDF_MARGIN_TOP:-2.5cm}
       PDF_MARGIN_BOTTOM: ${PDF_MARGIN_BOTTOM:-2.5cm}
-      PDF_MARGIN_LEFT:   ${PDF_MARGIN_LEFT:-2.5cm}
-      PDF_MARGIN_RIGHT:  ${PDF_MARGIN_RIGHT:-2.5cm}
+      PDF_MARGIN_LEFT: ${PDF_MARGIN_LEFT:-2.5cm}
+      PDF_MARGIN_RIGHT: ${PDF_MARGIN_RIGHT:-2.5cm}
       PDF_MAIN_FONT: ${PDF_MAIN_FONT:-Liberation Serif}
       PDF_SANS_FONT: ${PDF_SANS_FONT:-Liberation Sans}
       PDF_MONO_FONT: ${PDF_MONO_FONT:-Liberation Mono}
@@ -99,9 +102,13 @@ services:
     ports:
       - "${PORT:-3000}:3000"
     healthcheck:
-      test: ["CMD", "node", "-e",
-        "const h=require('http');h.get('http://localhost:3000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
-      ]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const h=require('http');h.get('http://localhost:3000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
       interval: 30s
       timeout: 10s
       start_period: 20s

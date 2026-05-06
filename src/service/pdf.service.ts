@@ -187,7 +187,6 @@ export const generatePdf = async (
     title = "Documento",
     author = "MAC Documents",
     strict = false,
-    fields = [],
   } = options;
 
   if (Buffer.byteLength(markdownContent, "utf8") > pdfConfig.maxMarkdownBytes) {

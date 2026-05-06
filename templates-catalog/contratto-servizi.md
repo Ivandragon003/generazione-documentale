@@ -9,19 +9,19 @@
 
 ### Committente
 
-| Campo | Valore |
-|---|---|
-| Ragione Sociale | {{ragione_sociale_cliente}} |
-| Partita IVA | {{partita_iva_cliente}} |
-| Indirizzo Legale | {{indirizzo_cliente}} |
-| Referente | {{referente_cliente}} |
+| Campo            | Valore                      |
+| ---------------- | --------------------------- |
+| Ragione Sociale  | {{ragione_sociale_cliente}} |
+| Partita IVA      | {{partita_iva_cliente}}     |
+| Indirizzo Legale | {{indirizzo_cliente}}       |
+| Referente        | {{referente_cliente}}       |
 
 ### Fornitore
 
-| Campo | Valore |
-|---|---|
+| Campo           | Valore                        |
+| --------------- | ----------------------------- |
 | Ragione Sociale | {{ragione_sociale_fornitore}} |
-| Partita IVA | {{partita_iva_fornitore}} |
+| Partita IVA     | {{partita_iva_fornitore}}     |
 
 ---
 
@@ -31,14 +31,14 @@ Il presente contratto disciplina la fornitura di servizi professionali di consul
 
 ### 2.1 Attività incluse
 
-| # | Attività | Unità | Quantità | Note |
-|---|---|---|---|---|
-| 1 | Sviluppo backend NestJS | ore | {{ore_sviluppo_backend}} | incluso nel canone |
-| 2 | Sviluppo frontend React | ore | {{ore_sviluppo_frontend}} | incluso nel canone |
-| 3 | Code review e testing | ore | {{ore_testing}} | incluso nel canone |
-| 4 | Documentazione tecnica | ore | {{ore_documentazione}} | incluso nel canone |
-| 5 | Supporto e manutenzione | ore/mese | {{ore_supporto_mensile}} | incluso nel canone |
-| 6 | Ore extra oltre soglia | ore | a consumo | tariffa extra |
+| #   | Attività                | Unità    | Quantità                  | Note               |
+| --- | ----------------------- | -------- | ------------------------- | ------------------ |
+| 1   | Sviluppo backend NestJS | ore      | {{ore_sviluppo_backend}}  | incluso nel canone |
+| 2   | Sviluppo frontend React | ore      | {{ore_sviluppo_frontend}} | incluso nel canone |
+| 3   | Code review e testing   | ore      | {{ore_testing}}           | incluso nel canone |
+| 4   | Documentazione tecnica  | ore      | {{ore_documentazione}}    | incluso nel canone |
+| 5   | Supporto e manutenzione | ore/mese | {{ore_supporto_mensile}}  | incluso nel canone |
+| 6   | Ore extra oltre soglia  | ore      | a consumo                 | tariffa extra      |
 
 ---
 
@@ -54,19 +54,19 @@ Il presente contratto disciplina la fornitura di servizi professionali di consul
 
 ### 4.1 Piano tariffario
 
-| Voce | Importo | Frequenza | IVA |
-|---|---|---|---|
-| Canone mensile fisso | € {{importo_mensile}} | Mensile | 22% |
-| Ore incluse nel canone | {{ore_incluse}} ore | Mensile | — |
-| Tariffa oraria extra | € {{costo_ora_extra}}/h | A consumo | 22% |
-| Importo totale contratto | € {{importo_totale}} | Totale periodo | 22% |
+| Voce                     | Importo                 | Frequenza      | IVA |
+| ------------------------ | ----------------------- | -------------- | --- |
+| Canone mensile fisso     | € {{importo_mensile}}   | Mensile        | 22% |
+| Ore incluse nel canone   | {{ore_incluse}} ore     | Mensile        | —   |
+| Tariffa oraria extra     | € {{costo_ora_extra}}/h | A consumo      | 22% |
+| Importo totale contratto | € {{importo_totale}}    | Totale periodo | 22% |
 
 ### 4.2 Condizioni di pagamento
 
-| Scadenza | Importo | Descrizione |
-|---|---|---|
-| Entro 30 gg dalla fattura | 100% del canone mensile | Bonifico bancario |
-| Ore extra | Fatturazione mensile a consuntivo | Entro 30 gg |
+| Scadenza                  | Importo                           | Descrizione       |
+| ------------------------- | --------------------------------- | ----------------- |
+| Entro 30 gg dalla fattura | 100% del canone mensile           | Bonifico bancario |
+| Ore extra                 | Fatturazione mensile a consuntivo | Entro 30 gg       |
 
 > **IBAN:** {{iban_fornitore}}  
 > **Banca:** {{banca_fornitore}}
@@ -77,28 +77,28 @@ Il presente contratto disciplina la fornitura di servizi professionali di consul
 
 ### 5.1 Classificazione incidenti
 
-| Priorità | Descrizione | Tempo di presa in carico | Tempo di risoluzione |
-|---|---|---|---|
-| 🔴 Critica | Sistema completamente non funzionante | 1 ora lavorativa | 4 ore lavorative |
-| 🟠 Alta | Funzionalità principale degradata | 2 ore lavorative | 8 ore lavorative |
-| 🟡 Media | Funzionalità secondaria non disponibile | 4 ore lavorative | 24 ore lavorative |
-| 🟢 Bassa | Richiesta di miglioramento o informazione | 1 giorno lavorativo | 5 giorni lavorativi |
+| Priorità   | Descrizione                               | Tempo di presa in carico | Tempo di risoluzione |
+| ---------- | ----------------------------------------- | ------------------------ | -------------------- |
+| 🔴 Critica | Sistema completamente non funzionante     | 1 ora lavorativa         | 4 ore lavorative     |
+| 🟠 Alta    | Funzionalità principale degradata         | 2 ore lavorative         | 8 ore lavorative     |
+| 🟡 Media   | Funzionalità secondaria non disponibile   | 4 ore lavorative         | 24 ore lavorative    |
+| 🟢 Bassa   | Richiesta di miglioramento o informazione | 1 giorno lavorativo      | 5 giorni lavorativi  |
 
 ### 5.2 Orario di copertura
 
-| Giorno | Orario |
-|---|---|
-| Lunedì – Venerdì | 09:00 – 18:00 (CET/CEST) |
-| Sabato | Solo emergenze critiche |
-| Domenica / Festivi | Solo emergenze critiche |
+| Giorno             | Orario                   |
+| ------------------ | ------------------------ |
+| Lunedì – Venerdì   | 09:00 – 18:00 (CET/CEST) |
+| Sabato             | Solo emergenze critiche  |
+| Domenica / Festivi | Solo emergenze critiche  |
 
 ### 5.3 Penali per mancato rispetto SLA
 
-| Violazione | Penale |
-|---|---|
+| Violazione                   | Penale                                   |
+| ---------------------------- | ---------------------------------------- |
 | Mancato rispetto SLA critico | € {{penale_sla}} per ogni ora di ritardo |
-| Disponibilità mensile < 99% | 5% del canone mensile |
-| Disponibilità mensile < 95% | 15% del canone mensile |
+| Disponibilità mensile < 99%  | 5% del canone mensile                    |
+| Disponibilità mensile < 95%  | 15% del canone mensile                   |
 
 ---
 
@@ -110,11 +110,11 @@ Le parti si impegnano a mantenere riservate tutte le informazioni tecniche, comm
 
 ## 7. Responsabilità e Limitazioni
 
-| Tipo di danno | Responsabilità massima |
-|---|---|
-| Danni diretti | Fino al valore del contratto annuale |
-| Danni indiretti / lucro cessante | Esclusi |
-| Danni a dati | Esclusi se backup non gestito dal Fornitore |
+| Tipo di danno                    | Responsabilità massima                      |
+| -------------------------------- | ------------------------------------------- |
+| Danni diretti                    | Fino al valore del contratto annuale        |
+| Danni indiretti / lucro cessante | Esclusi                                     |
+| Danni a dati                     | Esclusi se backup non gestito dal Fornitore |
 
 ---
 
@@ -126,11 +126,11 @@ Il presente contratto è regolato dalla legge italiana. Per qualsiasi controvers
 
 ## 9. Firme
 
-| Ruolo | Nome | Data | Firma |
-|---|---|---|---|
-| Committente | {{referente_cliente}} | {{data_stipula}} | ____________ |
-| Fornitore | {{referente_fornitore}} | {{data_stipula}} | ____________ |
+| Ruolo       | Nome                    | Data             | Firma            |
+| ----------- | ----------------------- | ---------------- | ---------------- |
+| Committente | {{referente_cliente}}   | {{data_stipula}} | ****\_\_\_\_**** |
+| Fornitore   | {{referente_fornitore}} | {{data_stipula}} | ****\_\_\_\_**** |
 
 ---
 
-*Documento generato automaticamente — MAC Documents Platform*
+_Documento generato automaticamente — MAC Documents Platform_

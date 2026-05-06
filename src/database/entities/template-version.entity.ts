@@ -22,7 +22,9 @@ export class TemplateVersionEntity {
   @ManyToOne(
     () => TemplateEntity,
     (template) => template.versions,
-    { onDelete: "CASCADE" },
+    {
+      onDelete: "CASCADE",
+    },
   )
   @JoinColumn({ name: "template_id" })
   template?: TemplateEntity;
