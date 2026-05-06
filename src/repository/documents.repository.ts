@@ -175,7 +175,22 @@ export class DocumentsRepository {
   }
 
   async findQueuedPdfJobs(): Promise<PdfJobEntity[]> {
-    return this.pdfJobRepository.find({ where: { status: "queued" } });
+    return this.pdfJobRepository.find({
+      where: { status: "queued" },
+      order: { created_at: "ASC" },
+    });
+  }
+
+  async claimQueuedPdfJob(jobId: string): Promise<boolean> {
+    const result = await this.pdfJobRepository
+      .createQueryBuilder()
+      .update(PdfJobEntity)
+      .set({ status: "running", started_at: new Date() })
+      .where("id = :jobId", { jobId })
+      .andWhere("status = :status", { status: "queued" })
+      .execute();
+
+    return (result.affected ?? 0) > 0;
   }
 
   async findLatestCompletedPdfJob(

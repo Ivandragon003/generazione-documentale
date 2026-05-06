@@ -10,34 +10,7 @@ import {
 } from "./pdf.service";
 import type { TemplatesService } from "./templates.service";
 
-const PDF_JOB_CONCURRENCY = 1;
 const QUEUE_RECOVERY_RETRY_MS = appConfig.pdfQueueRecoveryRetryMs;
-
-let activePdfJobs = 0;
-const queuedPdfJobs: Array<() => Promise<void>> = [];
-let queueRecoveryStarted = false;
-let queueRecoveryTimer: NodeJS.Timeout | null = null;
-
-const enqueuePdfJob = (task: () => Promise<void>): void => {
-  queuedPdfJobs.push(task);
-  drainPdfQueue();
-};
-
-const drainPdfQueue = (): void => {
-  while (activePdfJobs < PDF_JOB_CONCURRENCY && queuedPdfJobs.length > 0) {
-    const task = queuedPdfJobs.shift();
-    if (!task) return;
-    activePdfJobs += 1;
-    setImmediate(async () => {
-      try {
-        await task();
-      } finally {
-        activePdfJobs -= 1;
-        drainPdfQueue();
-      }
-    });
-  }
-};
 
 export interface CreateDocumentInput {
   name: string;
@@ -54,6 +27,10 @@ export interface UpdateDocumentInput {
 
 @Injectable()
 export class DocumentsService {
+  private queueRecoveryStarted = false;
+  private queueRecoveryTimer: NodeJS.Timeout | null = null;
+  private processorRunning = false;
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly documentsRepository: DocumentsRepository,
@@ -71,22 +48,34 @@ export class DocumentsService {
   }
 
   private async ensureQueueRecovery(): Promise<void> {
-    if (queueRecoveryStarted) return;
-    queueRecoveryStarted = true;
+    if (this.queueRecoveryStarted) return;
+    this.queueRecoveryStarted = true;
     try {
-      const queuedJobs = await this.documentsRepository.findQueuedPdfJobs();
-      for (const job of queuedJobs) {
-        enqueuePdfJob(async () => this.processPdfJob(job.id));
-      }
+      this.triggerQueueProcessor();
     } catch {
-      queueRecoveryStarted = false;
-      if (!queueRecoveryTimer) {
-        queueRecoveryTimer = setTimeout(() => {
-          queueRecoveryTimer = null;
+      this.queueRecoveryStarted = false;
+      if (!this.queueRecoveryTimer) {
+        this.queueRecoveryTimer = setTimeout(() => {
+          this.queueRecoveryTimer = null;
           this.ensureQueueRecovery().catch(() => undefined);
         }, QUEUE_RECOVERY_RETRY_MS);
       }
     }
+  }
+
+  private triggerQueueProcessor(): void {
+    if (this.processorRunning) return;
+    this.processorRunning = true;
+    setImmediate(async () => {
+      try {
+        const queuedJobs = await this.documentsRepository.findQueuedPdfJobs();
+        for (const job of queuedJobs) {
+          await this.processPdfJob(job.id);
+        }
+      } finally {
+        this.processorRunning = false;
+      }
+    });
   }
 
   async findAll({
@@ -202,14 +191,17 @@ export class DocumentsService {
       );
     }
     const job = await this.documentsRepository.insertPdfJob(id, actor);
-    enqueuePdfJob(async () => this.processPdfJob(job.id));
+    this.triggerQueueProcessor();
     return job;
   }
 
   async processPdfJob(jobId: string): Promise<void> {
+    const claimed = await this.documentsRepository.claimQueuedPdfJob(jobId);
+    if (!claimed) return;
+
     const job = await this.documentsRepository.findPdfJobById(jobId);
-    if (!job || job.status !== "queued") return;
-    await this.documentsRepository.updatePdfJobRunning(jobId);
+    if (!job || job.status !== "running") return;
+
     try {
       const document = await this.findOneOrThrow(job.document_id);
       const fields = await this.getFieldDefinitions(document);

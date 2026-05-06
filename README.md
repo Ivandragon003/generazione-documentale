@@ -9,13 +9,11 @@ Costruita con **NestJS** su Node.js, database **PostgreSQL**, generazione PDF tr
 
 | Layer | Tecnologia |
 |---|---|
-| Framework | [NestJS](https://nestjs.com/) v10 (su Express) — JavaScript puro |
-| Database | PostgreSQL — query raw con `pg` (no ORM) |
-| PDF | Pandoc (`pdflatex` / `xelatex` come motore) |
+| Framework | [NestJS](https://nestjs.com/) v11 + TypeScript |
+| Database | PostgreSQL + TypeORM |
+| PDF | Pandoc + XeLaTeX |
 | Documentazione API | Swagger UI — `http://localhost:3000/api-docs` |
 
-> **Nota:** il progetto usa NestJS **senza TypeScript** (JavaScript puro con decoratori applicati manualmente).
-> Vedi la sezione [TypeScript](#note-su-typescript) in fondo per il confronto.
 
 ---
 
@@ -308,17 +306,5 @@ La collection non contiene script Postman `pm.*` e non richiama la suite test au
 
 ## Note su TypeScript
 
-Il progetto è scritto in **JavaScript puro con NestJS**. Questo funziona, ma NestJS nasce per TypeScript e in JS i decoratori vanno applicati manualmente su ogni metodo e parametro, il che è più verboso e error-prone.
+Il progetto � gi� in TypeScript (src/**/*.ts) con validazione DTO (class-validator) e dependency injection NestJS standard.
 
-**Cosa migliorerebbe con TypeScript:**
-
-| Aspetto | JS attuale | TS |
-|---|---|---|
-| Decoratori parametri | `Query()(proto, 'findAll', 0)` a mano | `findAll(@Query() q: QueryDto)` — inline |
-| Validazione body | Assente / manuale | `class-validator` + `class-transformer` su DTO |
-| Tipo delle righe DB | `any` implicito | `interface TemplateRow { id: string; ... }` |
-| Errori di battitura | Runtime | Compile time |
-| IntelliSense | Parziale | Completo |
-| Documentazione Swagger | `@ApiProperty()` a mano | Generata automaticamente dai DTO |
-
-**Stima migrazione:** 2–3 giorni per un progetto di questa dimensione — principalmente rinominare i file in `.ts`, aggiungere `tsconfig.json`, definire i DTO e tipare le query DB.

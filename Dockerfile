@@ -49,6 +49,8 @@ FROM debian:bookworm-slim AS runtime
 # --- variabili build-time ---
 ARG PANDOC_VERSION=3.6.4
 ARG TARGETARCH=amd64
+ARG PANDOC_SHA256_AMD64=68e5516a5464b12354146e9e23bc41a4c05f302f4ba5def9bdc49f1e2db0d1e0
+ARG PANDOC_SHA256_ARM64=33c8e3456a2bd2a0b58b88583ba7f0f126c6b7a4cfc1c04206cd538e4bbd4b04
 
 # --- variabili ambiente runtime ---
 ENV NODE_ENV=production \
@@ -93,6 +95,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # ---------------------------------------------------------------------------
     wget -q "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-${TARGETARCH}.deb" \
          -O /tmp/pandoc.deb && \
+    case "${TARGETARCH}" in \
+      amd64) expected_sha="${PANDOC_SHA256_AMD64}" ;; \
+      arm64) expected_sha="${PANDOC_SHA256_ARM64}" ;; \
+      *) echo "Architettura non supportata per checksum Pandoc: ${TARGETARCH}" && exit 1 ;; \
+    esac && \
+    echo "${expected_sha}  /tmp/pandoc.deb" | sha256sum -c - && \
     dpkg -i /tmp/pandoc.deb && \
     rm /tmp/pandoc.deb && \
     # ---------------------------------------------------------------------------

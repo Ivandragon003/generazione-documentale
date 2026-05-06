@@ -75,9 +75,9 @@ const buildPandocArgs = (
   title: string,
   author: string,
 ): string[] => [
-  // Allow markdown tables and smart punctuation while keeping strict PDF output.
+  // raw_tex is intentionally disabled for safer server-side rendering.
   "--from",
-  "markdown+smart+pipe_tables+raw_tex",
+  "markdown+smart+pipe_tables",
   "--to",
   "pdf",
   "--pdf-engine",
