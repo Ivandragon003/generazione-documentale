@@ -1,7 +1,7 @@
-﻿import { Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import type { Repository } from "typeorm";
-import { AuditLogEntity } from "../../../entities/audit-log.entity";
+import { Repository } from "typeorm";
+import { AuditLogEntity } from "../../../database/entities/audit-log.entity";
 
 interface FindAuditFilters {
   entityType?: string;
