@@ -12,6 +12,7 @@ import { TemplatesController } from "./controller/templates.controller";
 import { DocumentsRepository } from "./repository/documents.repository";
 import { TemplatesRepository } from "./repository/templates.repository";
 import { DocumentsService } from "./service/documents.service";
+import { GithubService } from "./service/github.service";
 import { TemplatesService } from "./service/templates.service";
 
 @Module({
@@ -31,6 +32,7 @@ import { TemplatesService } from "./service/templates.service";
     TemplatesService,
     DocumentsRepository,
     DocumentsService,
+    GithubService,
   ],
 })
 export class AppModule {}
