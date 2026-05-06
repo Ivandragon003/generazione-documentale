@@ -1,7 +1,7 @@
-﻿import { Controller, Param, Post } from "@nestjs/common";
+import { Controller, Param, Post } from "@nestjs/common";
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { makeError } from "../../../common/utils/errors";
-import type { TemplatesService } from "../../templates/service/templates.service";
+import { TemplatesService } from "../../templates/service/templates.service";
 
 @ApiTags("pdf")
 @Controller("pdf")
