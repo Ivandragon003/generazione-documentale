@@ -1,4 +1,4 @@
-﻿import {
+import {
   Body,
   Controller,
   Delete,
@@ -32,13 +32,13 @@ import {
   parseVersionOrThrow,
   readAndCleanupUpload,
 } from "../../../common/utils/http.utils";
-import type { AuditService } from "../../audit/service/audit.service";
-import type { CreateTemplateDto } from "../dto/create-template.dto";
-import type { ImportTemplateFileDto } from "../dto/import-template-file.dto";
-import type { TemplateQueryDto } from "../dto/template-query.dto";
-import type { UpdateTemplateDto } from "../dto/update-template.dto";
-import type { ValidateMarkdownDto } from "../dto/validate-markdown.dto";
-import type { TemplatesService } from "../service/templates.service";
+import { AuditService } from "../../audit/service/audit.service";
+import { CreateTemplateDto } from "../dto/create-template.dto";
+import { ImportTemplateFileDto } from "../dto/import-template-file.dto";
+import { TemplateQueryDto } from "../dto/template-query.dto";
+import { UpdateTemplateDto } from "../dto/update-template.dto";
+import { ValidateMarkdownDto } from "../dto/validate-markdown.dto";
+import { TemplatesService } from "../service/templates.service";
 
 const UPLOAD_PATH = process.env.UPLOAD_PATH ?? "./storage/uploads";
 const MAX_FILE_SIZE =
