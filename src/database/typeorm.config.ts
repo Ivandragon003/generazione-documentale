@@ -1,5 +1,4 @@
 import type { TypeOrmModuleOptions } from "@nestjs/typeorm";
-import { AuditLogEntity } from "./entities/audit-log.entity";
 import { DocumentEntity } from "./entities/document.entity";
 import { DocumentVersionEntity } from "./entities/document-version.entity";
 import { PdfJobEntity } from "./entities/pdf-job.entity";
@@ -24,7 +23,6 @@ export const buildTypeOrmOptions = (): TypeOrmModuleOptions => ({
     DocumentEntity,
     DocumentVersionEntity,
     PdfJobEntity,
-    AuditLogEntity,
   ],
   synchronize: false,
   autoLoadEntities: false,
