@@ -1,8 +1,39 @@
+# ─── Build & Dependencies ───────────────────────────────
 /dist
 /node_modules
 /coverage
 
-# logs
+# ─── Database ───────────────────────────────────────────
+/db/*
+!db/schema.sql
+
+# ─── Scripts ─────────────────────────────────────────────
+/scripts
+
+# ─── Templates catalog ───────────────────────────────────
+/templates-catalog
+
+# ─── Docker ──────────────────────────────────────────────
+.dockerignore
+docker-compose.yml
+Dockerfile
+
+# ─── Env files ───────────────────────────────────────────
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ─── Lock files ──────────────────────────────────────────
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# ─── Documentation ───────────────────────────────────────
+README.md
+
+# ─── Logs ────────────────────────────────────────────────
 logs
 *.log
 npm-debug.log*
@@ -10,13 +41,13 @@ pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# runtime
+# ─── Runtime ─────────────────────────────────────────────
 tmp
 .temp
 *.pid
 *.pid.lock
 
-# OS/editor
+# ─── OS / Editor ─────────────────────────────────────────
 .DS_Store
 Thumbs.db
 .vscode/*
@@ -26,14 +57,7 @@ Thumbs.db
 !.vscode/extensions.json
 .idea
 
-# env
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# storage runtime artifacts
+# ─── Storage runtime artifacts ───────────────────────────
 storage/uploads/*
 !storage/uploads/.gitkeep
 storage/pdf/*
@@ -43,10 +67,10 @@ storage/templates/*
 !storage/templates/CATALOG.md
 storage/test-runs/*.json
 
-# database dumps
+# ─── Database dumps ──────────────────────────────────────
 *.dump
 *.pgdump
 
-# NestJS build cache
+# ─── NestJS build cache ──────────────────────────────────
 .tsbuildinfo
 *.tsbuildinfo
