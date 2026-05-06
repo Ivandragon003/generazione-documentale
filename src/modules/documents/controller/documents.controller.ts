@@ -1,4 +1,4 @@
-﻿import {
+import {
   Body,
   Controller,
   Delete,
@@ -26,11 +26,11 @@ import {
   parsePagination,
   parseVersionOrThrow,
 } from "../../../common/utils/http.utils";
-import type { AuditService } from "../../audit/service/audit.service";
-import type { CreateDocumentDto } from "../dto/create-document.dto";
-import type { DocumentQueryDto } from "../dto/document-query.dto";
-import type { UpdateDocumentDto } from "../dto/update-document.dto";
-import type { DocumentsService } from "../service/documents.service";
+import { AuditService } from "../../audit/service/audit.service";
+import { CreateDocumentDto } from "../dto/create-document.dto";
+import { DocumentQueryDto } from "../dto/document-query.dto";
+import { UpdateDocumentDto } from "../dto/update-document.dto";
+import { DocumentsService } from "../service/documents.service";
 import { deletePdf, getPdfStream } from "../service/pdf.service";
 
 @ApiTags("documents")
