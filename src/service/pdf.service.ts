@@ -4,13 +4,13 @@
  * Tutta la configurazione è centralizzata in src/config/pdf.config.ts
  */
 
+import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { access, mkdir, unlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { randomUUID } from "node:crypto";
-import { spawn } from "node:child_process";
-import { pdfConfig } from "../config/pdf.config";
 import type { FieldDefinition } from "../common/types/field-definition.type";
+import { pdfConfig } from "../config/pdf.config";
 
 // ─── Tipi ────────────────────────────────────────────────────────────────────
 
@@ -63,45 +63,71 @@ export const getMissingRequiredFields = (
 const sleep = (ms: number): Promise<void> =>
   new Promise((r) => setTimeout(r, ms));
 
+const escapeLatexInline = (value: string): string =>
+  value.replace(/[\\{}$&#_%~^]/g, (char) => `\\${char}`);
+
 /**
  * Costruisce gli argomenti Pandoc usando pdfConfig.
  * Il motore è xelatex per default ma overridabile via PDF_ENGINE.
  */
-const buildPandocArgs = (outputPath: string, title: string, author: string): string[] => [
-  "--from", "markdown+smart+pipe_tables+raw_tex",
-  "--to", "pdf",
-  "--pdf-engine", pdfConfig.engine,
-  "--output", outputPath,
+const buildPandocArgs = (
+  outputPath: string,
+  title: string,
+  author: string,
+): string[] => [
+  // Allow markdown tables and smart punctuation while keeping strict PDF output.
+  "--from",
+  "markdown+smart+pipe_tables+raw_tex",
+  "--to",
+  "pdf",
+  "--pdf-engine",
+  pdfConfig.engine,
+  "--output",
+  outputPath,
 
   // Metadati
   `--metadata=title:${title}`,
   `--metadata=author:${author}`,
   `--metadata=lang:it`,
-  `--metadata=date:${new Date().toLocaleDateString("it-IT")}`,
+  `--metadata=date:${new Intl.DateTimeFormat("it-IT").format(new Date())}`,
 
   // Layout
-  "-V", `papersize=${pdfConfig.paper}`,
-  "-V", `fontsize=${pdfConfig.fontSize}`,
-  "-V", `geometry:top=${pdfConfig.marginTop},bottom=${pdfConfig.marginBottom},left=${pdfConfig.marginLeft},right=${pdfConfig.marginRight}`,
+  "-V",
+  `papersize=${pdfConfig.paper}`,
+  "-V",
+  `fontsize=${pdfConfig.fontSize}`,
+  "-V",
+  `geometry:top=${pdfConfig.marginTop},bottom=${pdfConfig.marginBottom},left=${pdfConfig.marginLeft},right=${pdfConfig.marginRight}`,
 
   // Font XeLaTeX (fontspec)
-  "-V", `mainfont=${pdfConfig.mainFont}`,
-  "-V", `sansfont=${pdfConfig.sansFont}`,
-  "-V", `monofont=${pdfConfig.monoFont}`,
+  "-V",
+  `mainfont=${pdfConfig.mainFont}`,
+  "-V",
+  `sansfont=${pdfConfig.sansFont}`,
+  "-V",
+  `monofont=${pdfConfig.monoFont}`,
 
   // Tipografia
-  "-V", `linestretch=${pdfConfig.lineStretch}`,
-  "-V", "indent=false",
-  "-V", "colorlinks=true",
-  "-V", "linkcolor=NavyBlue",
-  "-V", "urlcolor=RoyalBlue",
+  "-V",
+  `linestretch=${pdfConfig.lineStretch}`,
+  "-V",
+  "indent=false",
+  "-V",
+  "colorlinks=true",
+  "-V",
+  "linkcolor=NavyBlue",
+  "-V",
+  "urlcolor=RoyalBlue",
 
   // Header/footer
-  "-V", `header-includes=\\usepackage{fancyhdr}\\pagestyle{fancy}\\fancyhf{}\\fancyhead[L]{\\small ${title}}\\fancyhead[R]{\\small \\today}\\fancyfoot[C]{\\thepage}\\renewcommand{\\headrulewidth}{0.4pt}`,
+  "-V",
+  `header-includes=\\usepackage{fancyhdr}\\pagestyle{fancy}\\fancyhf{}\\fancyhead[L]{\\small ${escapeLatexInline(title)}}\\fancyhead[R]{\\small \\today}\\fancyfoot[C]{\\thepage}\\renewcommand{\\headrulewidth}{0.4pt}`,
 
   // Tabelle
-  "--variable", "header-includes=\\usepackage{longtable,booktabs,array}",
-  "-V", "tables=true",
+  "--variable",
+  "header-includes=\\usepackage{longtable,booktabs,array}",
+  "-V",
+  "tables=true",
 
   // Stdin
   "-",
@@ -113,7 +139,9 @@ const runPandoc = (
   timeoutMs: number,
 ): Promise<void> =>
   new Promise((resolve, reject) => {
-    const proc = spawn(pdfConfig.pandocPath, args, { stdio: ["pipe", "pipe", "pipe"] });
+    const proc = spawn(pdfConfig.pandocPath, args, {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     let stderr = "";
     let timedOut = false;
 
@@ -123,7 +151,9 @@ const runPandoc = (
       reject(new Error(`Pandoc timeout dopo ${timeoutMs}ms`));
     }, timeoutMs);
 
-    proc.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    proc.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
 
     proc.on("close", (code) => {
       clearTimeout(timer);
@@ -134,7 +164,11 @@ const runPandoc = (
 
     proc.on("error", (err) => {
       clearTimeout(timer);
-      reject(new Error(`Pandoc non trovato (${pdfConfig.pandocPath}): ${err.message}`));
+      reject(
+        new Error(
+          `Pandoc non trovato (${pdfConfig.pandocPath}): ${err.message}`,
+        ),
+      );
     });
 
     proc.stdin.end(input, "utf8");
@@ -149,13 +183,24 @@ export const generatePdf = async (
   fieldValues: Record<string, string | number | boolean | null>,
   options: PdfGenerateOptions = {},
 ): Promise<PdfGenerateResult> => {
-  const { title = "Documento", author = "MAC Documents", strict = false, fields = [] } = options;
+  const {
+    title = "Documento",
+    author = "MAC Documents",
+    strict = false,
+    fields = [],
+  } = options;
 
   if (Buffer.byteLength(markdownContent, "utf8") > pdfConfig.maxMarkdownBytes) {
-    throw new Error(`Documento troppo grande (max ${pdfConfig.maxMarkdownBytes} bytes)`);
+    throw new Error(
+      `Documento troppo grande (max ${pdfConfig.maxMarkdownBytes} bytes)`,
+    );
   }
 
-  const { result: interpolated, unresolved } = interpolateFields(markdownContent, fieldValues, strict);
+  const { result: interpolated, unresolved } = interpolateFields(
+    markdownContent,
+    fieldValues,
+    strict,
+  );
 
   await mkdir(STORAGE_PATH, { recursive: true });
   const filename = `${randomUUID()}.pdf`;

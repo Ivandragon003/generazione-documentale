@@ -32,18 +32,16 @@ import {
   parseVersionOrThrow,
   readAndCleanupUpload,
 } from "../common/utils/http.utils";
-import { CreateTemplateDto } from "../dto/create-template.dto";
+import { appConfig } from "../config/app.config";
+import type { CreateTemplateDto } from "../dto/create-template.dto";
 import { ImportTemplateFileDto } from "../dto/import-template-file.dto";
-import { TemplateQueryDto } from "../dto/template-query.dto";
-import { UpdateTemplateDto } from "../dto/update-template.dto";
-import { ValidateMarkdownDto } from "../dto/validate-markdown.dto";
-import { TemplatesService } from "../service/templates.service";
+import type { TemplateQueryDto } from "../dto/template-query.dto";
+import type { UpdateTemplateDto } from "../dto/update-template.dto";
+import type { ValidateMarkdownDto } from "../dto/validate-markdown.dto";
+import type { TemplatesService } from "../service/templates.service";
 
-const UPLOAD_PATH = process.env.UPLOAD_PATH ?? "./storage/uploads";
-const MAX_FILE_SIZE =
-  (Number.parseInt(process.env.MAX_FILE_SIZE_MB ?? "10", 10) || 10) *
-  1024 *
-  1024;
+const UPLOAD_PATH = appConfig.uploadPath;
+const MAX_FILE_SIZE = appConfig.maxFileSizeBytes;
 
 interface UploadedMarkdownFile {
   path: string;
@@ -172,17 +170,14 @@ export class TemplatesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Elimina template" })
   @ApiParam({ name: "id", description: "UUID template" })
-  delete(@Param("id") id: string, @Req() request: Request) {
-    return this.templatesService.delete(id, getActor(request));
+  delete(@Param("id") id: string) {
+    return this.templatesService.delete(id);
   }
 
   @Get(":id/export")
   @ApiOperation({ summary: "Esporta template come file .md" })
   @ApiParam({ name: "id", description: "UUID template" })
-  async export(
-    @Param("id") id: string,
-    @Res() response: Response,
-  ) {
+  async export(@Param("id") id: string, @Res() response: Response) {
     const template = await this.templatesService.findOne(id);
     if (!template) {
       throw makeError("Template non trovato", 404);
@@ -210,7 +205,7 @@ export class TemplatesController {
     if (!file) {
       throw makeError("File non fornito", 400);
     }
-    const content = await readAndCleanupUpload(file.path);
+    const content = await readAndCleanupUpload(file);
     const name = body.name || file.originalname.replace(/\.md$/i, "");
     return this.templatesService.importFromMarkdown(
       content,

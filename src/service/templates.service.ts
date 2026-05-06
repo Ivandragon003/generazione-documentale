@@ -9,10 +9,10 @@ import {
   type PartialFieldDefinition,
   validateMarkdownContent,
 } from "../common/utils/markdown.utils";
-import type { TemplateEntity } from "../entities/template.entity";
-import type { TemplateVersionEntity } from "../entities/template-version.entity";
+import { appConfig } from "../config/app.config";
+import type { TemplateEntity } from "../database/entities/template.entity";
 import type { TemplatesRepository } from "../repository/templates.repository";
-import type { GithubService, CatalogEntry } from "./github.service";
+import type { CatalogEntry, GithubService } from "./github.service";
 
 export interface CreateTemplateInput {
   name: string;
@@ -30,10 +30,7 @@ export interface UpdateTemplateInput {
   created_by?: string;
 }
 
-const MAX_TEMPLATE_CONTENT_BYTES = Math.max(
-  Number.parseInt(process.env.MAX_TEMPLATE_CONTENT_BYTES ?? "200000", 10),
-  1000,
-);
+const MAX_TEMPLATE_CONTENT_BYTES = appConfig.maxTemplateContentBytes;
 
 @Injectable()
 export class TemplatesService {
@@ -65,12 +62,17 @@ export class TemplatesService {
    * Legge il contenuto di un template dal repo GitHub.
    * content_path contiene il nome del file relativo alla cartella templates-catalog/
    */
-  private async readTemplateContent(contentPath: string | null): Promise<string | null> {
+  private async readTemplateContent(
+    contentPath: string | null,
+  ): Promise<string | null> {
     if (!contentPath) return null;
     try {
       return await this.githubService.fetchTemplateContent(contentPath);
     } catch (err) {
-      this.logger.error(`Impossibile leggere template da GitHub: ${contentPath}`, err);
+      this.logger.error(
+        `Impossibile leggere template da GitHub: ${contentPath}`,
+        err,
+      );
       return null;
     }
   }
@@ -80,7 +82,8 @@ export class TemplatesService {
   ): Promise<(T & { content: string }) | null> {
     if (!row) return null;
     const content = await this.readTemplateContent(row.content_path);
-    if (!content) throw makeError("Contenuto template non disponibile su GitHub", 500);
+    if (!content)
+      throw makeError("Contenuto template non disponibile su GitHub", 500);
     return { ...row, content };
   }
 
@@ -103,7 +106,9 @@ export class TemplatesService {
 
   // ─── Find ─────────────────────────────────────────────────────────────────
 
-  private async findOneOrThrow(id: string): Promise<TemplateEntity & { content: string }> {
+  private async findOneOrThrow(
+    id: string,
+  ): Promise<TemplateEntity & { content: string }> {
     assertUuid(id);
     const template = await this.findOne(id);
     if (!template) throw makeError("Template non trovato", 404);
@@ -119,8 +124,14 @@ export class TemplatesService {
     limit?: number;
     offset?: number;
   }) {
-    const { data, total } = await this.templatesRepository.findAll({ status, limit, offset });
-    const hydratedData = await Promise.all(data.map((row) => this.hydrateContent(row)));
+    const { data, total } = await this.templatesRepository.findAll({
+      status,
+      limit,
+      offset,
+    });
+    const hydratedData = await Promise.all(
+      data.map((row) => this.hydrateContent(row)),
+    );
     return {
       data: hydratedData.filter(
         (row): row is TemplateEntity & { content: string } => Boolean(row),
@@ -131,7 +142,9 @@ export class TemplatesService {
     };
   }
 
-  async findOne(id: string): Promise<(TemplateEntity & { content: string }) | null> {
+  async findOne(
+    id: string,
+  ): Promise<(TemplateEntity & { content: string }) | null> {
     assertUuid(id);
     const row = await this.templatesRepository.findById(id);
     return this.hydrateContent(row);
@@ -161,8 +174,16 @@ export class TemplatesService {
     }
     this.assertValidContent(content);
     const id = randomUUID();
-    const normalizedFields: FieldDefinition[] = normalizeFieldDefinitions(content, fields);
-    const contentPath = await this.writeTemplateToGithub(id, 1, content, "create");
+    const normalizedFields: FieldDefinition[] = normalizeFieldDefinitions(
+      content,
+      fields,
+    );
+    const contentPath = await this.writeTemplateToGithub(
+      id,
+      1,
+      content,
+      "create",
+    );
     const template = await this.dataSource.transaction(async (manager) => {
       const created = await this.templatesRepository.insertTemplate(manager, {
         id,
@@ -190,7 +211,13 @@ export class TemplatesService {
 
   async update(
     id: string,
-    { name, description, content, fields, created_by = "system" }: UpdateTemplateInput,
+    {
+      name,
+      description,
+      content,
+      fields,
+      created_by = "system",
+    }: UpdateTemplateInput,
   ) {
     const existing = await this.findOneOrThrow(id);
     if (existing.status === "published") {
@@ -201,10 +228,18 @@ export class TemplatesService {
     }
     const nextContent = content ?? existing.content;
     this.assertValidContent(nextContent);
-    const nextFields = normalizeFieldDefinitions(nextContent, fields ?? existing.fields);
+    const nextFields = normalizeFieldDefinitions(
+      nextContent,
+      fields ?? existing.fields,
+    );
     const nextVersion = existing.version + 1;
     // Sovrascrive su GitHub (push della nuova versione)
-    const contentPath = await this.writeTemplateToGithub(id, nextVersion, nextContent, "update");
+    const contentPath = await this.writeTemplateToGithub(
+      id,
+      nextVersion,
+      nextContent,
+      "update",
+    );
     const updated = await this.dataSource.transaction(async (manager) => {
       const row = await this.templatesRepository.updateTemplate(manager, {
         id,
@@ -234,7 +269,11 @@ export class TemplatesService {
    * Importa un template da un file .md caricato via upload.
    * Dopo la creazione, il file viene pushato su GitHub.
    */
-  async importFromMarkdown(content: string, name: string, created_by = "system") {
+  async importFromMarkdown(
+    content: string,
+    name: string,
+    created_by = "system",
+  ) {
     return this.create({ name, content, created_by });
   }
 
@@ -245,7 +284,11 @@ export class TemplatesService {
   async importFromCatalog(catalogId: string, created_by = "system") {
     const catalog = await this.githubService.fetchCatalog();
     const entry = catalog.find((e) => e.id === catalogId);
-    if (!entry) throw makeError(`Template "${catalogId}" non trovato nel CATALOG.json`, 404);
+    if (!entry)
+      throw makeError(
+        `Template "${catalogId}" non trovato nel CATALOG.json`,
+        404,
+      );
     const content = await this.githubService.fetchTemplateContent(entry.file);
     return this.create({
       name: entry.name,
@@ -259,16 +302,30 @@ export class TemplatesService {
 
   async restore(id: string, targetVersion: number, actor = "system") {
     const existing = await this.findOneOrThrow(id);
-    const versionRow = await this.templatesRepository.findVersionById(id, targetVersion);
-    if (!versionRow) throw makeError(`Versione ${targetVersion} non trovata`, 404);
+    const versionRow = await this.templatesRepository.findVersionById(
+      id,
+      targetVersion,
+    );
+    if (!versionRow)
+      throw makeError(`Versione ${targetVersion} non trovata`, 404);
     const oldContent = await this.readTemplateContent(versionRow.content_path);
-    if (!oldContent) throw makeError("Contenuto versione non disponibile su GitHub", 404);
+    if (!oldContent)
+      throw makeError("Contenuto versione non disponibile su GitHub", 404);
     const nextVersion = existing.version + 1;
     const nextFields = normalizeFieldDefinitions(oldContent, versionRow.fields);
-    const contentPath = await this.writeTemplateToGithub(id, nextVersion, oldContent, "update");
+    const contentPath = await this.writeTemplateToGithub(
+      id,
+      nextVersion,
+      oldContent,
+      "update",
+    );
     const restored = await this.dataSource.transaction(async (manager) => {
       const row = await this.templatesRepository.restoreTemplate(
-        manager, id, contentPath, nextFields, nextVersion,
+        manager,
+        id,
+        contentPath,
+        nextFields,
+        nextVersion,
       );
       await this.templatesRepository.insertTemplateVersion(manager, {
         templateId: id,
@@ -301,7 +358,8 @@ export class TemplatesService {
 
   async delete(id: string) {
     const existing = await this.findOneOrThrow(id);
-    const activeDocuments = await this.templatesRepository.countActiveDocuments(id);
+    const activeDocuments =
+      await this.templatesRepository.countActiveDocuments(id);
     if (activeDocuments > 0) {
       throw makeError(
         "Impossibile eliminare: esistono documenti attivi basati su questo template",

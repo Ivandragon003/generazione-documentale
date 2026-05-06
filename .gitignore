@@ -46,3 +46,7 @@ storage/test-runs/*.json
 # database dumps
 *.dump
 *.pgdump
+
+# NestJS build cache
+.tsbuildinfo
+*.tsbuildinfo

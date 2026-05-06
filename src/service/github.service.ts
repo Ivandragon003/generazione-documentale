@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { makeError } from "../common/utils/errors";
+import { appConfig } from "../config/app.config";
 
 const GITHUB_API = "https://api.github.com";
 const GITHUB_RAW = "https://raw.githubusercontent.com";
@@ -15,27 +16,27 @@ export class GithubService {
   private readonly logger = new Logger(GithubService.name);
 
   private get owner(): string {
-    return process.env.GITHUB_TEMPLATES_OWNER ?? "";
+    return appConfig.github.owner;
   }
 
   private get repo(): string {
-    return process.env.GITHUB_TEMPLATES_REPO ?? "";
+    return appConfig.github.repo;
   }
 
   private get branch(): string {
-    return process.env.GITHUB_TEMPLATES_BRANCH ?? "main";
+    return appConfig.github.branch;
   }
 
   private get catalogPath(): string {
-    return process.env.GITHUB_TEMPLATES_CATALOG_PATH ?? "templates-catalog/CATALOG.json";
+    return appConfig.github.catalogPath;
   }
 
   private get templatesDir(): string {
-    return process.env.GITHUB_TEMPLATES_DIR ?? "templates-catalog";
+    return appConfig.github.templatesDir;
   }
 
   private get token(): string | undefined {
-    return process.env.GITHUB_TOKEN;
+    return appConfig.github.token;
   }
 
   private authHeaders(): Record<string, string> {
@@ -65,7 +66,10 @@ export class GithubService {
     this.logger.debug(`Fetching catalog from ${url}`);
     const response = await fetch(url, { headers: this.authHeaders() });
     if (!response.ok) {
-      throw makeError(`GitHub catalog non raggiungibile: ${response.status} ${response.statusText}`, 502);
+      throw makeError(
+        `GitHub catalog non raggiungibile: ${response.status} ${response.statusText}`,
+        502,
+      );
     }
     return response.json() as Promise<CatalogEntry[]>;
   }
@@ -79,7 +83,10 @@ export class GithubService {
     this.logger.debug(`Fetching template content from ${url}`);
     const response = await fetch(url, { headers: this.authHeaders() });
     if (!response.ok) {
-      throw makeError(`GitHub template non raggiungibile: ${response.status} ${response.statusText}`, 502);
+      throw makeError(
+        `GitHub template non raggiungibile: ${response.status} ${response.statusText}`,
+        502,
+      );
     }
     return response.text();
   }
@@ -94,20 +101,38 @@ export class GithubService {
     const response = await fetch(url, { headers: this.authHeaders() });
     if (response.status === 404) return null;
     if (!response.ok) {
-      throw makeError(`GitHub API error: ${response.status} ${response.statusText}`, 502);
+      throw makeError(
+        `GitHub API error: ${response.status} ${response.statusText}`,
+        502,
+      );
     }
-    const data = (await response.json()) as { sha: string; content: string; path: string };
-    return { sha: data.sha, content: Buffer.from(data.content, "base64").toString("utf8"), path: data.path };
+    const data = (await response.json()) as {
+      sha: string;
+      content: string;
+      path: string;
+    };
+    return {
+      sha: data.sha,
+      content: Buffer.from(data.content, "base64").toString("utf8"),
+      path: data.path,
+    };
   }
 
   /**
    * Crea o sovrascrive un file nel repo GitHub.
    * Se il file esiste già, usa il SHA per aggiornarla (PUT).
    */
-  async pushFile(filePath: string, content: string, commitMessage: string): Promise<void> {
+  async pushFile(
+    filePath: string,
+    content: string,
+    commitMessage: string,
+  ): Promise<void> {
     this.assertConfig();
     if (!this.token) {
-      throw makeError("GITHUB_TOKEN non configurato: necessario per scrivere sul repo", 500);
+      throw makeError(
+        "GITHUB_TOKEN non configurato: necessario per scrivere sul repo",
+        500,
+      );
     }
     const existing = await this.getFileInfo(filePath);
     const url = `${GITHUB_API}/repos/${this.owner}/${this.repo}/contents/${filePath}`;
@@ -127,7 +152,9 @@ export class GithubService {
       const err = await response.text();
       throw makeError(`Errore push GitHub: ${response.status} — ${err}`, 502);
     }
-    this.logger.log(`Pushed ${filePath} to GitHub (${existing ? "update" : "create"})`);
+    this.logger.log(
+      `Pushed ${filePath} to GitHub (${existing ? "update" : "create"})`,
+    );
   }
 
   /**
@@ -144,7 +171,11 @@ export class GithubService {
   /**
    * Push di un template .md.
    */
-  async pushTemplateFile(filename: string, content: string, message: string): Promise<void> {
+  async pushTemplateFile(
+    filename: string,
+    content: string,
+    message: string,
+  ): Promise<void> {
     const filePath = `${this.templatesDir}/${filename}`;
     await this.pushFile(filePath, content, message);
   }

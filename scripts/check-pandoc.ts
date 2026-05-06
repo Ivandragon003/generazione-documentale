@@ -4,7 +4,8 @@ import { config } from "dotenv";
 config();
 
 const pandocPath = process.env.PANDOC_PATH ?? "pandoc";
-const pdfEngine = process.env.PANDOC_PDF_ENGINE ?? "pdflatex";
+const pdfEngine =
+  process.env.PDF_ENGINE ?? process.env.PANDOC_PDF_ENGINE ?? "xelatex";
 
 execFile(pandocPath, ["--version"], (pandocError, pandocOutput) => {
   if (pandocError) {

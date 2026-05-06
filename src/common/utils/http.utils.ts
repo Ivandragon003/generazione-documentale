@@ -1,4 +1,4 @@
-﻿import { readFileSync, unlinkSync } from "node:fs";
+import { readFile, unlink } from "node:fs/promises";
 import type { Request } from "express";
 import { validate as isUuid } from "uuid";
 import { makeError } from "./errors";
@@ -31,18 +31,14 @@ export const getActor = (req: Request): string => {
   return "system";
 };
 
-export const readAndCleanupUpload = (file: UploadedFileInput): string => {
-  let content = "";
+export const readAndCleanupUpload = async (
+  file: UploadedFileInput,
+): Promise<string> => {
   try {
-    content = readFileSync(file.path, "utf8");
+    return await readFile(file.path, "utf8");
   } finally {
-    try {
-      unlinkSync(file.path);
-    } catch {
-      // Best-effort cleanup.
-    }
+    await unlink(file.path).catch(() => undefined);
   }
-  return content;
 };
 
 export const parsePagination = (

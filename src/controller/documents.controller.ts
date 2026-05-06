@@ -26,10 +26,10 @@ import {
   parsePagination,
   parseVersionOrThrow,
 } from "../common/utils/http.utils";
-import { CreateDocumentDto } from "../dto/create-document.dto";
-import { DocumentQueryDto } from "../dto/document-query.dto";
-import { UpdateDocumentDto } from "../dto/update-document.dto";
-import { DocumentsService } from "../service/documents.service";
+import type { CreateDocumentDto } from "../dto/create-document.dto";
+import type { DocumentQueryDto } from "../dto/document-query.dto";
+import type { UpdateDocumentDto } from "../dto/update-document.dto";
+import type { DocumentsService } from "../service/documents.service";
 import { deletePdf, getPdfStream } from "../service/pdf.service";
 
 @ApiTags("documents")
@@ -158,7 +158,8 @@ export class DocumentsController {
     @Res() response: Response,
   ) {
     const job = await this.documentsService.getCompletedPdfJob(id, jobId);
-    const stream = await getPdfStream(job.filename!);
+    if (!job.filename) throw makeError("PDF non ancora disponibile", 409);
+    const stream = await getPdfStream(job.filename);
     response.setHeader("Content-Type", "application/pdf");
     response.setHeader(
       "Content-Disposition",
@@ -170,22 +171,18 @@ export class DocumentsController {
   @Delete(":id/pdf/jobs/:jobId")
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Elimina PDF generato" })
-  async deletePdf(
-    @Param("id") id: string,
-    @Param("jobId") jobId: string,
-  ) {
+  async deletePdf(@Param("id") id: string, @Param("jobId") jobId: string) {
     const job = await this.documentsService.getCompletedPdfJob(id, jobId);
-    await deletePdf(job.filename!);
+    if (!job.filename) throw makeError("PDF non ancora disponibile", 409);
+    await deletePdf(job.filename);
   }
 
   @Get(":id/pdf/latest")
   @ApiOperation({ summary: "Download ultimo PDF completato" })
-  async downloadLatestPdf(
-    @Param("id") id: string,
-    @Res() response: Response,
-  ) {
+  async downloadLatestPdf(@Param("id") id: string, @Res() response: Response) {
     const job = await this.documentsService.getLatestCompletedPdfJob(id);
-    const stream = await getPdfStream(job.filename!);
+    if (!job.filename) throw makeError("PDF non ancora disponibile", 409);
+    const stream = await getPdfStream(job.filename);
     response.setHeader("Content-Type", "application/pdf");
     response.setHeader(
       "Content-Disposition",

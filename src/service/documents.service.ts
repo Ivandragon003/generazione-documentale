@@ -1,20 +1,17 @@
 import { Injectable } from "@nestjs/common";
 import type { DataSource } from "typeorm";
 import { makeError } from "../common/utils/errors";
-import type { DocumentVersionEntity } from "../entities/document-version.entity";
-import type { TemplatesService } from "./templates.service";
+import { appConfig } from "../config/app.config";
 import type { DocumentsRepository } from "../repository/documents.repository";
 import {
   generatePdf,
   getMissingRequiredFields,
   type PdfGenerateOptions,
 } from "./pdf.service";
+import type { TemplatesService } from "./templates.service";
 
 const PDF_JOB_CONCURRENCY = 1;
-const QUEUE_RECOVERY_RETRY_MS = Math.max(
-  Number.parseInt(process.env.PDF_QUEUE_RECOVERY_RETRY_MS ?? "10000", 10),
-  1000,
-);
+const QUEUE_RECOVERY_RETRY_MS = appConfig.pdfQueueRecoveryRetryMs;
 
 let activePdfJobs = 0;
 const queuedPdfJobs: Array<() => Promise<void>> = [];
@@ -101,7 +98,11 @@ export class DocumentsService {
     limit?: number;
     offset?: number;
   }) {
-    const { data, total } = await this.documentsRepository.findAll({ status, limit, offset });
+    const { data, total } = await this.documentsRepository.findAll({
+      status,
+      limit,
+      offset,
+    });
     return { data, total, limit, offset };
   }
 
@@ -109,7 +110,11 @@ export class DocumentsService {
     return this.documentsRepository.findById(id);
   }
 
-  async create({ name, templateId, created_by = "system" }: CreateDocumentInput) {
+  async create({
+    name,
+    templateId,
+    created_by = "system",
+  }: CreateDocumentInput) {
     if (!name || name.trim().length === 0) {
       throw makeError("Il nome documento e obbligatorio", 400);
     }
@@ -147,7 +152,10 @@ export class DocumentsService {
     { name, content, fieldValues, created_by = "system" }: UpdateDocumentInput,
   ) {
     const existing = await this.findOneOrThrow(id);
-    if (fieldValues !== undefined && (fieldValues === null || Array.isArray(fieldValues))) {
+    if (
+      fieldValues !== undefined &&
+      (fieldValues === null || Array.isArray(fieldValues))
+    ) {
       throw makeError("fieldValues deve essere un oggetto", 400);
     }
     const maxVersion = await this.documentsRepository.getMaxVersion(id);
@@ -188,7 +196,10 @@ export class DocumentsService {
     const document = await this.findOneOrThrow(id);
     const missing = await this.getMissingRequiredFields(document);
     if (missing.length > 0) {
-      throw makeError(`Campi obbligatori non compilati: ${missing.join(", ")}`, 422);
+      throw makeError(
+        `Campi obbligatori non compilati: ${missing.join(", ")}`,
+        422,
+      );
     }
     const job = await this.documentsRepository.insertPdfJob(id, actor);
     enqueuePdfJob(async () => this.processPdfJob(job.id));
@@ -202,16 +213,25 @@ export class DocumentsService {
     try {
       const document = await this.findOneOrThrow(job.document_id);
       const fields = await this.getFieldDefinitions(document);
-      const options: PdfGenerateOptions = { title: document.name, strict: true, fields };
+      const options: PdfGenerateOptions = {
+        title: document.name,
+        strict: true,
+        fields,
+      };
       const { filename, unresolvedFields } = await generatePdf(
         document.content,
         document.field_values ?? {},
         options,
       );
-      await this.documentsRepository.updatePdfJobCompleted(jobId, filename, unresolvedFields);
+      await this.documentsRepository.updatePdfJobCompleted(
+        jobId,
+        filename,
+        unresolvedFields,
+      );
       await this.documentsRepository.updateDocumentStatusGenerated(document.id);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Errore generazione PDF";
+      const message =
+        error instanceof Error ? error.message : "Errore generazione PDF";
       await this.documentsRepository.updatePdfJobFailed(jobId, message);
     }
   }
@@ -227,13 +247,16 @@ export class DocumentsService {
   async getCompletedPdfJob(documentId: string, jobId: string) {
     const job = await this.getPdfJob(documentId, jobId);
     if (!job) throw makeError("Job PDF non trovato", 404);
-    if (job.status !== "completed" || !job.filename) throw makeError("PDF non ancora disponibile", 409);
+    if (job.status !== "completed" || !job.filename)
+      throw makeError("PDF non ancora disponibile", 409);
     return job;
   }
 
   async getLatestCompletedPdfJob(documentId: string) {
-    const job = await this.documentsRepository.findLatestCompletedPdfJob(documentId);
-    if (!job) throw makeError("Nessun PDF completato per questo documento", 404);
+    const job =
+      await this.documentsRepository.findLatestCompletedPdfJob(documentId);
+    if (!job)
+      throw makeError("Nessun PDF completato per questo documento", 404);
     return job;
   }
 
@@ -249,14 +272,18 @@ export class DocumentsService {
   }
 
   async restore(id: string, targetVersion: number, actor = "system") {
-    await this.findOneOrThrow(id);
-    const versionRow = await this.documentsRepository.findVersionById(id, targetVersion);
-    if (!versionRow) throw makeError(`Versione ${targetVersion} non trovata`, 404);
-    const nextVersion = await this.documentsRepository.getMaxVersion(id) + 1;
+    const existing = await this.findOneOrThrow(id);
+    const versionRow = await this.documentsRepository.findVersionById(
+      id,
+      targetVersion,
+    );
+    if (!versionRow)
+      throw makeError(`Versione ${targetVersion} non trovata`, 404);
+    const nextVersion = (await this.documentsRepository.getMaxVersion(id)) + 1;
     const updated = await this.dataSource.transaction(async (manager) => {
       const row = await this.documentsRepository.updateDocument(manager, {
         id,
-        name: versionRow.content,
+        name: existing.name,
         content: versionRow.content,
         fieldValues: versionRow.field_values,
         version: nextVersion,

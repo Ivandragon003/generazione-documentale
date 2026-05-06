@@ -2,9 +2,9 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { EntityManager, Repository } from "typeorm";
 import type { FieldDefinition } from "../common/types/field-definition.type";
-import { DocumentEntity } from "../entities/document.entity";
-import { TemplateEntity } from "../entities/template.entity";
-import { TemplateVersionEntity } from "../entities/template-version.entity";
+import { DocumentEntity } from "../database/entities/document.entity";
+import { TemplateEntity } from "../database/entities/template.entity";
+import { TemplateVersionEntity } from "../database/entities/template-version.entity";
 
 interface FindAllOptions {
   status?: "draft" | "published";
@@ -51,7 +51,11 @@ export class TemplatesRepository {
     private readonly documentRepository: Repository<DocumentEntity>,
   ) {}
 
-  async findAll({ status, limit, offset }: FindAllOptions): Promise<{ data: TemplateEntity[]; total: number }> {
+  async findAll({
+    status,
+    limit,
+    offset,
+  }: FindAllOptions): Promise<{ data: TemplateEntity[]; total: number }> {
     const where = status ? { status } : {};
     const [data, total] = await this.templateRepository.findAndCount({
       where,
@@ -66,7 +70,10 @@ export class TemplatesRepository {
     return this.templateRepository.findOne({ where: { id } });
   }
 
-  async insertTemplate(manager: EntityManager, payload: InsertTemplatePayload): Promise<TemplateEntity> {
+  async insertTemplate(
+    manager: EntityManager,
+    payload: InsertTemplatePayload,
+  ): Promise<TemplateEntity> {
     const template = manager.create(TemplateEntity, {
       id: payload.id,
       name: payload.name,
@@ -76,12 +83,14 @@ export class TemplatesRepository {
       version: 1,
       status: "draft",
       created_by: payload.createdBy,
-      updated_by: payload.createdBy,
     });
     return manager.save(TemplateEntity, template);
   }
 
-  async insertTemplateVersion(manager: EntityManager, payload: InsertTemplateVersionPayload): Promise<TemplateVersionEntity> {
+  async insertTemplateVersion(
+    manager: EntityManager,
+    payload: InsertTemplateVersionPayload,
+  ): Promise<TemplateVersionEntity> {
     const version = manager.create(TemplateVersionEntity, {
       template_id: payload.templateId,
       version: payload.version,
@@ -94,15 +103,24 @@ export class TemplatesRepository {
     return manager.save(TemplateVersionEntity, version);
   }
 
-  async updateTemplate(manager: EntityManager, payload: UpdateTemplatePayload): Promise<TemplateEntity> {
-    await manager.update(TemplateEntity, { id: payload.id }, {
-      name: payload.name,
-      description: payload.description,
-      content_path: payload.contentPath,
-      fields: payload.fields,
-      version: payload.newVersion,
+  async updateTemplate(
+    manager: EntityManager,
+    payload: UpdateTemplatePayload,
+  ): Promise<TemplateEntity> {
+    await manager.update(
+      TemplateEntity,
+      { id: payload.id },
+      {
+        name: payload.name,
+        description: payload.description,
+        content_path: payload.contentPath,
+        fields: payload.fields,
+        version: payload.newVersion,
+      },
+    );
+    const updated = await manager.findOne(TemplateEntity, {
+      where: { id: payload.id },
     });
-    const updated = await manager.findOne(TemplateEntity, { where: { id: payload.id } });
     if (!updated) throw new Error("Template non trovato dopo update");
     return updated;
   }
@@ -114,7 +132,16 @@ export class TemplatesRepository {
     fields: FieldDefinition[],
     newVersion: number,
   ): Promise<TemplateEntity> {
-    await manager.update(TemplateEntity, { id }, { content_path: contentPath, fields, version: newVersion, status: "draft" });
+    await manager.update(
+      TemplateEntity,
+      { id },
+      {
+        content_path: contentPath,
+        fields,
+        version: newVersion,
+        status: "draft",
+      },
+    );
     const updated = await manager.findOne(TemplateEntity, { where: { id } });
     if (!updated) throw new Error("Template non trovato dopo restore");
     return updated;
@@ -127,7 +154,10 @@ export class TemplatesRepository {
     });
   }
 
-  async findVersionById(templateId: string, version: number): Promise<TemplateVersionEntity | null> {
+  async findVersionById(
+    templateId: string,
+    version: number,
+  ): Promise<TemplateVersionEntity | null> {
     return this.templateVersionRepository.findOne({
       where: { template_id: templateId, version },
     });

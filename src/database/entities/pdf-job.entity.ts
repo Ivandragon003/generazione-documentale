@@ -33,8 +33,8 @@ export class PdfJobEntity {
   @Column({ type: "jsonb", default: () => "'[]'" })
   unresolved_fields!: string[];
 
-  @Column({ type: "text", nullable: true })
-  error!: string | null;
+  @Column({ name: "error_message", type: "text", nullable: true })
+  error_message!: string | null;
 
   @Column({ type: "varchar", length: 255, default: "system" })
   requested_by!: string;

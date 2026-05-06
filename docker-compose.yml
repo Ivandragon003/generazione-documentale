@@ -46,7 +46,6 @@ services:
       dockerfile: Dockerfile
       args:
         PANDOC_VERSION: "3.6.4"
-        TARGETARCH: "amd64"
     container_name: mac_app
     restart: unless-stopped
     depends_on:
@@ -77,6 +76,7 @@ services:
 
       # PDF / XeLaTeX
       PANDOC_PATH:                  /usr/local/bin/pandoc
+      PDF_ENGINE:                   xelatex
       PDF_GENERATION_TIMEOUT_MS:    ${PDF_GENERATION_TIMEOUT_MS:-120000}
       PDF_GENERATION_RETRIES:       ${PDF_GENERATION_RETRIES:-2}
       PDF_GENERATION_RETRY_DELAY_MS: ${PDF_GENERATION_RETRY_DELAY_MS:-1000}
