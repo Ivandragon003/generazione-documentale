@@ -1,0 +1,36 @@
+# Node
+node_modules
+npm-debug.log*
+
+# Build output
+dist
+
+# Test
+test
+coverage
+*.spec.ts
+*.test.ts
+
+# Dev / config locale
+.env
+.env.local
+.env.*.local
+
+# Storage locale (montata come volume)
+storage
+
+# Documentazione / tool
+README.md
+*.postman_collection.json
+openapi.json
+
+# Git
+.git
+.gitignore
+.github
+.gitlab-ci.yml
+
+# Misc
+.DS_Store
+Thumbs.db
+*.log
