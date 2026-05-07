@@ -1,11 +1,11 @@
 import {
   Column,
   Entity,
-  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  RelationId,
 } from "typeorm";
 import { CategoryEntity } from "./category.entity";
 import { TemplateEntity } from "./template.entity";
@@ -15,17 +15,16 @@ export class SectionEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Index("idx_sections_category_id")
-  @Column({ type: "uuid" })
-  category_id!: string;
-
   @ManyToOne(
     () => CategoryEntity,
     (category) => category.sections,
     { onDelete: "CASCADE" },
   )
   @JoinColumn({ name: "category_id" })
-  category?: CategoryEntity;
+  category!: CategoryEntity;
+
+  @RelationId((section: SectionEntity) => section.category)
+  category_id!: string;
 
   @Column({ type: "varchar", length: 255 })
   name!: string;

@@ -71,7 +71,7 @@ CREATE DATABASE mac_documents;
 ### 4. Esegui le migrazioni
 
 ```bash
-npm run migrate
+npm run migration:run
 ```
 
 ### 5. Avvia il server
@@ -119,9 +119,7 @@ mac-documents/
 │           ├── dev.controller.js
 │           ├── dev.queries.js
 │           └── api-regression.service.js
-├── db/                                  # File .sql (schema, seed)
-├── migrations/
-│   └── run.js
+├── src/migrations/                      # Migrazioni TypeORM generate da entity
 ├── scripts/
 │   ├── check-pandoc.js
 │   └── run-api-tests.js

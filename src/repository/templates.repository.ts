@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import type { EntityManager, Repository, SelectQueryBuilder } from "typeorm";
 import type { FieldDefinition } from "../common/types/field-definition.type";
 import { DocumentEntity } from "../entities/document.entity";
+import { SectionEntity } from "../entities/section.entity";
 import { TemplateEntity } from "../entities/template.entity";
 
 interface FindAllOptions {
@@ -39,6 +40,8 @@ export class TemplatesRepository {
     private readonly templateRepository: Repository<TemplateEntity>,
     @InjectRepository(DocumentEntity)
     private readonly documentRepository: Repository<DocumentEntity>,
+    @InjectRepository(SectionEntity)
+    private readonly sectionRepository: Repository<SectionEntity>,
   ) {}
 
   private withFilters(
@@ -128,5 +131,12 @@ export class TemplatesRepository {
 
   async deleteTemplate(id: string): Promise<void> {
     await this.templateRepository.delete({ id });
+  }
+
+  async sectionExists(sectionId: string): Promise<boolean> {
+    const count = await this.sectionRepository.count({
+      where: { id: sectionId },
+    });
+    return count > 0;
   }
 }

@@ -13,6 +13,8 @@ import { SectionEntity } from "./entities/section.entity";
 import { TemplateEntity } from "./entities/template.entity";
 import { DocumentsRepository } from "./repository/documents.repository";
 import { TemplatesRepository } from "./repository/templates.repository";
+import { SectionsModule } from "./sections/sections.module";
+import { DevSeedService } from "./service/dev-seed.service";
 import { DocumentsService } from "./service/documents.service";
 import { TemplatesService } from "./service/templates.service";
 
@@ -34,6 +36,7 @@ import { TemplatesService } from "./service/templates.service";
       DocumentEntity,
       PdfJobEntity,
     ]),
+    SectionsModule,
   ],
   controllers: [HealthController, TemplatesController, DocumentsController],
   providers: [
@@ -41,6 +44,7 @@ import { TemplatesService } from "./service/templates.service";
     TemplatesService,
     DocumentsRepository,
     DocumentsService,
+    DevSeedService,
   ],
 })
 export class AppModule {}

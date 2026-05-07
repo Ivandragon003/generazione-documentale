@@ -14,6 +14,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "typeorm": "node -r ts-node/register ./node_modules/typeorm/cli.js -d src/config/typeorm.datasource.ts",
+    "migration:generate": "npm run typeorm -- migration:generate src/migrations/AutoMigration",
+    "migration:run": "npm run typeorm -- migration:run",
+    "migration:revert": "npm run typeorm -- migration:revert",
     "prepare": "lefthook install",
     "check": "biome check .",
     "fix": "biome check --write ."

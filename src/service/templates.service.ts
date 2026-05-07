@@ -164,6 +164,11 @@ export class TemplatesService {
     }
     if (section_id) {
       assertUuid(section_id, "section_id");
+      const sectionExists =
+        await this.templatesRepository.sectionExists(section_id);
+      if (!sectionExists) {
+        throw makeError("section_id non esistente", 400);
+      }
     }
     this.assertValidContent(content);
     const id = randomUUID();
@@ -199,6 +204,11 @@ export class TemplatesService {
     const existing = await this.findOneOrThrow(id);
     if (section_id !== undefined && section_id !== null) {
       assertUuid(section_id, "section_id");
+      const sectionExists =
+        await this.templatesRepository.sectionExists(section_id);
+      if (!sectionExists) {
+        throw makeError("section_id non esistente", 400);
+      }
     }
     const nextContent = content ?? existing.content;
     this.assertValidContent(nextContent);

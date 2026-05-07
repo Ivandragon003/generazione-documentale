@@ -35,15 +35,6 @@
         "operationId": "TemplatesController_findAll",
         "parameters": [
           {
-            "name": "offset",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "example": 0,
-              "type": "number"
-            }
-          },
-          {
             "name": "limit",
             "required": false,
             "in": "query",
@@ -53,21 +44,12 @@
             }
           },
           {
-            "name": "categoryId",
+            "name": "offset",
             "required": false,
             "in": "query",
             "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "sectionId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
+              "example": 0,
+              "type": "number"
             }
           },
           {
@@ -77,6 +59,26 @@
             "schema": {
               "enum": ["draft", "published"],
               "type": "string"
+            }
+          },
+          {
+            "name": "sectionId",
+            "required": false,
+            "in": "query",
+            "description": "Filtra per ID sezione",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "categoryId",
+            "required": false,
+            "in": "query",
+            "description": "Filtra per ID categoria",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -96,7 +98,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Function"
+                "$ref": "#/components/schemas/CreateTemplateDto"
               }
             }
           }
@@ -150,7 +152,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Function"
+                "$ref": "#/components/schemas/UpdateTemplateDto"
               }
             }
           }
@@ -240,7 +242,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Function"
+                "$ref": "#/components/schemas/ValidateMarkdownDto"
               }
             }
           }
@@ -259,20 +261,20 @@
         "operationId": "DocumentsController_findAll",
         "parameters": [
           {
-            "name": "offset",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "example": 0,
-              "type": "number"
-            }
-          },
-          {
             "name": "limit",
             "required": false,
             "in": "query",
             "schema": {
               "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 0,
               "type": "number"
             }
           },
@@ -302,7 +304,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Function"
+                "$ref": "#/components/schemas/CreateDocumentDto"
               }
             }
           }
@@ -356,7 +358,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Function"
+                "$ref": "#/components/schemas/UpdateDocumentDto"
               }
             }
           }
@@ -566,6 +568,19 @@
         "summary": "Anteprima PDF (senza salvataggio)",
         "tags": ["documents"]
       }
+    },
+    "/api/sections": {
+      "get": {
+        "operationId": "SectionsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Lista sezioni con categoria",
+        "tags": ["sections"]
+      }
     }
   },
   "info": {
@@ -599,9 +614,90 @@
   "servers": [],
   "components": {
     "schemas": {
-      "Function": {
+      "TemplateFieldDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "titolo"
+          },
+          "label": {
+            "type": "string",
+            "example": "Titolo"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["text", "number", "date", "boolean"],
+            "example": "text"
+          },
+          "required": {
+            "type": "boolean",
+            "example": true,
+            "default": true
+          },
+          "defaultValue": {
+            "type": "string",
+            "example": ""
+          }
+        },
+        "required": ["name"]
+      },
+      "CreateTemplateDto": {
+        "type": "object",
+        "properties": {
+          "sectionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID sezione esistente (recuperabile da elenco sezioni)"
+          },
+          "name": {
+            "type": "string",
+            "example": "Template Contratto"
+          },
+          "description": {
+            "type": "string",
+            "example": "Template base per contratti"
+          },
+          "content": {
+            "type": "string",
+            "example": "# {{titolo}}\n\nCliente: {{cliente}}"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateFieldDto"
+            }
+          }
+        },
+        "required": ["name", "content"]
+      },
+      "UpdateTemplateDto": {
+        "type": "object",
+        "properties": {
+          "sectionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID sezione esistente (recuperabile da elenco sezioni)"
+          },
+          "name": {
+            "type": "string",
+            "example": "Template Contratto"
+          },
+          "description": {
+            "type": "string",
+            "example": "Template base per contratti"
+          },
+          "content": {
+            "type": "string",
+            "example": "# {{titolo}}\n\nCliente: {{cliente}}"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateFieldDto"
+            }
+          }
+        }
       },
       "ImportTemplateFileDto": {
         "type": "object",
@@ -614,8 +710,54 @@
           "sectionId": {
             "type": "string",
             "description": "UUID sezione associata al template",
+            "format": "uuid"
+          }
+        }
+      },
+      "ValidateMarkdownDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "example": "# {{titolo}}\n\nCliente: {{cliente}}"
+          }
+        },
+        "required": ["content"]
+      },
+      "CreateDocumentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Capitolato Beta"
+          },
+          "templateId": {
+            "type": "string",
             "format": "uuid",
-            "example": "123e4567-e89b-12d3-a456-426614174000"
+            "description": "ID template esistente"
+          }
+        },
+        "required": ["name", "templateId"]
+      },
+      "UpdateDocumentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Documento aggiornato"
+          },
+          "content": {
+            "type": "string",
+            "example": "# Nuovo contenuto"
+          },
+          "fieldValues": {
+            "type": "object",
+            "description": "Mappa chiave-valore dei campi template",
+            "example": {
+              "titolo": "Contratto",
+              "cliente": "Mario Rossi",
+              "importo": "1000"
+            }
           }
         }
       }
