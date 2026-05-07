@@ -64,11 +64,3 @@ export const parsePagination = (
 
   return { limit, offset };
 };
-
-export const parseVersionOrThrow = (value: string): number => {
-  const parsed = Number.parseInt(value, 10);
-  if (!/^\d+$/.test(value) || parsed <= 0) {
-    throw makeError("version non valida", 400);
-  }
-  return parsed;
-};

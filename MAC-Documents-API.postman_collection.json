@@ -33,37 +33,6 @@
   ],
   "item": [
     {
-      "name": "00 Internal",
-      "item": [
-        {
-          "name": "Reset DB",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "x-reset-confirm",
-                "value": "true"
-              }
-            ],
-            "url": "{{base_url}}/api/dev/reset"
-          }
-        },
-        {
-          "name": "Seed large PDF",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/dev/seed-large-pdf"
-          }
-        }
-      ]
-    },
-    {
       "name": "01 Health",
       "item": [
         {
@@ -89,7 +58,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{base_url}}/api/templates/validate-md",
+            "url": "{{base_url}}/api/templates/validate",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"content\": \"# {{titolo}}\\n\\nQuesto paragrafo e testo normale e deve restare uguale nel documento.\\n\\n## Dati generali\\n- Committente: {{committente}}\\n- Responsabile: {{responsabile}}\\n- Data emissione: {{data}}\\n\\n## Oggetto\\n{{descrizione}}\\n\\n## Importi\\nBudget previsto: {{budget}}\\nSconto applicato: {{sconto}}\\n\\n## Note interne\\nQuesta frase non contiene campi dinamici.\\n\\nFirma: {{firma}}\"\n}",
@@ -111,7 +80,7 @@
                 "value": "{{user}}"
               }
             ],
-            "url": "{{base_url}}/api/templates/upload",
+            "url": "{{base_url}}/api/templates/import",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -198,48 +167,11 @@
           }
         },
         {
-          "name": "Cronologia versioni template",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/templates/{{template_id}}/versions"
-          }
-        },
-        {
-          "name": "Contenuto versione specifica",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/templates/{{template_id}}/versions/1"
-          }
-        },
-        {
-          "name": "Ripristina versione template",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/templates/{{template_id}}/restore/1"
-          }
-        },
-        {
           "name": "Esporta template come .md",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{base_url}}/api/templates/{{template_id}}/export"
-          }
-        },
-        {
-          "name": "Audit log template",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/templates/{{template_id}}/audit?limit=50"
           }
         },
         {
@@ -338,7 +270,7 @@
                 "value": "{{user}}"
               }
             ],
-            "url": "{{base_url}}/api/documents/{{document_id}}/generate-pdf"
+            "url": "{{base_url}}/api/documents/{{document_id}}/pdf"
           }
         },
         {
@@ -354,52 +286,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/api/documents/{{document_id}}/preview-pdf"
-          }
-        },
-        {
-          "name": "Cronologia versioni documento",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/documents/{{document_id}}/versions"
-          }
-        },
-        {
-          "name": "Contenuto versione specifica documento",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/documents/{{document_id}}/versions/1"
-          }
-        },
-        {
-          "name": "Ripristina versione documento",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/documents/{{document_id}}/restore/1"
-          }
-        },
-        {
-          "name": "Esporta documento come .md",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/documents/{{document_id}}/export-md"
-          }
-        },
-        {
-          "name": "Audit log documento",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/documents/{{document_id}}/audit?limit=50"
+            "url": "{{base_url}}/api/documents/{{document_id}}/pdf/preview"
           }
         },
         {
@@ -413,19 +300,6 @@
               }
             ],
             "url": "{{base_url}}/api/documents/{{document_id}}"
-          }
-        }
-      ]
-    },
-    {
-      "name": "04 PDF",
-      "item": [
-        {
-          "name": "Valida template per PDF",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{base_url}}/api/pdf/templates/{{template_id}}/validate"
           }
         }
       ]

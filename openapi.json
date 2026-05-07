@@ -57,7 +57,8 @@
             "required": false,
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -65,7 +66,8 @@
             "required": false,
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -612,6 +614,7 @@
           "sectionId": {
             "type": "string",
             "description": "UUID sezione associata al template",
+            "format": "uuid",
             "example": "123e4567-e89b-12d3-a456-426614174000"
           }
         }

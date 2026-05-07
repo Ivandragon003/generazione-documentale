@@ -1,3 +1,4 @@
+import type { ConfigService } from "@nestjs/config";
 import type { TypeOrmModuleOptions } from "@nestjs/typeorm";
 import { CategoryEntity } from "./entities/category.entity";
 import { DocumentEntity } from "./entities/document.entity";
@@ -5,18 +6,23 @@ import { PdfJobEntity } from "./entities/pdf-job.entity";
 import { SectionEntity } from "./entities/section.entity";
 import { TemplateEntity } from "./entities/template.entity";
 
-const parsePort = (value: string | undefined, fallback: number): number => {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isInteger(parsed) ? parsed : fallback;
+const parsePort = (value: string): number => {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65535) {
+    throw new Error("Invalid DB_PORT: must be an integer between 1 and 65535");
+  }
+  return parsed;
 };
 
-export const buildTypeOrmOptions = (): TypeOrmModuleOptions => ({
+export const buildTypeOrmOptions = (
+  configService: ConfigService,
+): TypeOrmModuleOptions => ({
   type: "postgres",
-  host: process.env.DB_HOST ?? "localhost",
-  port: parsePort(process.env.DB_PORT, 5432),
-  username: process.env.DB_USER ?? "postgres",
-  password: process.env.DB_PASSWORD ?? "postgres",
-  database: process.env.DB_NAME ?? "mac_documents",
+  host: configService.getOrThrow<string>("DB_HOST"),
+  port: parsePort(configService.getOrThrow<string>("DB_PORT")),
+  username: configService.getOrThrow<string>("DB_USER"),
+  password: configService.getOrThrow<string>("DB_PASSWORD"),
+  database: configService.getOrThrow<string>("DB_NAME"),
   entities: [
     CategoryEntity,
     SectionEntity,

@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -14,6 +15,7 @@ export class SectionEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
+  @Index("idx_sections_category_id")
   @Column({ type: "uuid" })
   category_id!: string;
 

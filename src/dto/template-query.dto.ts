@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsIn, IsOptional, IsString } from "class-validator";
+import { IsIn, IsOptional, IsUUID } from "class-validator";
 import { PaginationQueryDto } from "../common/dto/pagination-query.dto";
 
 export class TemplateQueryDto extends PaginationQueryDto {
@@ -8,13 +8,19 @@ export class TemplateQueryDto extends PaginationQueryDto {
   @IsIn(["draft", "published"])
   status?: "draft" | "published";
 
-  @ApiPropertyOptional({ example: "123e4567-e89b-12d3-a456-426614174000" })
+  @ApiPropertyOptional({
+    format: "uuid",
+    example: "123e4567-e89b-12d3-a456-426614174000",
+  })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   sectionId?: string;
 
-  @ApiPropertyOptional({ example: "123e4567-e89b-12d3-a456-426614174000" })
+  @ApiPropertyOptional({
+    format: "uuid",
+    example: "123e4567-e89b-12d3-a456-426614174000",
+  })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   categoryId?: string;
 }

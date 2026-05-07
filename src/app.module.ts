@@ -1,5 +1,7 @@
 import { Module } from "@nestjs/common";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { validateEnv } from "./config/env.validation";
 import { DocumentsController } from "./controller/documents.controller";
 import { HealthController } from "./controller/health.controller";
 import { TemplatesController } from "./controller/templates.controller";
@@ -16,7 +18,15 @@ import { TemplatesService } from "./service/templates.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot(buildTypeOrmOptions()),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateEnv,
+    }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) =>
+        buildTypeOrmOptions(configService),
+    }),
     TypeOrmModule.forFeature([
       CategoryEntity,
       SectionEntity,

@@ -1,12 +1,21 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsArray, IsOptional, IsString, ValidateNested } from "class-validator";
+import {
+  IsArray,
+  IsOptional,
+  IsString,
+  IsUUID,
+  ValidateNested,
+} from "class-validator";
 import { TemplateFieldDto } from "./template-field.dto";
 
 export class CreateTemplateDto {
-  @ApiPropertyOptional({ example: "123e4567-e89b-12d3-a456-426614174000" })
+  @ApiPropertyOptional({
+    format: "uuid",
+    example: "123e4567-e89b-12d3-a456-426614174000",
+  })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   sectionId?: string;
 
   @ApiProperty({ example: "Template Contratto" })

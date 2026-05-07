@@ -1,7 +1,9 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -12,6 +14,10 @@ import { PdfJobEntity } from "./pdf-job.entity";
 import { TemplateEntity } from "./template.entity";
 
 @Entity({ name: "documents" })
+@Check(
+  "ck_documents_status",
+  `"status" IN ('draft', 'generated', 'published', 'archived')`,
+)
 export class DocumentEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
@@ -19,6 +25,7 @@ export class DocumentEntity {
   @Column({ type: "varchar", length: 255 })
   name!: string;
 
+  @Index("idx_documents_template_id")
   @Column({ type: "uuid", nullable: true })
   template_id!: string | null;
 
@@ -38,6 +45,7 @@ export class DocumentEntity {
   @Column({ type: "jsonb", default: () => "'{}'" })
   field_values!: Record<string, string | number | boolean | null>;
 
+  @Index("idx_documents_status")
   @Column({ type: "varchar", length: 50, default: "draft" })
   status!: "draft" | "generated" | "published" | "archived";
 

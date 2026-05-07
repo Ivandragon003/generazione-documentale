@@ -1,7 +1,9 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -9,10 +11,15 @@ import {
 import { DocumentEntity } from "./document.entity";
 
 @Entity({ name: "pdf_jobs" })
+@Check(
+  "ck_pdf_jobs_status",
+  `"status" IN ('queued', 'running', 'completed', 'failed')`,
+)
 export class PdfJobEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
+  @Index("idx_pdf_jobs_document_id")
   @Column({ type: "uuid" })
   document_id!: string;
 
@@ -26,6 +33,7 @@ export class PdfJobEntity {
   @JoinColumn({ name: "document_id" })
   document?: DocumentEntity;
 
+  @Index("idx_pdf_jobs_status")
   @Column({ type: "varchar", length: 50, default: "queued" })
   status!: "queued" | "running" | "completed" | "failed";
 

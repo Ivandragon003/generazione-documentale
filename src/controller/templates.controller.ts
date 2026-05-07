@@ -80,8 +80,16 @@ export class TemplatesController {
   @Get()
   @ApiOperation({ summary: "Lista template" })
   @ApiQuery({ name: "status", required: false, enum: ["draft", "published"] })
-  @ApiQuery({ name: "sectionId", required: false, type: String })
-  @ApiQuery({ name: "categoryId", required: false, type: String })
+  @ApiQuery({
+    name: "sectionId",
+    required: false,
+    schema: { type: "string", format: "uuid" },
+  })
+  @ApiQuery({
+    name: "categoryId",
+    required: false,
+    schema: { type: "string", format: "uuid" },
+  })
   @ApiQuery({ name: "limit", required: false, type: Number, example: 20 })
   @ApiQuery({ name: "offset", required: false, type: Number, example: 0 })
   findAll(@Query() query: TemplateQueryDto) {

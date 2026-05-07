@@ -1,7 +1,9 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -13,10 +15,12 @@ import { DocumentEntity } from "./document.entity";
 import { SectionEntity } from "./section.entity";
 
 @Entity({ name: "templates" })
+@Check("ck_templates_status", `"status" IN ('draft', 'published')`)
 export class TemplateEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
+  @Index("idx_templates_section_id")
   @Column({ type: "uuid", nullable: true })
   section_id!: string | null;
 
@@ -37,6 +41,7 @@ export class TemplateEntity {
   @Column({ type: "varchar", length: 500, nullable: true })
   content_path!: string | null;
 
+  @Index("idx_templates_status")
   @Column({ type: "varchar", length: 50, default: "draft" })
   status!: "draft" | "published";
 

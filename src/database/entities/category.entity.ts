@@ -1,4 +1,5 @@
 import {
+  Check,
   Column,
   Entity,
   OneToMany,
@@ -11,6 +12,7 @@ export type CategoryType = "portfolio" | "programma" | "progetto";
 
 @Entity({ name: "categories" })
 @Unique("uq_categories_type_name", ["type", "name"])
+@Check("ck_categories_type", `"type" IN ('portfolio', 'programma', 'progetto')`)
 export class CategoryEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
