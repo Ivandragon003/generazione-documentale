@@ -1,13 +1,11 @@
-﻿import "reflect-metadata";
+import "reflect-metadata";
+import "dotenv/config";
 import { writeFileSync } from "node:fs";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import { config } from "dotenv";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
-
-config();
 
 const shouldRunRegressionOnBoot =
   process.env.NODE_ENV !== "production" &&
