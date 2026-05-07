@@ -1,16 +1,10 @@
+import { parsePort } from "../common/utils/parse-port";
+
 const requireEnv = (value: string | undefined, key: string): string => {
   if (!value || value.trim().length === 0) {
     throw new Error(`Missing required environment variable: ${key}`);
   }
   return value;
-};
-
-const parseDbPort = (value: string): number => {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65535) {
-    throw new Error("Invalid DB_PORT: must be an integer between 1 and 65535");
-  }
-  return parsed;
 };
 
 export const validateEnv = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
@@ -20,7 +14,7 @@ export const validateEnv = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
   const dbPassword = requireEnv(env.DB_PASSWORD, "DB_PASSWORD");
   const dbName = requireEnv(env.DB_NAME, "DB_NAME");
 
-  parseDbPort(dbPortRaw);
+  parsePort(dbPortRaw, "DB_PORT");
 
   return {
     ...env,

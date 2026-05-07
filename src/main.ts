@@ -11,23 +11,6 @@ const shouldRunRegressionOnBoot =
   process.env.NODE_ENV !== "production" &&
   process.env.RUN_REGRESSION_ON_BOOT === "true";
 
-const loadRegressionRunner = async (): Promise<
-  ((params: { baseUrl: string; reset: boolean }) => Promise<void>) | null
-> => {
-  const modulePath = "./modules/dev/service/api-regression.service";
-  try {
-    const module = (await import(modulePath)) as {
-      runApiRegressionSuite?: (params: {
-        baseUrl: string;
-        reset: boolean;
-      }) => Promise<void>;
-    };
-    return module.runApiRegressionSuite ?? null;
-  } catch {
-    return null;
-  }
-};
-
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     logger: ["log", "warn", "error"],
@@ -77,16 +60,10 @@ async function bootstrap(): Promise<void> {
   }
 
   const port = Number.parseInt(process.env.PORT ?? "3000", 10);
-  await app.listen(Number.isInteger(port) ? port : 3000);
+  await app.listen(port);
 
   if (shouldRunRegressionOnBoot) {
-    const runApiRegressionSuite = await loadRegressionRunner();
-    if (runApiRegressionSuite) {
-      await runApiRegressionSuite({
-        baseUrl: `http://localhost:${port}`,
-        reset: true,
-      });
-    }
+    // TODO: Reintrodurre runner regressioni quando il modulo dev tornera disponibile.
   }
 }
 

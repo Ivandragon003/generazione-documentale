@@ -121,11 +121,9 @@ const buildPandocArgs = (
 
   // Header/footer
   "-V",
-  `header-includes=\\usepackage{fancyhdr}\\pagestyle{fancy}\\fancyhf{}\\fancyhead[L]{\\small ${escapeLatexInline(title)}}\\fancyhead[R]{\\small \\today}\\fancyfoot[C]{\\thepage}\\renewcommand{\\headrulewidth}{0.4pt}`,
+  `header-includes=\\usepackage{fancyhdr}\\usepackage{longtable,booktabs,array}\\pagestyle{fancy}\\fancyhf{}\\fancyhead[L]{\\small ${escapeLatexInline(title)}}\\fancyhead[R]{\\small \\today}\\fancyfoot[C]{\\thepage}\\renewcommand{\\headrulewidth}{0.4pt}`,
 
   // Tabelle
-  "--variable",
-  "header-includes=\\usepackage{longtable,booktabs,array}",
   "-V",
   "tables=true",
 

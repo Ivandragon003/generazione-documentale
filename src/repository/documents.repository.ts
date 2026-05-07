@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { EntityManager, Repository } from "typeorm";
-import { DocumentEntity } from "../database/entities/document.entity";
-import { PdfJobEntity } from "../database/entities/pdf-job.entity";
+import { DocumentEntity } from "../entities/document.entity";
+import { PdfJobEntity } from "../entities/pdf-job.entity";
 
 interface FindAllOptions {
   status?: "draft" | "generated" | "published" | "archived";

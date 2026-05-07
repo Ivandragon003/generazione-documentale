@@ -13,7 +13,7 @@ import {
   validateMarkdownContent,
 } from "../common/utils/markdown.utils";
 import { appConfig } from "../config/app.config";
-import type { TemplateEntity } from "../database/entities/template.entity";
+import type { TemplateEntity } from "../entities/template.entity";
 import { TemplatesRepository } from "../repository/templates.repository";
 
 export interface CreateTemplateInput {

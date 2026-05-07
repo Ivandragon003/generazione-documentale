@@ -2,8 +2,8 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { EntityManager, Repository, SelectQueryBuilder } from "typeorm";
 import type { FieldDefinition } from "../common/types/field-definition.type";
-import { DocumentEntity } from "../database/entities/document.entity";
-import { TemplateEntity } from "../database/entities/template.entity";
+import { DocumentEntity } from "../entities/document.entity";
+import { TemplateEntity } from "../entities/template.entity";
 
 interface FindAllOptions {
   status?: "draft" | "published";

@@ -1,18 +1,11 @@
 import type { ConfigService } from "@nestjs/config";
 import type { TypeOrmModuleOptions } from "@nestjs/typeorm";
-import { CategoryEntity } from "./entities/category.entity";
-import { DocumentEntity } from "./entities/document.entity";
-import { PdfJobEntity } from "./entities/pdf-job.entity";
-import { SectionEntity } from "./entities/section.entity";
-import { TemplateEntity } from "./entities/template.entity";
-
-const parsePort = (value: string): number => {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65535) {
-    throw new Error("Invalid DB_PORT: must be an integer between 1 and 65535");
-  }
-  return parsed;
-};
+import { parsePort } from "../common/utils/parse-port";
+import { CategoryEntity } from "../entities/category.entity";
+import { DocumentEntity } from "../entities/document.entity";
+import { PdfJobEntity } from "../entities/pdf-job.entity";
+import { SectionEntity } from "../entities/section.entity";
+import { TemplateEntity } from "../entities/template.entity";
 
 export const buildTypeOrmOptions = (
   configService: ConfigService,

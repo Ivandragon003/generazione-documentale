@@ -10,7 +10,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
-import type { FieldDefinition } from "../../common/types/field-definition.type";
+import type { FieldDefinition } from "../common/types/field-definition.type";
 import { DocumentEntity } from "./document.entity";
 import { SectionEntity } from "./section.entity";
 
