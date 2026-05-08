@@ -89,9 +89,12 @@ export const validateMarkdownContent = (
     );
   }
 
-  const invalidPlaceholders = (content.match(/\{\{[^}\n]*\}\}/g) ?? []).filter(
-    (placeholder) => !/^\{\{\w+\}\}$/.test(placeholder),
-  );
+  // Limite {1,100} sul contenuto interno: impedisce backtracking super-lineare
+  // (ReDoS) su input con molti {{ non chiusi. I nomi campo realistici non
+  // superano mai 100 caratteri, quindi nessun falso negativo.
+  const invalidPlaceholders = (
+    content.match(/\{\{[^}\n]{1,100}\}\}/g) ?? []
+  ).filter((placeholder) => !/^\{\{\w+\}\}$/.test(placeholder));
   if (invalidPlaceholders.length > 0) {
     errors.push(
       `Placeholder non validi: ${[...new Set(invalidPlaceholders)].join(", ")}`,
