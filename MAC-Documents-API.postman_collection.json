@@ -396,6 +396,19 @@
           }
         }
       ]
+    },
+    {
+      "name": "04 Sections",
+      "item": [
+        {
+          "name": "Lista sezioni con categoria",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/sections"
+          }
+        }
+      ]
     }
   ]
 }
