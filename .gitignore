@@ -50,3 +50,18 @@ storage/test-runs/*.json
 # NestJS build cache
 .tsbuildinfo
 *.tsbuildinfo
+
+# ─── Lock files ──────────────────────────────────────────
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# ─── Docker ──────────────────────────────────────────────
+.dockerignore
+docker-compose.yml
+Dockerfile
+
+# ─── Scripts ─────────────────────────────────────────────
+/scripts
+
+.test

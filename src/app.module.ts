@@ -14,8 +14,12 @@ import { TemplateEntity } from "./entities/template.entity";
 import { DocumentsRepository } from "./repository/documents.repository";
 import { TemplatesRepository } from "./repository/templates.repository";
 import { SectionsModule } from "./sections/sections.module";
-import { DevSeedService } from "./service/dev-seed.service";
+import { DocumentEventsService } from "./service/document-events.service";
+import { DocumentRenderingService } from "./service/document-rendering.service";
 import { DocumentsService } from "./service/documents.service";
+import { PdfGenerationService } from "./service/pdf-generation.service";
+import { PdfJobsService } from "./service/pdf-jobs.service";
+import { PreviewService } from "./service/preview.service";
 import { TemplatesService } from "./service/templates.service";
 
 @Module({
@@ -44,7 +48,11 @@ import { TemplatesService } from "./service/templates.service";
     TemplatesService,
     DocumentsRepository,
     DocumentsService,
-    DevSeedService,
+    PreviewService,
+    DocumentEventsService,
+    DocumentRenderingService,
+    PdfGenerationService,
+    PdfJobsService,
   ],
 })
 export class AppModule {}

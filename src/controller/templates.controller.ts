@@ -26,6 +26,7 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import type { Request, Response } from "express";
+import { toTemplateResponse } from "../common/mappers/response.mapper";
 import { makeError } from "../common/utils/errors";
 import {
   getActor,
@@ -94,13 +95,18 @@ export class TemplatesController {
   @ApiQuery({ name: "offset", required: false, type: Number, example: 0 })
   findAll(@Query() query: TemplateQueryDto) {
     const { limit, offset } = parsePagination(query);
-    return this.templatesService.findAll({
-      status: query.status,
-      sectionId: query.sectionId,
-      categoryId: query.categoryId,
-      limit,
-      offset,
-    });
+    return this.templatesService
+      .findAll({
+        status: query.status,
+        sectionId: query.sectionId,
+        categoryId: query.categoryId,
+        limit,
+        offset,
+      })
+      .then((result) => ({
+        ...result,
+        data: result.data.map(toTemplateResponse),
+      }));
   }
 
   @Get(":id")
@@ -112,14 +118,14 @@ export class TemplatesController {
     if (!template) {
       throw makeError("Template non trovato", 404);
     }
-    return template;
+    return toTemplateResponse(template);
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Crea template" })
-  create(@Body() body: CreateTemplateDto, @Req() request: Request) {
-    return this.templatesService.create({
+  async create(@Body() body: CreateTemplateDto, @Req() request: Request) {
+    const template = await this.templatesService.create({
       section_id: body.sectionId,
       name: body.name,
       description: body.description,
@@ -127,19 +133,23 @@ export class TemplatesController {
       fields: body.fields,
       created_by: getActor(request),
     });
+    if (!template) throw makeError("Template non trovato", 404);
+    return toTemplateResponse(template);
   }
 
   @Put(":id")
   @ApiOperation({ summary: "Aggiorna template" })
   @ApiParam({ name: "id", description: "UUID template" })
-  update(@Param("id") id: string, @Body() body: UpdateTemplateDto) {
-    return this.templatesService.update(id, {
+  async update(@Param("id") id: string, @Body() body: UpdateTemplateDto) {
+    const template = await this.templatesService.update(id, {
       section_id: body.sectionId,
       name: body.name,
       description: body.description,
       content: body.content,
       fields: body.fields,
     });
+    if (!template) throw makeError("Template non trovato", 404);
+    return toTemplateResponse(template);
   }
 
   @Delete(":id")
@@ -183,12 +193,14 @@ export class TemplatesController {
     }
     const content = await readAndCleanupUpload(file);
     const name = body.name || file.originalname.replace(/\.md$/i, "");
-    return this.templatesService.importFromMarkdown(
+    const template = await this.templatesService.importFromMarkdown(
       content,
       name,
       getActor(request),
       body.sectionId,
     );
+    if (!template) throw makeError("Template non trovato", 404);
+    return toTemplateResponse(template);
   }
 
   @Post("validate")

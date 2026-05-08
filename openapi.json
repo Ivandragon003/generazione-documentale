@@ -35,15 +35,6 @@
         "operationId": "TemplatesController_findAll",
         "parameters": [
           {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "example": 20,
-              "type": "number"
-            }
-          },
-          {
             "name": "offset",
             "required": false,
             "in": "query",
@@ -53,32 +44,39 @@
             }
           },
           {
-            "name": "status",
+            "name": "limit",
             "required": false,
             "in": "query",
             "schema": {
-              "enum": ["draft", "published"],
-              "type": "string"
-            }
-          },
-          {
-            "name": "sectionId",
-            "required": false,
-            "in": "query",
-            "description": "Filtra per ID sezione",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
+              "example": 20,
+              "type": "number"
             }
           },
           {
             "name": "categoryId",
             "required": false,
             "in": "query",
-            "description": "Filtra per ID categoria",
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "sectionId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": ["draft", "published"],
+              "type": "string"
             }
           }
         ],
@@ -98,7 +96,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateTemplateDto"
+                "$ref": "#/components/schemas/Function"
               }
             }
           }
@@ -152,7 +150,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateTemplateDto"
+                "$ref": "#/components/schemas/Function"
               }
             }
           }
@@ -242,7 +240,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ValidateMarkdownDto"
+                "$ref": "#/components/schemas/Function"
               }
             }
           }
@@ -261,20 +259,20 @@
         "operationId": "DocumentsController_findAll",
         "parameters": [
           {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "example": 20,
-              "type": "number"
-            }
-          },
-          {
             "name": "offset",
             "required": false,
             "in": "query",
             "schema": {
               "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 20,
               "type": "number"
             }
           },
@@ -304,7 +302,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateDocumentDto"
+                "$ref": "#/components/schemas/Function"
               }
             }
           }
@@ -358,7 +356,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateDocumentDto"
+                "$ref": "#/components/schemas/Function"
               }
             }
           }
@@ -549,7 +547,7 @@
     },
     "/api/documents/{id}/pdf/preview": {
       "get": {
-        "operationId": "DocumentsController_previewPdf",
+        "operationId": "DocumentsController_previewPdfDeprecated",
         "parameters": [
           {
             "name": "id",
@@ -565,7 +563,29 @@
             "description": ""
           }
         },
-        "summary": "Anteprima PDF (senza salvataggio)",
+        "summary": "DEPRECATO: usa GET /api/documents/:id/preview (preview markdown veloce)",
+        "tags": ["documents"]
+      }
+    },
+    "/api/documents/{id}/preview": {
+      "get": {
+        "operationId": "DocumentsController_previewDocument",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Anteprima documento renderizzata (no PDF)",
         "tags": ["documents"]
       }
     },
@@ -614,90 +634,9 @@
   "servers": [],
   "components": {
     "schemas": {
-      "TemplateFieldDto": {
+      "Function": {
         "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "example": "titolo"
-          },
-          "label": {
-            "type": "string",
-            "example": "Titolo"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["text", "number", "date", "boolean"],
-            "example": "text"
-          },
-          "required": {
-            "type": "boolean",
-            "example": true,
-            "default": true
-          },
-          "defaultValue": {
-            "type": "string",
-            "example": ""
-          }
-        },
-        "required": ["name"]
-      },
-      "CreateTemplateDto": {
-        "type": "object",
-        "properties": {
-          "sectionId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID sezione esistente (recuperabile da elenco sezioni)"
-          },
-          "name": {
-            "type": "string",
-            "example": "Template Contratto"
-          },
-          "description": {
-            "type": "string",
-            "example": "Template base per contratti"
-          },
-          "content": {
-            "type": "string",
-            "example": "# {{titolo}}\n\nCliente: {{cliente}}"
-          },
-          "fields": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TemplateFieldDto"
-            }
-          }
-        },
-        "required": ["name", "content"]
-      },
-      "UpdateTemplateDto": {
-        "type": "object",
-        "properties": {
-          "sectionId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID sezione esistente (recuperabile da elenco sezioni)"
-          },
-          "name": {
-            "type": "string",
-            "example": "Template Contratto"
-          },
-          "description": {
-            "type": "string",
-            "example": "Template base per contratti"
-          },
-          "content": {
-            "type": "string",
-            "example": "# {{titolo}}\n\nCliente: {{cliente}}"
-          },
-          "fields": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TemplateFieldDto"
-            }
-          }
-        }
+        "properties": {}
       },
       "ImportTemplateFileDto": {
         "type": "object",
@@ -711,53 +650,6 @@
             "type": "string",
             "description": "UUID sezione associata al template",
             "format": "uuid"
-          }
-        }
-      },
-      "ValidateMarkdownDto": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "string",
-            "example": "# {{titolo}}\n\nCliente: {{cliente}}"
-          }
-        },
-        "required": ["content"]
-      },
-      "CreateDocumentDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "example": "Capitolato Beta"
-          },
-          "templateId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID template esistente"
-          }
-        },
-        "required": ["name", "templateId"]
-      },
-      "UpdateDocumentDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "example": "Documento aggiornato"
-          },
-          "content": {
-            "type": "string",
-            "example": "# Nuovo contenuto"
-          },
-          "fieldValues": {
-            "type": "object",
-            "description": "Mappa chiave-valore dei campi template",
-            "example": {
-              "titolo": "Contratto",
-              "cliente": "Mario Rossi",
-              "importo": "1000"
-            }
           }
         }
       }

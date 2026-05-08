@@ -62,4 +62,7 @@ export class TemplateEntity {
     (document) => document.template,
   )
   documents?: DocumentEntity[];
+
+  // ✅ Campo virtuale — non persistito nel DB, iniettato da hydrateContent()
+  content?: string;
 }

@@ -7,6 +7,9 @@ services:
     container_name: mac_postgres
     restart: unless-stopped
 
+    env_file:
+      - .env
+
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
@@ -39,12 +42,16 @@ services:
     container_name: mac_app
     restart: unless-stopped
 
+    env_file:
+      - .env
+
     depends_on:
       postgres:
         condition: service_healthy
 
     environment:
       NODE_ENV: development
+
       PORT: ${PORT:-3000}
 
       DB_HOST: postgres

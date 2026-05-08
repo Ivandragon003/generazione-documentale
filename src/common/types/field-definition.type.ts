@@ -1,4 +1,4 @@
-﻿export type FieldType = "text" | "number" | "date" | "boolean";
+﻿export type FieldType = "text" | "number" | "date" | "boolean" | "textarea";
 
 export interface FieldDefinition {
   name: string;
