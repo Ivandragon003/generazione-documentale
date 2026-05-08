@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import {
   IsArray,
   IsIn,
@@ -7,8 +8,9 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  ValidateNested,
 } from "class-validator";
-import type { PartialFieldDefinition } from "../common/utils/markdown.utils";
+import { TemplateFieldDto } from "./template-field.dto";
 
 export class CreateTemplateDto {
   @ApiPropertyOptional({ description: "UUID della sezione", format: "uuid" })
@@ -34,12 +36,14 @@ export class CreateTemplateDto {
 
   @ApiPropertyOptional({
     description: "Definizioni dei campi",
-    type: "array",
-    items: { type: "object" },
+    type: () => TemplateFieldDto,
+    isArray: true,
   })
   @IsOptional()
   @IsArray()
-  fields?: PartialFieldDefinition[];
+  @ValidateNested({ each: true })
+  @Type(() => TemplateFieldDto)
+  fields?: TemplateFieldDto[];
 
   @ApiPropertyOptional({
     description: "Stato del template",
