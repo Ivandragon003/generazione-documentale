@@ -39,7 +39,7 @@ jobs:
         with:
           args: >
             -Dsonar.projectKey=Ivandragon003_generazione-documentale
-            -Dsonar.organization=TUO_ORG_SONARCLOUD
+            -Dsonar.organization=Ivandragon003
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
             -Dsonar.sources=src
             -Dsonar.tests=test
