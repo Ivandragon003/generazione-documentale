@@ -13,7 +13,6 @@
     "test:api": "tsx scripts/run-api-tests.ts",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
     "typeorm": "node -r ts-node/register ./node_modules/typeorm/cli.js -d src/config/typeorm.datasource.ts",
     "migration:generate": "npm run typeorm -- migration:generate src/migrations/AutoMigration",
     "migration:run": "npm run typeorm -- migration:run",
@@ -71,10 +70,6 @@
     "transformIgnorePatterns": [
       "node_modules/(?!(uuid)/)"
     ],
-    "collectCoverageFrom": [
-      "src/**/*.ts"
-    ],
-    "coverageDirectory": "coverage",
     "testEnvironment": "node"
   }
 }
