@@ -22,6 +22,7 @@ interface InsertTemplatePayload {
   contentPath: string;
   fields: FieldDefinition[];
   createdBy: string;
+  status?: "draft" | "published";
 }
 
 interface UpdateTemplatePayload {
@@ -97,7 +98,7 @@ export class TemplatesRepository {
       description: payload.description ?? null,
       content_path: payload.contentPath,
       fields: payload.fields,
-      status: "draft",
+      status: payload.status ?? "draft",
       created_by: payload.createdBy,
     });
     return manager.save(TemplateEntity, template);
