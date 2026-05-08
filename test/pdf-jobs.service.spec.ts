@@ -1,6 +1,4 @@
-import { Readable } from "node:stream";
 import { Test, type TestingModule } from "@nestjs/testing";
-import type { Response } from "express";
 import type { DocumentEntity } from "../src/entities/document.entity";
 import type { PdfJobEntity } from "../src/entities/pdf-job.entity";
 import { DocumentsRepository } from "../src/repository/documents.repository";
@@ -45,10 +43,10 @@ const makeJob = (overrides: Partial<PdfJobEntity> = {}): PdfJobEntity => ({
 describe("PdfJobsService", () => {
   let service: PdfJobsService;
   let documentsRepository: jest.Mocked<DocumentsRepository>;
-  let templatesService: jest.Mocked<TemplatesService>;
+  let _templatesService: jest.Mocked<TemplatesService>;
   let pdfGenerationService: jest.Mocked<PdfGenerationService>;
   let documentRenderingService: jest.Mocked<DocumentRenderingService>;
-  let documentEventsService: jest.Mocked<DocumentEventsService>;
+  let _documentEventsService: jest.Mocked<DocumentEventsService>;
 
   beforeEach(async () => {
     jest.useFakeTimers();
@@ -103,7 +101,7 @@ describe("PdfJobsService", () => {
     documentsRepository = module.get(
       DocumentsRepository,
     ) as jest.Mocked<DocumentsRepository>;
-    templatesService = module.get(
+    _templatesService = module.get(
       TemplatesService,
     ) as jest.Mocked<TemplatesService>;
     pdfGenerationService = module.get(
@@ -112,7 +110,7 @@ describe("PdfJobsService", () => {
     documentRenderingService = module.get(
       DocumentRenderingService,
     ) as jest.Mocked<DocumentRenderingService>;
-    documentEventsService = module.get(
+    _documentEventsService = module.get(
       DocumentEventsService,
     ) as jest.Mocked<DocumentEventsService>;
   });

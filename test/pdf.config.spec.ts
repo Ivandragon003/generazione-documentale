@@ -8,12 +8,23 @@ const resetPdfConfigModule = () => jest.resetModules();
 
 const buildWithEnv = async (env: Record<string, string | undefined>) => {
   for (const key of [
-    "PDF_ENGINE", "PDF_PAPER", "PDF_FONT_SIZE",
-    "PDF_MARGIN_TOP", "PDF_MARGIN_BOTTOM", "PDF_MARGIN_LEFT", "PDF_MARGIN_RIGHT",
-    "PDF_MAIN_FONT", "PDF_SANS_FONT", "PDF_MONO_FONT",
-    "PDF_LINE_STRETCH", "PANDOC_PATH", "STORAGE_PATH",
-    "PDF_GENERATION_TIMEOUT_MS", "PDF_GENERATION_RETRIES",
-    "PDF_GENERATION_RETRY_DELAY_MS", "MAX_PDF_MARKDOWN_BYTES",
+    "PDF_ENGINE",
+    "PDF_PAPER",
+    "PDF_FONT_SIZE",
+    "PDF_MARGIN_TOP",
+    "PDF_MARGIN_BOTTOM",
+    "PDF_MARGIN_LEFT",
+    "PDF_MARGIN_RIGHT",
+    "PDF_MAIN_FONT",
+    "PDF_SANS_FONT",
+    "PDF_MONO_FONT",
+    "PDF_LINE_STRETCH",
+    "PANDOC_PATH",
+    "STORAGE_PATH",
+    "PDF_GENERATION_TIMEOUT_MS",
+    "PDF_GENERATION_RETRIES",
+    "PDF_GENERATION_RETRY_DELAY_MS",
+    "MAX_PDF_MARKDOWN_BYTES",
   ]) {
     delete process.env[key];
   }
@@ -257,11 +268,23 @@ describe("pdf.config — buildPdfConfig()", () => {
     it("ha tutte le chiavi obbligatorie", async () => {
       const cfg = await buildWithEnv({});
       const keys = [
-        "engine", "paper", "fontSize",
-        "marginTop", "marginBottom", "marginLeft", "marginRight",
-        "mainFont", "sansFont", "monoFont", "lineStretch",
-        "pandocPath", "storagePath",
-        "timeoutMs", "retries", "retryDelayMs", "maxMarkdownBytes",
+        "engine",
+        "paper",
+        "fontSize",
+        "marginTop",
+        "marginBottom",
+        "marginLeft",
+        "marginRight",
+        "mainFont",
+        "sansFont",
+        "monoFont",
+        "lineStretch",
+        "pandocPath",
+        "storagePath",
+        "timeoutMs",
+        "retries",
+        "retryDelayMs",
+        "maxMarkdownBytes",
       ];
       for (const k of keys) {
         expect(cfg).toHaveProperty(k);
