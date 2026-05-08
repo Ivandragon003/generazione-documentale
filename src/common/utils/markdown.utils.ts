@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   FieldDefinition,
   FieldType,
 } from "../types/field-definition.type";
@@ -10,9 +10,10 @@ export interface MarkdownValidationResult {
   fields: FieldDefinition[];
 }
 
-const placeholderRegex = /\{\{(\w+)\}\}/g;
-
+// La regex e definita DENTRO la funzione per evitare che il lastIndex condiviso
+// del flag 'g' causi bug se qualcuno usasse .exec() o .test() direttamente
 export const extractFieldNames = (content: string): string[] => {
+  const placeholderRegex = /\{\{(\w+)\}\}/g;
   const fields = new Set<string>();
   for (const match of content.matchAll(placeholderRegex)) {
     const fieldName = match[1];

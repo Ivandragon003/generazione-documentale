@@ -1,3 +1,5 @@
+import { Logger } from "@nestjs/common";
+
 export interface AppConfig {
   uploadPath: string;
   templatesStoragePath: string;
@@ -5,6 +7,8 @@ export interface AppConfig {
   maxTemplateContentBytes: number;
   pdfQueueRecoveryRetryMs: number;
 }
+
+const logger = new Logger("app.config");
 
 const readPositiveInt = (
   rawValue: string | undefined,
@@ -16,8 +20,8 @@ const readPositiveInt = (
   if (Number.isInteger(parsed) && parsed >= min) {
     return parsed;
   }
-  console.warn(
-    `[app.config] ${varName}="${rawValue}" non valido, uso default ${fallback}`,
+  logger.warn(
+    `${varName}="${rawValue}" non valido, uso default ${fallback}`,
   );
   return fallback;
 };

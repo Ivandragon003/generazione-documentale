@@ -25,6 +25,8 @@
  *   MAX_PDF_MARKDOWN_BYTES      limite dimensione input (default: 300000)
  */
 
+import { Logger } from "@nestjs/common";
+
 export interface PdfConfig {
   engine: string;
   paper: string;
@@ -118,6 +120,7 @@ const validateLineStretch = (
 // ─── Builder ───────────────────────────────────────────────────────────────────
 
 const buildPdfConfig = (): PdfConfig => {
+  const logger = new Logger("pdf.config");
   const warnings: ValidationError[] = [];
 
   const track = <T>(result: { value: T; error?: ValidationError }): T => {
@@ -200,9 +203,9 @@ const buildPdfConfig = (): PdfConfig => {
   );
 
   if (warnings.length > 0) {
-    console.warn(
-      "[pdf.config] Avvisi configurazione PDF:\n" +
-        warnings.map((w) => `  ⚠ ${w}`).join("\n"),
+    logger.warn(
+      "Avvisi configurazione PDF:\n" +
+        warnings.map((w) => `  ${w}`).join("\n"),
     );
   }
 
