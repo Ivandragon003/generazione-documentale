@@ -37,7 +37,8 @@ const makeJob = (overrides: Partial<PdfJobEntity> = {}): PdfJobEntity => ({
   error_message: null,
   unresolved_fields: [],
   created_at: new Date(),
-  updated_at: new Date(),
+  started_at: null,
+  completed_at: null,
   ...overrides,
 });
 
