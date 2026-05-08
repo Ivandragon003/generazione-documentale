@@ -13,7 +13,7 @@ import { SectionEntity } from "./entities/section.entity";
 import { TemplateEntity } from "./entities/template.entity";
 import { DocumentsRepository } from "./repository/documents.repository";
 import { TemplatesRepository } from "./repository/templates.repository";
-import { SectionsModule } from "./sections/sections.module";
+import { SectionsModule } from "./sections.module";
 import { DocumentEventsService } from "./service/document-events.service";
 import { DocumentRenderingService } from "./service/document-rendering.service";
 import { DocumentsService } from "./service/documents.service";
