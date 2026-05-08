@@ -87,15 +87,19 @@ export class PdfJobsService implements OnModuleDestroy {
   private triggerQueueProcessor(): void {
     if (this.processorRunning) return;
     this.processorRunning = true;
-    setImmediate(async () => {
-      try {
-        const queuedJobs = await this.documentsRepository.findQueuedPdfJobs();
-        for (const job of queuedJobs) {
-          await this.processPdfJob(job.id);
+    setImmediate(() => {
+      (async () => {
+        try {
+          const queuedJobs = await this.documentsRepository.findQueuedPdfJobs();
+          for (const job of queuedJobs) {
+            await this.processPdfJob(job.id).catch(() => undefined);
+          }
+        } finally {
+          this.processorRunning = false;
         }
-      } finally {
+      })().catch(() => {
         this.processorRunning = false;
-      }
+      });
     });
   }
 
