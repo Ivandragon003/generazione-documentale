@@ -163,22 +163,6 @@ export class DocumentsController {
     await this.pdfJobsService.streamLatestPdfDownload(id, response);
   }
 
-  @Get(":id/pdf/preview")
-  @ApiOperation({
-    summary:
-      "DEPRECATO: usa GET /api/documents/:id/preview (preview markdown veloce)",
-  })
-  async previewPdfDeprecated(
-    @Param("id") id: string,
-    @Res() response: Response,
-  ) {
-    const preview = await this.previewService.getMarkdownPreview(id);
-    response.setHeader("Content-Type", "text/markdown; charset=utf-8");
-    response.setHeader("X-API-Deprecated", "true");
-    response.setHeader("X-API-Replacement", "/api/documents/:id/preview");
-    response.send(preview.content);
-  }
-
   @Get(":id/preview")
   @ApiOperation({ summary: "Anteprima documento renderizzata (no PDF)" })
   async previewDocument(@Param("id") id: string, @Res() response: Response) {
