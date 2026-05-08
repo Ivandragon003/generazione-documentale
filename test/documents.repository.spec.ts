@@ -1,8 +1,8 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { DocumentsRepository } from "../src/repository/documents.repository";
 import { DocumentEntity } from "../src/entities/document.entity";
 import { PdfJobEntity } from "../src/entities/pdf-job.entity";
+import { DocumentsRepository } from "../src/repository/documents.repository";
 
 const makeDocRepo = () => ({
   findAndCount: jest.fn(),
@@ -29,25 +29,27 @@ describe("DocumentsRepository", () => {
   let docRepo: ReturnType<typeof makeDocRepo>;
   let pdfRepo: ReturnType<typeof makePdfRepo>;
 
-  const fakeDoc = (): DocumentEntity => ({
-    id: "doc-1",
-    name: "Test Doc",
-    template_id: "tpl-1",
-    content: "# Test",
-    field_values: {},
-    status: "draft",
-    created_by: "user1",
-    created_at: new Date(),
-    updated_at: new Date(),
-  } as DocumentEntity);
+  const fakeDoc = (): DocumentEntity =>
+    ({
+      id: "doc-1",
+      name: "Test Doc",
+      template_id: "tpl-1",
+      content: "# Test",
+      field_values: {},
+      status: "draft",
+      created_by: "user1",
+      created_at: new Date(),
+      updated_at: new Date(),
+    }) as DocumentEntity;
 
-  const fakeJob = (): PdfJobEntity => ({
-    id: "job-1",
-    document_id: "doc-1",
-    status: "queued",
-    requested_by: "user1",
-    created_at: new Date(),
-  } as PdfJobEntity);
+  const fakeJob = (): PdfJobEntity =>
+    ({
+      id: "job-1",
+      document_id: "doc-1",
+      status: "queued",
+      requested_by: "user1",
+      created_at: new Date(),
+    }) as PdfJobEntity;
 
   beforeEach(async () => {
     docRepo = makeDocRepo();
@@ -149,7 +151,12 @@ describe("DocumentsRepository", () => {
         findOne: jest.fn().mockResolvedValue(null),
       };
       await expect(
-        repo.updateDocument(manager, { id: "x", name: "Y", content: "Z", fieldValues: {} }),
+        repo.updateDocument(manager, {
+          id: "x",
+          name: "Y",
+          content: "Z",
+          fieldValues: {},
+        }),
       ).rejects.toThrow(/non trovato dopo update/);
     });
   });
@@ -183,7 +190,9 @@ describe("DocumentsRepository", () => {
       const result = await repo.findPdfJob("doc-1", "job-1");
       expect(result).toEqual(job);
       expect(pdfRepo.findOne).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: "job-1", document_id: "doc-1" } }),
+        expect.objectContaining({
+          where: { id: "job-1", document_id: "doc-1" },
+        }),
       );
     });
 
@@ -258,7 +267,9 @@ describe("DocumentsRepository", () => {
       const result = await repo.findLatestCompletedPdfJob("doc-1");
       expect(result).toEqual(job);
       expect(pdfRepo.findOne).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { document_id: "doc-1", status: "completed" } }),
+        expect.objectContaining({
+          where: { document_id: "doc-1", status: "completed" },
+        }),
       );
     });
   });
@@ -284,7 +295,10 @@ describe("DocumentsRepository", () => {
       ).resolves.not.toThrow();
       expect(pdfRepo.update).toHaveBeenCalledWith(
         { id: "job-1" },
-        expect.objectContaining({ status: "failed", error_message: "Errore pandoc" }),
+        expect.objectContaining({
+          status: "failed",
+          error_message: "Errore pandoc",
+        }),
       );
     });
   });
@@ -292,7 +306,9 @@ describe("DocumentsRepository", () => {
   describe("updateDocumentStatusGenerated()", () => {
     it("deve aggiornare lo status del documento a generated", async () => {
       docRepo.update.mockResolvedValue(undefined);
-      await expect(repo.updateDocumentStatusGenerated("doc-1")).resolves.not.toThrow();
+      await expect(
+        repo.updateDocumentStatusGenerated("doc-1"),
+      ).resolves.not.toThrow();
       expect(docRepo.update).toHaveBeenCalledWith(
         { id: "doc-1" },
         { status: "generated" },

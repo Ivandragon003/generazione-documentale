@@ -1,9 +1,9 @@
-import { Test, type TestingModule } from "@nestjs/testing";
-import { access, mkdir, unlink } from "node:fs/promises";
 import { createReadStream } from "node:fs";
+import { access, mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
-import { PdfGenerationService } from "../src/service/pdf-generation.service";
+import { Test, type TestingModule } from "@nestjs/testing";
 import { DocumentRenderingService } from "../src/service/document-rendering.service";
+import { PdfGenerationService } from "../src/service/pdf-generation.service";
 
 jest.mock("node:child_process", () => ({
   spawn: jest.fn(),
@@ -21,11 +21,14 @@ jest.mock("node:crypto", () => ({
 }));
 
 import { spawn } from "node:child_process";
+
 const spawnMock = spawn as jest.MockedFunction<typeof spawn>;
 const accessMock = access as jest.MockedFunction<typeof access>;
 const mkdirMock = mkdir as jest.MockedFunction<typeof mkdir>;
 const unlinkMock = unlink as jest.MockedFunction<typeof unlink>;
-const createReadStreamMock = createReadStream as jest.MockedFunction<typeof createReadStream>;
+const createReadStreamMock = createReadStream as jest.MockedFunction<
+  typeof createReadStream
+>;
 
 function makeSpawnMock(exitCode: number, stderrData = "") {
   const stdin = { end: jest.fn() };
@@ -59,7 +62,9 @@ describe("PdfGenerationService", () => {
     }).compile();
 
     service = module.get<PdfGenerationService>(PdfGenerationService);
-    renderingService = module.get<DocumentRenderingService>(DocumentRenderingService);
+    renderingService = module.get<DocumentRenderingService>(
+      DocumentRenderingService,
+    );
     jest.spyOn(console, "warn").mockImplementation(() => {});
   });
 
@@ -97,7 +102,11 @@ describe("PdfGenerationService", () => {
       makeSpawnMock(0);
       const spy = jest.spyOn(renderingService, "renderTemplate");
       await service.generatePdf({ ...baseInput, strict: true });
-      expect(spy).toHaveBeenCalledWith(expect.any(String), expect.any(Object), true);
+      expect(spy).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        true,
+      );
     });
 
     it("deve usare 'Documento' come titolo di default se non fornito", async () => {
@@ -117,7 +126,9 @@ describe("PdfGenerationService", () => {
 
     it("deve lanciare errore se pandoc esce con codice non-zero", async () => {
       makeSpawnMock(1, "Errore LaTeX");
-      await expect(service.generatePdf(baseInput)).rejects.toThrow(/Pandoc exit 1/);
+      await expect(service.generatePdf(baseInput)).rejects.toThrow(
+        /Pandoc exit 1/,
+      );
     });
 
     it("deve lanciare errore se pandoc emette evento error", async () => {
@@ -132,7 +143,9 @@ describe("PdfGenerationService", () => {
         kill: jest.fn(),
       };
       spawnMock.mockReturnValue(proc);
-      await expect(service.generatePdf(baseInput)).rejects.toThrow(/Pandoc non trovato/);
+      await expect(service.generatePdf(baseInput)).rejects.toThrow(
+        /Pandoc non trovato/,
+      );
     });
 
     it("deve ritentare in caso di fallimento e poi fallire", async () => {
@@ -163,7 +176,9 @@ describe("PdfGenerationService", () => {
   describe("deletePdf()", () => {
     it("deve eliminare il file PDF", async () => {
       unlinkMock.mockResolvedValue(undefined as any);
-      await expect(service.deletePdf("test-uuid-1234.pdf")).resolves.not.toThrow();
+      await expect(
+        service.deletePdf("test-uuid-1234.pdf"),
+      ).resolves.not.toThrow();
       expect(unlinkMock).toHaveBeenCalled();
     });
 

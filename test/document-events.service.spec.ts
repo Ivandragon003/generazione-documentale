@@ -1,4 +1,7 @@
-import { DocumentEventsService, DOCUMENT_FINALIZED_EVENT } from "../src/service/document-events.service";
+import {
+  DOCUMENT_FINALIZED_EVENT,
+  DocumentEventsService,
+} from "../src/service/document-events.service";
 
 describe("DocumentEventsService", () => {
   let service: DocumentEventsService;
@@ -21,7 +24,7 @@ describe("DocumentEventsService", () => {
 
   it("emitDocumentFinalized non lancia se non ci sono listener", () => {
     expect(() =>
-      service.emitDocumentFinalized({ jobId: "job-2" })
+      service.emitDocumentFinalized({ jobId: "job-2" }),
     ).not.toThrow();
   });
 

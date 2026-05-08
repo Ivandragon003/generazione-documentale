@@ -192,9 +192,7 @@ describe("DocumentRenderingService", () => {
         .map((_, i) => `{{campo${i}}}`)
         .join(" ");
       const fieldValues = Object.fromEntries(
-        new Array(100)
-          .fill(0)
-          .map((_, i) => [`campo${i}`, `value${i}`]),
+        new Array(100).fill(0).map((_, i) => [`campo${i}`, `value${i}`]),
       );
 
       const result = service.renderTemplate(placeholders, fieldValues, false);
@@ -423,15 +421,13 @@ describe("DocumentRenderingService", () => {
     });
 
     it("deve gestire molti campi obbligatori", () => {
-      const fields: FieldDefinition[] = new Array(100)
-        .fill(0)
-        .map((_, i) => ({
-          name: `campo${i}`,
-          label: `Campo ${i}`,
-          type: "text" as const,
-          required: i % 2 === 0,
-          defaultValue: "",
-        }));
+      const fields: FieldDefinition[] = new Array(100).fill(0).map((_, i) => ({
+        name: `campo${i}`,
+        label: `Campo ${i}`,
+        type: "text" as const,
+        required: i % 2 === 0,
+        defaultValue: "",
+      }));
       const fieldValues = Object.fromEntries(
         new Array(100)
           .fill(0)

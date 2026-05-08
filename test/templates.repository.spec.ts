@@ -1,9 +1,9 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { TemplatesRepository } from "../src/repository/templates.repository";
-import { TemplateEntity } from "../src/entities/template.entity";
 import { DocumentEntity } from "../src/entities/document.entity";
 import { SectionEntity } from "../src/entities/section.entity";
+import { TemplateEntity } from "../src/entities/template.entity";
+import { TemplatesRepository } from "../src/repository/templates.repository";
 
 const makeTplRepo = () => ({
   findOne: jest.fn(),
@@ -20,18 +20,19 @@ describe("TemplatesRepository", () => {
   let docRepo: ReturnType<typeof makeDocRepo>;
   let secRepo: ReturnType<typeof makeSecRepo>;
 
-  const fakeTpl = (): TemplateEntity => ({
-    id: "tpl-1",
-    name: "Template Test",
-    description: "Desc",
-    content_path: "/storage/tpl-1.md",
-    fields: [],
-    status: "draft",
-    section_id: null,
-    created_by: "user1",
-    created_at: new Date(),
-    updated_at: new Date(),
-  } as TemplateEntity);
+  const fakeTpl = (): TemplateEntity =>
+    ({
+      id: "tpl-1",
+      name: "Template Test",
+      description: "Desc",
+      content_path: "/storage/tpl-1.md",
+      fields: [],
+      status: "draft",
+      section_id: null,
+      created_by: "user1",
+      created_at: new Date(),
+      updated_at: new Date(),
+    }) as TemplateEntity;
 
   function makeQb(data: TemplateEntity[] = [], total = 0) {
     const qb: any = {
@@ -73,10 +74,9 @@ describe("TemplatesRepository", () => {
     it("deve applicare il filtro status", async () => {
       const qb = makeQb([], 0);
       await repo.findAll({ status: "draft", limit: 10, offset: 0 });
-      expect(qb.andWhere).toHaveBeenCalledWith(
-        "template.status = :status",
-        { status: "draft" },
-      );
+      expect(qb.andWhere).toHaveBeenCalledWith("template.status = :status", {
+        status: "draft",
+      });
     });
 
     it("deve applicare il filtro sectionId", async () => {
@@ -148,7 +148,11 @@ describe("TemplatesRepository", () => {
       expect(result).toEqual(tpl);
       expect(manager.create).toHaveBeenCalledWith(
         TemplateEntity,
-        expect.objectContaining({ id: "tpl-1", status: "draft", section_id: null }),
+        expect.objectContaining({
+          id: "tpl-1",
+          status: "draft",
+          section_id: null,
+        }),
       );
     });
 
