@@ -7,10 +7,6 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 
-const shouldRunRegressionOnBoot =
-  process.env.NODE_ENV !== "production" &&
-  process.env.RUN_REGRESSION_ON_BOOT === "true";
-
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     logger: ["log", "warn", "error"],
@@ -61,10 +57,6 @@ async function bootstrap(): Promise<void> {
 
   const port = Number.parseInt(process.env.PORT ?? "3000", 10);
   await app.listen(port);
-
-  if (shouldRunRegressionOnBoot) {
-    // TODO: Reintrodurre runner regressioni quando il modulo dev tornera disponibile.
-  }
 }
 
 bootstrap().catch((error: unknown) => {

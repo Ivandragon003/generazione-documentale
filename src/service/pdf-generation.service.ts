@@ -19,9 +19,6 @@ const STORAGE_PATH = resolve(pdfConfig.storagePath);
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
-const escapeLatexInline = (value: string): string =>
-  value.replace(/[\\{}$&#_%~^]/g, (char) => `\\${char}`);
-
 @Injectable()
 export class PdfGenerationService {
   constructor(
@@ -60,20 +57,9 @@ export class PdfGenerationService {
       "-V",
       `monofont=${pdfConfig.monoFont}`,
       "-V",
-      `linestretch=${pdfConfig.lineStretch}`,
+      `colorlinks=${pdfConfig.colorLinks}`,
       "-V",
-      "indent=false",
-      "-V",
-      "colorlinks=true",
-      "-V",
-      "linkcolor=NavyBlue",
-      "-V",
-      "urlcolor=RoyalBlue",
-      "-V",
-      `header-includes=\\usepackage{fancyhdr}\\usepackage{longtable,booktabs,array}\\pagestyle{fancy}\\fancyhf{}\\fancyhead[L]{\\small ${escapeLatexInline(title)}}\\fancyhead[R]{\\small \\today}\\fancyfoot[C]{\\thepage}\\renewcommand{\\headrulewidth}{0.4pt}`,
-      "-V",
-      "tables=true",
-      "-",
+      `linkcolor=${pdfConfig.linkColor}`,
     ];
   }
 
