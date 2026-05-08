@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -39,7 +39,8 @@ jobs:
         with:
           args: >
             -Dsonar.projectKey=Ivandragon003_generazione-documentale
-            -Dsonar.organization=Ivandragon003
+            -Dsonar.organization=TUO_ORG_SONARCLOUD
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
             -Dsonar.sources=src
             -Dsonar.tests=test
+            -Dsonar.sourceEncoding=UTF-8
