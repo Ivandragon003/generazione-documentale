@@ -3,7 +3,7 @@
     "name": "MAC Documents API",
     "_postman_id": "mac-documents-api-current-no-scripts",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Collection degli endpoint reali attuali. La suite test non viene richiamata da qui: parte automaticamente all'avvio del backend. Nessuno script pm/Postman."
+    "description": "Collection sincronizzata con i controller reali. Nessuno script pm/Postman."
   },
   "variable": [
     {
@@ -49,7 +49,7 @@
       "name": "02 Templates",
       "item": [
         {
-          "name": "Valida Markdown (testo)",
+          "name": "Valida Markdown",
           "request": {
             "method": "POST",
             "header": [
@@ -61,7 +61,7 @@
             "url": "{{base_url}}/api/templates/validate",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"content\": \"# {{titolo}}\\n\\nQuesto paragrafo e testo normale e deve restare uguale nel documento.\\n\\n## Dati generali\\n- Committente: {{committente}}\\n- Responsabile: {{responsabile}}\\n- Data emissione: {{data}}\\n\\n## Oggetto\\n{{descrizione}}\\n\\n## Importi\\nBudget previsto: {{budget}}\\nSconto applicato: {{sconto}}\\n\\n## Note interne\\nQuesta frase non contiene campi dinamici.\\n\\nFirma: {{firma}}\"\n}",
+              "raw": "{\"content\":\"# {{titolo}}\\n\\n- Committente: {{committente}}\\n- Data: {{data}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -86,13 +86,19 @@
               "formdata": [
                 {
                   "key": "name",
-                  "value": "Template caricato da upload",
+                  "value": "Template da upload",
                   "type": "text"
+                },
+                {
+                  "key": "sectionId",
+                  "value": "",
+                  "type": "text",
+                  "description": "Opzionale"
                 },
                 {
                   "key": "file",
                   "type": "file",
-                  "src": "C:\\Users\\ivand\\OneDrive\\Desktop\\mac-documents\\storage\\samples\\template-upload-valido.md"
+                  "src": ""
                 }
               ]
             }
@@ -115,7 +121,7 @@
             "url": "{{base_url}}/api/templates",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Template Capitolato Tecnico Esteso\",\n  \"description\": \"Template di test con testo fisso, liste, tabella e campi compilati solo in parte\",\n  \"content\": \"# {{titolo}}\\n\\nQuesto documento contiene testo normale che non deve cambiare quando vengono valorizzati i campi. Serve per verificare la differenza tra content e field_values.\\n\\n## 1. Dati generali\\n\\n| Campo | Valore |\\n| --- | --- |\\n| Committente | {{committente}} |\\n| Responsabile | {{responsabile}} |\\n| Data emissione | {{data}} |\\n| Codice gara | {{codice_gara}} |\\n\\n## 2. Oggetto della fornitura\\n\\n{{descrizione}}\\n\\nIl fornitore dovra garantire assistenza, documentazione tecnica e formazione iniziale. Questa riga e testo fisso.\\n\\n## 3. Requisiti\\n\\n- Ambiente cloud con backup giornaliero.\\n- Tracciamento audit delle operazioni principali.\\n- Integrazione con il sistema {{sistema_esterno}}.\\n- SLA richiesto: {{sla}}.\\n\\n## 4. Quadro economico\\n\\nBudget massimo: {{budget}}\\nSconto previsto: {{sconto}}\\nPenale giornaliera: {{penale}}\\n\\n## 5. Chiusura\\n\\nNote finali: {{note_finali}}\\n\\nFirma autorizzata: {{firma}}\",\n  \"fields\": [\n    { \"name\": \"titolo\", \"label\": \"titolo\", \"type\": \"text\", \"required\": true, \"defaultValue\": \"\" },\n    { \"name\": \"committente\", \"label\": \"committente\", \"type\": \"text\", \"required\": true, \"defaultValue\": \"\" },\n    { \"name\": \"responsabile\", \"label\": \"responsabile\", \"type\": \"text\", \"required\": false, \"defaultValue\": \"Da assegnare\" },\n    { \"name\": \"data\", \"label\": \"data\", \"type\": \"date\", \"required\": true, \"defaultValue\": \"\" },\n    { \"name\": \"codice_gara\", \"label\": \"codice gara\", \"type\": \"text\", \"required\": false, \"defaultValue\": \"\" },\n    { \"name\": \"descrizione\", \"label\": \"descrizione\", \"type\": \"text\", \"required\": false, \"defaultValue\": \"\" },\n    { \"name\": \"sistema_esterno\", \"label\": \"sistema esterno\", \"type\": \"text\", \"required\": false, \"defaultValue\": \"\" },\n    { \"name\": \"sla\", \"label\": \"sla\", \"type\": \"text\", \"required\": false, \"defaultValue\": \"\" },\n    { \"name\": \"budget\", \"label\": \"budget\", \"type\": \"text\", \"required\": true, \"defaultValue\": \"\" },\n    { \"name\": \"sconto\", \"label\": \"sconto\", \"type\": \"text\", \"required\": false, \"defaultValue\": \"0%\" },\n    { \"name\": \"penale\", \"label\": \"penale\", \"type\": \"text\", \"required\": false, \"defaultValue\": \"N/A\" },\n    { \"name\": \"note_finali\", \"label\": \"note finali\", \"type\": \"text\", \"required\": false, \"defaultValue\": \"Nessuna nota\" },\n    { \"name\": \"firma\", \"label\": \"firma\", \"type\": \"text\", \"required\": false, \"defaultValue\": \"\" }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Template Capitolato\",\n  \"description\": \"Desc\",\n  \"sectionId\": null,\n  \"status\": \"draft\",\n  \"content\": \"# {{titolo}}\\n\\n| Committente | {{committente}} |\\n| Data | {{data}} |\\n\\n{{descrizione}}\\n\\nBudget: {{budget}}\\nFirma: {{firma}}\",\n  \"fields\": [\n    {\n      \"name\": \"titolo\",\n      \"label\": \"Titolo\",\n      \"type\": \"text\",\n      \"required\": true,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"committente\",\n      \"label\": \"Committente\",\n      \"type\": \"text\",\n      \"required\": true,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"responsabile\",\n      \"label\": \"Responsabile\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"Da assegnare\"\n    },\n    {\n      \"name\": \"data\",\n      \"label\": \"Data emissione\",\n      \"type\": \"date\",\n      \"required\": true,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"descrizione\",\n      \"label\": \"Descrizione\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"budget\",\n      \"label\": \"Budget\",\n      \"type\": \"text\",\n      \"required\": true,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"sconto\",\n      \"label\": \"Sconto\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"0%\"\n    },\n    {\n      \"name\": \"firma\",\n      \"label\": \"Firma\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -129,7 +135,37 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/api/templates?limit=20&offset=0"
+            "url": {
+              "raw": "{{base_url}}/api/templates?limit=20&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "templates"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true,
+                  "description": "draft | published"
+                },
+                {
+                  "key": "sectionId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "categoryId",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
           }
         },
         {
@@ -157,7 +193,7 @@
             "url": "{{base_url}}/api/templates/{{template_id}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"description\": \"Seconda versione temporanea per testare versioning e ripristino\",\n  \"content\": \"# {{titolo}}\\n\\nVERSIONE 2 TEMPORANEA: questa riga deve sparire dopo il ripristino.\\n\\n## Cliente\\n{{committente}}\\n\\n## Responsabile\\n{{responsabile}}\\n\\n## Data\\n{{data}}\\n\\n## Dettaglio tecnico\\n{{descrizione}}\\n\\n## Budget\\n{{budget}}\\n\\n## Approvazione\\nFirma: {{firma}}\"\n}",
+              "raw": "{\n  \"description\": \"Versione aggiornata\",\n  \"status\": \"published\",\n  \"content\": \"# {{titolo}}\\n\\n{{committente}}\\n\\n{{data}}\\n\\nFirma: {{firma}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -223,7 +259,27 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/api/documents?limit=20&offset=0"
+            "url": {
+              "raw": "{{base_url}}/api/documents?limit=20&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true,
+                  "description": "draft | generated | published | archived"
+                }
+              ]
+            }
           }
         },
         {
@@ -251,7 +307,7 @@
             "url": "{{base_url}}/api/documents/{{document_id}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"fieldValues\": {\n    \"titolo\": \"Capitolato Tecnico Beta\",\n    \"committente\": \"Azienda Sanitaria Locale Roma 2\",\n    \"responsabile\": \"Giulia Bianchi\",\n    \"data\": \"2026-04-29\",\n    \"codice_gara\": \"GARA-2026-118\",\n    \"descrizione\": \"Realizzazione di una piattaforma documentale con gestione template, versioni e generazione PDF.\",\n    \"sistema_esterno\": \"protocollo informatico aziendale\",\n    \"sla\": \"99,5% mensile\",\n    \"budget\": \"120.000 EUR\",\n    \"sconto\": \"3%\",\n    \"penale\": \"250 EUR\",\n    \"note_finali\": \"Il collaudo deve essere concluso entro 30 giorni dalla consegna.\",\n    \"firma\": \"Direzione Acquisti\"\n  }\n}",
+              "raw": "{\n  \"fieldValues\": {\n    \"titolo\": \"Capitolato Tecnico Beta\",\n    \"committente\": \"ASL Roma 2\",\n    \"responsabile\": \"Giulia Bianchi\",\n    \"data\": \"2026-04-29\",\n    \"descrizione\": \"Realizzazione piattaforma documentale.\",\n    \"budget\": \"120.000 EUR\",\n    \"sconto\": \"3%\",\n    \"firma\": \"Direzione Acquisti\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -261,7 +317,15 @@
           }
         },
         {
-          "name": "Accoda generazione PDF",
+          "name": "Anteprima documento (Markdown)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/documents/{{document_id}}/preview"
+          }
+        },
+        {
+          "name": "Avvia generazione PDF",
           "request": {
             "method": "POST",
             "header": [
@@ -274,7 +338,31 @@
           }
         },
         {
-          "name": "Scarica ultimo PDF",
+          "name": "Lista job PDF",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/documents/{{document_id}}/pdf/jobs"
+          }
+        },
+        {
+          "name": "Stato job PDF",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/documents/{{document_id}}/pdf/jobs/{{pdf_job_id}}"
+          }
+        },
+        {
+          "name": "Download PDF (per jobId)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/documents/{{document_id}}/pdf/jobs/{{pdf_job_id}}/download"
+          }
+        },
+        {
+          "name": "Download ultimo PDF",
           "request": {
             "method": "GET",
             "header": [],
@@ -282,11 +370,16 @@
           }
         },
         {
-          "name": "Anteprima PDF (temporanea)",
+          "name": "Elimina PDF generato",
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/documents/{{document_id}}/pdf/preview"
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-user",
+                "value": "{{user}}"
+              }
+            ],
+            "url": "{{base_url}}/api/documents/{{document_id}}/pdf/jobs/{{pdf_job_id}}"
           }
         },
         {

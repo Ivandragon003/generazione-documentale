@@ -53,8 +53,8 @@ const ALLOWED_ENGINES = ["xelatex", "lualatex", "pdflatex"] as const;
 const ALLOWED_PAPERS = ["a4", "a3", "a5", "letter", "legal"] as const;
 const ALLOWED_FONT_SIZES = ["9pt", "10pt", "11pt", "12pt", "14pt"] as const;
 const MARGIN_PATTERN = /^\d+(\.\d+)?(cm|mm|in|pt|em)$/;
-const LINE_STRETCH_MIN = 1.0;
-const LINE_STRETCH_MAX = 2.0;
+const LINE_STRETCH_MIN = 1;
+const LINE_STRETCH_MAX = 2;
 
 type ValidationError = string;
 
