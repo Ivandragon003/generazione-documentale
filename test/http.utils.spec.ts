@@ -369,7 +369,7 @@ describe("HTTP Utilities", () => {
         expect(actor).toBe("user+tag@example.com");
       });
 
-      it("deve gestire header undefined", () => {
+      it("deve gestire header undefined — ritorna system", () => {
         const req = {
           headers: undefined,
         } as unknown as Request;
@@ -379,14 +379,14 @@ describe("HTTP Utilities", () => {
         expect(actor).toBe("system");
       });
 
-      it("deve gestire headers come null", () => {
+      it("deve gestire headers come null — ritorna system", () => {
         const req = {
           headers: null,
         } as unknown as Request;
 
-        expect(() => {
-          getActor(req);
-        }).toThrow();
+        const actor = getActor(req);
+
+        expect(actor).toBe("system");
       });
 
       it("deve gestire x-user non-string", () => {
@@ -432,12 +432,12 @@ describe("HTTP Utilities", () => {
     });
 
     describe("Failure modes", () => {
-      it("deve gestire Request senza headers", () => {
+      it("deve gestire Request senza headers — ritorna system", () => {
         const req = {} as unknown as Request;
 
-        expect(() => {
-          getActor(req);
-        }).toThrow();
+        const actor = getActor(req);
+
+        expect(actor).toBe("system");
       });
 
       it("deve gestire headers.x-user accesso fallito", () => {
