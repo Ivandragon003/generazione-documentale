@@ -1,6 +1,5 @@
 import { createReadStream, type ReadStream } from "node:fs";
 import { access, mkdir, unlink } from "node:fs/promises";
-import { join } from "node:path";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { DocumentRenderingService } from "../src/service/document-rendering.service";
 import { PdfGenerationService } from "../src/service/pdf-generation.service";
