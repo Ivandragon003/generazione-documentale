@@ -23,6 +23,7 @@ export interface CreateTemplateInput {
   content: string;
   fields?: PartialFieldDefinition[];
   created_by?: string;
+  status?: "draft" | "published";
 }
 
 export interface UpdateTemplateInput {
@@ -97,7 +98,8 @@ export class TemplatesService {
     if (!row) return null;
     const content = await this.readTemplateContent(row.content_path);
     if (content === null) {
-      throw makeError("Contenuto template locale non disponibile", 500);
+      // Il file su disco non e disponibile: e un problema di infrastruttura, non un bug applicativo
+      throw makeError("Contenuto template locale non disponibile", 503);
     }
     return { ...row, content };
   }
@@ -159,6 +161,7 @@ export class TemplatesService {
     content,
     fields,
     created_by = "system",
+    status,
   }: CreateTemplateInput) {
     if (!name || name.trim().length === 0) {
       throw makeError("Il nome del template e obbligatorio", 400);
@@ -193,6 +196,7 @@ export class TemplatesService {
           contentPath,
           fields: normalizedFields,
           createdBy: created_by,
+          status,
         }),
       );
       // DB ok -> promuovi il file temporaneo al percorso definitivo
@@ -202,7 +206,7 @@ export class TemplatesService {
       );
       return this.hydrateContent(template);
     } catch (error) {
-      // DB fallito -> elimina il file temporaneo
+      // DB fallito o rename fallita -> elimina il file temporaneo
       await unlink(this.templateFilePath(tmpPath)).catch(() => undefined);
       throw error;
     }
@@ -228,20 +232,36 @@ export class TemplatesService {
       fields ?? existing.fields,
     );
     const contentPath = existing.content_path ?? this.toStorageFilename(id);
-    await this.writeTemplateContent(contentPath, nextContent);
-    const updated = await this.dataSource.transaction(async (manager) =>
-      this.templatesRepository.updateTemplate(manager, {
-        id,
-        sectionId:
-          section_id === undefined ? existing.section_id : (section_id ?? null),
-        name: name?.trim() || existing.name,
-        description: description ?? existing.description,
-        contentPath,
-        fields: nextFields,
-        status: status ?? existing.status,
-      }),
-    );
-    return this.hydrateContent(updated);
+
+    // Usa pattern tmp+rename atomica: scrivi su .tmp, commit DB, poi rename
+    // Cosi se la transaction fallisce il file originale e intatto
+    const tmpPath = `${contentPath}.tmp`;
+    await mkdir(TEMPLATES_STORAGE_PATH, { recursive: true });
+    await writeFile(this.templateFilePath(tmpPath), nextContent, "utf8");
+    try {
+      const updated = await this.dataSource.transaction(async (manager) =>
+        this.templatesRepository.updateTemplate(manager, {
+          id,
+          sectionId:
+            section_id === undefined ? existing.section_id : (section_id ?? null),
+          name: name?.trim() || existing.name,
+          description: description ?? existing.description,
+          contentPath,
+          fields: nextFields,
+          status: status ?? existing.status,
+        }),
+      );
+      // DB ok -> promuovi il file temporaneo
+      await rename(
+        this.templateFilePath(tmpPath),
+        this.templateFilePath(contentPath),
+      );
+      return this.hydrateContent(updated);
+    } catch (error) {
+      // DB fallito o rename fallita -> elimina il file temporaneo, il file originale e ancora valido
+      await unlink(this.templateFilePath(tmpPath)).catch(() => undefined);
+      throw error;
+    }
   }
 
   async importFromMarkdown(

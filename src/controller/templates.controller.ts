@@ -131,6 +131,7 @@ export class TemplatesController {
       description: body.description,
       content: body.content,
       fields: body.fields,
+      status: body.status,
       created_by: getActor(request),
     });
     if (!template) throw makeError("Template non trovato", 404);
