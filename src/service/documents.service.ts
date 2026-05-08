@@ -71,11 +71,10 @@ export class DocumentsService {
     const template = await this.templatesService.findOne(templateId);
     if (!template) throw makeError("Template non trovato", 404);
     return this.dataSource.transaction(async (manager) =>
-      this.documentsRepository.createDocument(manager, {
+      this.documentsRepository.insertDocument(manager, {
         name: name.trim(),
         templateId,
         content: template.content,
-        fieldValues: {},
         createdBy: created_by,
       }),
     );
