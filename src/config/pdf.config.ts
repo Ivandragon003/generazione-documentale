@@ -17,6 +17,8 @@
  *   PDF_SANS_FONT        font sans (default: Liberation Sans)
  *   PDF_MONO_FONT        font mono (default: Liberation Mono)
  *   PDF_LINE_STRETCH     interlinea 1.0–2.0 (default: 1.25)
+ *   PDF_COLOR_LINKS      abilita link colorati: true|false (default: true)
+ *   PDF_LINK_COLOR       colore link pandoc (default: teal)
  *   PANDOC_PATH          percorso binario pandoc (default: pandoc)
  *   STORAGE_PATH         cartella output PDF (default: ./storage/pdf)
  *   PDF_GENERATION_TIMEOUT_MS   timeout job (default: 120000)
@@ -39,6 +41,8 @@ export interface PdfConfig {
   sansFont: string;
   monoFont: string;
   lineStretch: number;
+  colorLinks: boolean;
+  linkColor: string;
   pandocPath: string;
   storagePath: string;
   timeoutMs: number;
@@ -202,6 +206,11 @@ const buildPdfConfig = (): PdfConfig => {
     ),
   );
 
+  const colorLinksRaw = process.env.PDF_COLOR_LINKS;
+  const colorLinks = colorLinksRaw === "false" ? false : true;
+
+  const linkColor = process.env.PDF_LINK_COLOR?.trim() || "teal";
+
   if (warnings.length > 0) {
     logger.warn(
       `Avvisi configurazione PDF:\n${warnings.map((w) => `  ${w}`).join("\n")}`,
@@ -220,6 +229,8 @@ const buildPdfConfig = (): PdfConfig => {
     sansFont: process.env.PDF_SANS_FONT || "Liberation Sans",
     monoFont: process.env.PDF_MONO_FONT || "Liberation Mono",
     lineStretch,
+    colorLinks,
+    linkColor,
     pandocPath: process.env.PANDOC_PATH || "pandoc",
     storagePath: process.env.STORAGE_PATH || "./storage/pdf",
     timeoutMs,
