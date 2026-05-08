@@ -729,11 +729,11 @@ describe("PdfJobsService", () => {
     });
 
     it("cancella il timer recovery se attivo", () => {
-      (service as unknown as Record<string, unknown>)["queueRecoveryTimer"] =
+      (service as unknown as Record<string, unknown>).queueRecoveryTimer =
         setTimeout(() => {}, 99999);
       expect(() => service.onModuleDestroy()).not.toThrow();
       expect(
-        (service as unknown as Record<string, unknown>)["queueRecoveryTimer"],
+        (service as unknown as Record<string, unknown>).queueRecoveryTimer,
       ).toBeNull();
     });
   });
