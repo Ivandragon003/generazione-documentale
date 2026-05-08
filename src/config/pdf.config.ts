@@ -53,15 +53,17 @@ const ALLOWED_ENGINES = ["xelatex", "lualatex", "pdflatex"] as const;
 const ALLOWED_PAPERS = ["a4", "a3", "a5", "letter", "legal"] as const;
 const ALLOWED_FONT_SIZES = ["9pt", "10pt", "11pt", "12pt", "14pt"] as const;
 const MARGIN_PATTERN = /^\d+(\.\d+)?(cm|mm|in|pt|em)$/;
-const LINE_STRETCH_MIN = 1;
-const LINE_STRETCH_MAX = 2;
+const LINE_STRETCH_MIN = 1.0;
+const LINE_STRETCH_MAX = 2.0;
+
+type ValidationError = string;
 
 const validateEnum = <T extends string>(
   value: string,
   allowed: readonly T[],
   varName: string,
   fallback: T,
-): { value: T; error?: string } => {
+): { value: T; error?: ValidationError } => {
   if ((allowed as readonly string[]).includes(value)) {
     return { value: value as T };
   }
@@ -75,7 +77,7 @@ const validateMargin = (
   raw: string | undefined,
   varName: string,
   fallback: string,
-): { value: string; error?: string } => {
+): { value: string; error?: ValidationError } => {
   const v = raw?.trim() ?? fallback;
   if (MARGIN_PATTERN.test(v)) return { value: v };
   return {
@@ -89,8 +91,8 @@ const validatePositiveInt = (
   varName: string,
   fallback: number,
   min = 1,
-): { value: number; error?: string } => {
-  const parsed = Number.parseInt(raw ?? "", 10);
+): { value: number; error?: ValidationError } => {
+  const parsed = Math.round(Number.parseFloat(raw ?? ""));
   if (Number.isInteger(parsed) && parsed >= min) return { value: parsed };
   return {
     value: fallback,
@@ -100,7 +102,7 @@ const validatePositiveInt = (
 
 const validateLineStretch = (
   raw: string | undefined,
-): { value: number; error?: string } => {
+): { value: number; error?: ValidationError } => {
   const parsed = Number.parseFloat(raw ?? "");
   if (
     !Number.isNaN(parsed) &&
@@ -119,9 +121,9 @@ const validateLineStretch = (
 
 const buildPdfConfig = (): PdfConfig => {
   const logger = new Logger("pdf.config");
-  const warnings: string[] = [];
+  const warnings: ValidationError[] = [];
 
-  const track = <T>(result: { value: T; error?: string }): T => {
+  const track = <T>(result: { value: T; error?: ValidationError }): T => {
     if (result.error) warnings.push(result.error);
     return result.value;
   };
