@@ -24,7 +24,7 @@ export const assertUuid = (value: string, field = "id"): void => {
 };
 
 export const getActor = (req: Request): string => {
-  const actorHeader = req.headers["x-user"];
+  const actorHeader = req.headers?.["x-user"];
   if (typeof actorHeader === "string" && actorHeader.trim().length > 0) {
     return actorHeader;
   }

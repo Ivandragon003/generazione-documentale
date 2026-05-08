@@ -443,7 +443,7 @@ describe("DocumentsRepository", () => {
 
       await repository.deleteDocument(mockDocument.id);
 
-      expect(documentRepository.delete).toHaveBeenCalledWith(mockDocument.id);
+      expect(documentRepository.delete).toHaveBeenCalledWith({ id: mockDocument.id });
     });
 
     it("deve gestire cancellazione di documento inesistente", async () => {
@@ -454,7 +454,7 @@ describe("DocumentsRepository", () => {
 
       await repository.deleteDocument("non-existent");
 
-      expect(documentRepository.delete).toHaveBeenCalledWith("non-existent");
+      expect(documentRepository.delete).toHaveBeenCalledWith({ id: "non-existent" });
     });
   });
 
@@ -484,6 +484,7 @@ describe("DocumentsRepository", () => {
         create: jest.fn().mockReturnValue(mockDocument),
         save: jest.fn().mockResolvedValue(mockDocument),
         update: jest.fn().mockResolvedValue({}),
+        findOne: jest.fn().mockResolvedValue(mockDocument),
       } as unknown as EntityManager;
 
       documentRepository.findOne.mockResolvedValue(mockDocument);
@@ -512,7 +513,7 @@ describe("DocumentsRepository", () => {
       expect(mockManager.update).toHaveBeenCalled();
 
       await repository.deleteDocument(created.id);
-      expect(documentRepository.delete).toHaveBeenCalledWith(created.id);
+      expect(documentRepository.delete).toHaveBeenCalledWith({ id: created.id });
     });
 
     it("deve gestire errori in qualsiasi fase del CRUD", async () => {
@@ -536,6 +537,7 @@ describe("DocumentsRepository", () => {
     it("deve gestire multiple operazioni concorrenti su stesso ID", async () => {
       const mockManager = {
         update: jest.fn().mockResolvedValue({}),
+        findOne: jest.fn().mockResolvedValue(mockDocument),
       } as unknown as EntityManager;
 
       const promises = Array(5)
@@ -566,6 +568,7 @@ describe("DocumentsRepository", () => {
 
       const mockManager = {
         update: jest.fn().mockResolvedValue({}),
+        findOne: jest.fn().mockResolvedValue(mockDocument),
       } as unknown as EntityManager;
 
       await repository.updateDocument(mockManager, {
@@ -593,6 +596,7 @@ describe("DocumentsRepository", () => {
 
       const mockManager = {
         update: jest.fn().mockResolvedValue({}),
+        findOne: jest.fn().mockResolvedValue(mockDocument),
       } as unknown as EntityManager;
 
       await repository.updateDocument(mockManager, {
