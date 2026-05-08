@@ -38,6 +38,8 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.projectKey=YOUR_PROJECT_KEY
-            -Dsonar.organization=YOUR_ORG
+            -Dsonar.projectKey=Ivandragon003_generazione-documentale
+            -Dsonar.organization=TUO_ORG
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.sources=src
+            -Dsonar.tests=test
