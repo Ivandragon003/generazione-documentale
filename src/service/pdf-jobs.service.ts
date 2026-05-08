@@ -1,5 +1,5 @@
 import { pipeline } from "node:stream/promises";
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, OnModuleDestroy } from "@nestjs/common";
 import type { Response } from "express";
 import { makeError } from "../common/utils/errors";
 import { appConfig } from "../config/app.config";
@@ -12,7 +12,7 @@ import { TemplatesService } from "./templates.service";
 const QUEUE_RECOVERY_RETRY_MS = appConfig.pdfQueueRecoveryRetryMs;
 
 @Injectable()
-export class PdfJobsService {
+export class PdfJobsService implements OnModuleDestroy {
   private queueRecoveryStarted = false;
   private queueRecoveryTimer: NodeJS.Timeout | null = null;
   private processorRunning = false;
@@ -36,6 +36,13 @@ export class PdfJobsService {
     setImmediate(() => {
       this.ensureQueueRecovery().catch(() => undefined);
     });
+  }
+
+  onModuleDestroy(): void {
+    if (this.queueRecoveryTimer) {
+      clearTimeout(this.queueRecoveryTimer);
+      this.queueRecoveryTimer = null;
+    }
   }
 
   private async findDocumentOrThrow(id: string) {
