@@ -443,7 +443,9 @@ describe("DocumentsRepository", () => {
 
       await repository.deleteDocument(mockDocument.id);
 
-      expect(documentRepository.delete).toHaveBeenCalledWith({ id: mockDocument.id });
+      expect(documentRepository.delete).toHaveBeenCalledWith({
+        id: mockDocument.id,
+      });
     });
 
     it("deve gestire cancellazione di documento inesistente", async () => {
@@ -454,7 +456,9 @@ describe("DocumentsRepository", () => {
 
       await repository.deleteDocument("non-existent");
 
-      expect(documentRepository.delete).toHaveBeenCalledWith({ id: "non-existent" });
+      expect(documentRepository.delete).toHaveBeenCalledWith({
+        id: "non-existent",
+      });
     });
   });
 
@@ -513,7 +517,9 @@ describe("DocumentsRepository", () => {
       expect(mockManager.update).toHaveBeenCalled();
 
       await repository.deleteDocument(created.id);
-      expect(documentRepository.delete).toHaveBeenCalledWith({ id: created.id });
+      expect(documentRepository.delete).toHaveBeenCalledWith({
+        id: created.id,
+      });
     });
 
     it("deve gestire errori in qualsiasi fase del CRUD", async () => {

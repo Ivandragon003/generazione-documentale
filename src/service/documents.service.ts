@@ -103,7 +103,8 @@ export class DocumentsService {
         id,
         name: resolvedName,
         content: content !== undefined ? content : existing.content,
-        fieldValues: fieldValues !== undefined ? fieldValues : existing.field_values,
+        fieldValues:
+          fieldValues !== undefined ? fieldValues : existing.field_values,
       }),
     );
   }

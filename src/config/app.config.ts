@@ -20,9 +20,7 @@ const readPositiveInt = (
   if (Number.isInteger(parsed) && parsed >= min) {
     return parsed;
   }
-  logger.warn(
-    `${varName}="${rawValue}" non valido, uso default ${fallback}`,
-  );
+  logger.warn(`${varName}="${rawValue}" non valido, uso default ${fallback}`);
   return fallback;
 };
 

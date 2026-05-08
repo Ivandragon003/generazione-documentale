@@ -204,8 +204,7 @@ const buildPdfConfig = (): PdfConfig => {
 
   if (warnings.length > 0) {
     logger.warn(
-      "Avvisi configurazione PDF:\n" +
-        warnings.map((w) => `  ${w}`).join("\n"),
+      "Avvisi configurazione PDF:\n" + warnings.map((w) => `  ${w}`).join("\n"),
     );
   }
 

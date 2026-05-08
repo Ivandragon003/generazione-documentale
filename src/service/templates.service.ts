@@ -214,7 +214,14 @@ export class TemplatesService {
 
   async update(
     id: string,
-    { section_id, name, description, content, fields, status }: UpdateTemplateInput,
+    {
+      section_id,
+      name,
+      description,
+      content,
+      fields,
+      status,
+    }: UpdateTemplateInput,
   ) {
     const existing = await this.findOneOrThrow(id);
     if (section_id !== undefined && section_id !== null) {
@@ -243,7 +250,9 @@ export class TemplatesService {
         this.templatesRepository.updateTemplate(manager, {
           id,
           sectionId:
-            section_id === undefined ? existing.section_id : (section_id ?? null),
+            section_id === undefined
+              ? existing.section_id
+              : (section_id ?? null),
           name: name?.trim() || existing.name,
           description: description ?? existing.description,
           contentPath,
