@@ -92,7 +92,10 @@ describe("DTO Validation", () => {
       it("deve rifiutare name vuoto come string", async () => {
         // @IsString() accetta stringhe vuote — il rifiuto avviene nella logica di business
         expect(
-          await validateDto(CreateDocumentDto, { name: "", templateId: VALID_UUID }),
+          await validateDto(CreateDocumentDto, {
+            name: "",
+            templateId: VALID_UUID,
+          }),
         ).toEqual([]);
       });
 
@@ -144,7 +147,9 @@ describe("DTO Validation", () => {
 
       it("deve accettare solo fieldValues", async () => {
         expect(
-          await validateDto(UpdateDocumentDto, { fieldValues: { titolo: "Test" } }),
+          await validateDto(UpdateDocumentDto, {
+            fieldValues: { titolo: "Test" },
+          }),
         ).toEqual([]);
       });
 
@@ -202,7 +207,12 @@ describe("DTO Validation", () => {
       it("deve gestire fieldValues con tipi misti", async () => {
         expect(
           await validateDto(UpdateDocumentDto, {
-            fieldValues: { string: "text", number: 123, boolean: true, null: null },
+            fieldValues: {
+              string: "text",
+              number: 123,
+              boolean: true,
+              null: null,
+            },
           }),
         ).toEqual([]);
       });
@@ -213,26 +223,32 @@ describe("DTO Validation", () => {
             .fill(0)
             .map((_, i) => [`campo${i}`, `value${i}`]),
         );
-        expect(await validateDto(UpdateDocumentDto, { fieldValues })).toEqual([]);
+        expect(await validateDto(UpdateDocumentDto, { fieldValues })).toEqual(
+          [],
+        );
       });
 
       it("deve accettare content molto lungo", async () => {
         expect(
           await validateDto(UpdateDocumentDto, {
-            content: "# Content\n" + "Paragrafo\n".repeat(10000),
+            content: `# Content\n${"Paragrafo\n".repeat(10000)}`,
           }),
         ).toEqual([]);
       });
 
       it("deve accettare content vuoto", async () => {
-        expect(await validateDto(UpdateDocumentDto, { content: "" })).toEqual([]);
+        expect(await validateDto(UpdateDocumentDto, { content: "" })).toEqual(
+          [],
+        );
       });
     });
 
     describe("Failure modes", () => {
       it("deve gestire undefined come undefined", async () => {
         // undefined su campo optional va bene
-        expect(await validateDto(UpdateDocumentDto, { name: undefined })).toEqual([]);
+        expect(
+          await validateDto(UpdateDocumentDto, { name: undefined }),
+        ).toEqual([]);
       });
 
       it("deve rifiutare proprieta aggiuntive non dichiarate", async () => {
@@ -301,7 +317,9 @@ describe("DTO Validation", () => {
       });
 
       it("deve rifiutare name mancante", async () => {
-        const errors = await validateDto(CreateTemplateDto, { content: "Content" });
+        const errors = await validateDto(CreateTemplateDto, {
+          content: "Content",
+        });
         expect(errors.length).toBeGreaterThan(0);
       });
 

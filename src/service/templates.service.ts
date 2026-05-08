@@ -77,14 +77,6 @@ export class TemplatesService {
     }
   }
 
-  private async writeTemplateContent(
-    contentPath: string,
-    content: string,
-  ): Promise<void> {
-    await mkdir(TEMPLATES_STORAGE_PATH, { recursive: true });
-    await writeFile(this.templateFilePath(contentPath), content, "utf8");
-  }
-
   private async deleteTemplateContent(
     contentPath: string | null,
   ): Promise<void> {

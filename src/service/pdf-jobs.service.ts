@@ -1,5 +1,5 @@
 import { pipeline } from "node:stream/promises";
-import { Inject, Injectable, OnModuleDestroy } from "@nestjs/common";
+import { Inject, Injectable, type OnModuleDestroy } from "@nestjs/common";
 import type { Response } from "express";
 import { makeError } from "../common/utils/errors";
 import { appConfig } from "../config/app.config";

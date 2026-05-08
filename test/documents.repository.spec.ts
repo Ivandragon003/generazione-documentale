@@ -25,7 +25,7 @@ function makeMockManager(
 describe("DocumentsRepository", () => {
   let repository: DocumentsRepository;
   let documentRepository: jest.Mocked<Repository<DocumentEntity>>;
-  let pdfJobRepository: jest.Mocked<Repository<PdfJobEntity>>;
+  let _pdfJobRepository: jest.Mocked<Repository<PdfJobEntity>>;
 
   const mockDocument: DocumentEntity = {
     id: "123e4567-e89b-12d3-a456-426614174000",
@@ -70,7 +70,7 @@ describe("DocumentsRepository", () => {
     documentRepository = module.get(
       getRepositoryToken(DocumentEntity),
     ) as jest.Mocked<Repository<DocumentEntity>>;
-    pdfJobRepository = module.get(
+    _pdfJobRepository = module.get(
       getRepositoryToken(PdfJobEntity),
     ) as jest.Mocked<Repository<PdfJobEntity>>;
   });
@@ -329,7 +329,9 @@ describe("DocumentsRepository", () => {
     it("deve gestire errori di database durante save", async () => {
       const manager = makeMockManager({
         create: jest.fn().mockReturnValue(mockDocument),
-        save: jest.fn().mockRejectedValue(new Error("Unique constraint violation")),
+        save: jest
+          .fn()
+          .mockRejectedValue(new Error("Unique constraint violation")),
       });
 
       await expect(
@@ -458,7 +460,10 @@ describe("DocumentsRepository", () => {
         raw: [],
       } satisfies DeleteResult);
 
-      const created = await repository.insertDocument(manager, baseInsertPayload);
+      const created = await repository.insertDocument(
+        manager,
+        baseInsertPayload,
+      );
       expect(created).toBeDefined();
 
       const found = await repository.findById(created.id);
