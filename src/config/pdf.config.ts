@@ -92,7 +92,7 @@ const validatePositiveInt = (
   fallback: number,
   min = 1,
 ): { value: number; error?: ValidationError } => {
-  const parsed = Number.parseInt(raw ?? "", 10);
+  const parsed = Math.round(Number.parseFloat(raw ?? ""));
   if (Number.isInteger(parsed) && parsed >= min) return { value: parsed };
   return {
     value: fallback,

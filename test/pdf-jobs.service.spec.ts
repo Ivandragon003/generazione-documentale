@@ -33,7 +33,7 @@ const makeJob = (overrides: Partial<PdfJobEntity> = {}): PdfJobEntity => ({
   document_id: VALID_DOC_UUID,
   status: "queued",
   filename: null,
-  actor: "system",
+  requested_by: "system",
   error_message: null,
   unresolved_fields: [],
   created_at: new Date(),
