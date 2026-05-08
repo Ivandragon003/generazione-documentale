@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
 import type { DataSource } from "typeorm";
 import { makeError } from "../common/utils/errors";
+import { assertUuid } from "../common/utils/http.utils";
 import { DocumentsRepository } from "../repository/documents.repository";
 import { PdfJobsService } from "./pdf-jobs.service";
 import { TemplatesService } from "./templates.service";
@@ -66,13 +67,15 @@ export class DocumentsService {
     if (!name || name.trim().length === 0) {
       throw makeError("Il nome documento e obbligatorio", 400);
     }
+    assertUuid(templateId, "templateId");
     const template = await this.templatesService.findOne(templateId);
     if (!template) throw makeError("Template non trovato", 404);
     return this.dataSource.transaction(async (manager) =>
-      this.documentsRepository.insertDocument(manager, {
+      this.documentsRepository.createDocument(manager, {
         name: name.trim(),
         templateId,
         content: template.content,
+        fieldValues: {},
         createdBy: created_by,
       }),
     );
@@ -83,28 +86,18 @@ export class DocumentsService {
     { name, content, fieldValues }: UpdateDocumentInput,
   ) {
     const existing = await this.findOneOrThrow(id);
-    if (
-      fieldValues !== undefined &&
-      (fieldValues === null || Array.isArray(fieldValues))
-    ) {
-      throw makeError("fieldValues deve essere un oggetto", 400);
-    }
-    const nextContent = content ?? existing.content;
-    const nextFieldValues = fieldValues ?? existing.field_values;
     return this.dataSource.transaction(async (manager) =>
       this.documentsRepository.updateDocument(manager, {
         id,
-        name: name?.trim() || existing.name,
-        content: nextContent,
-        fieldValues: nextFieldValues,
+        name: name?.trim() ?? existing.name,
+        content: content ?? existing.content,
+        fieldValues: fieldValues ?? existing.field_values,
       }),
     );
   }
 
   async delete(id: string) {
     await this.findOneOrThrow(id);
-    await this.documentsRepository.deleteDocument(id);
-    await this.pdfJobsService.deleteGeneratedPdfsForDocument(id);
-    return { deleted: true };
+    return this.documentsRepository.deleteDocument(id);
   }
 }

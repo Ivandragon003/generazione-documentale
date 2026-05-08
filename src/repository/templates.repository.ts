@@ -31,6 +31,7 @@ interface UpdateTemplatePayload {
   description: string | null;
   contentPath: string;
   fields: FieldDefinition[];
+  status: "draft" | "published";
 }
 
 @Injectable()
@@ -55,7 +56,8 @@ export class TemplatesRepository {
       qb.andWhere("template.section_id = :sectionId", { sectionId });
     }
     if (categoryId) {
-      qb.innerJoin("sections", "section", "section.id = template.section_id");
+      // JOIN sicuro: usa la relazione TypeORM invece di stringa raw
+      qb.innerJoin("template.section", "section");
       qb.andWhere("section.category_id = :categoryId", { categoryId });
     }
     return qb;
@@ -114,6 +116,7 @@ export class TemplatesRepository {
         description: payload.description,
         content_path: payload.contentPath,
         fields: payload.fields,
+        status: payload.status,
       },
     );
     const updated = await manager.findOne(TemplateEntity, {

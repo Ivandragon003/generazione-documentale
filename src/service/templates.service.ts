@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
@@ -31,6 +31,7 @@ export interface UpdateTemplateInput {
   description?: string;
   content?: string;
   fields?: PartialFieldDefinition[];
+  status?: "draft" | "published";
 }
 
 const MAX_TEMPLATE_CONTENT_BYTES = appConfig.maxTemplateContentBytes;
@@ -177,7 +178,11 @@ export class TemplatesService {
       fields,
     );
     const contentPath = this.toStorageFilename(id);
-    await this.writeTemplateContent(contentPath, content);
+    // Scrivi prima in un file temporaneo, poi rinomina atomicamente
+    // solo dopo che la transazione DB e andata a buon fine
+    const tmpPath = `${contentPath}.tmp`;
+    await mkdir(TEMPLATES_STORAGE_PATH, { recursive: true });
+    await writeFile(this.templateFilePath(tmpPath), content, "utf8");
     try {
       const template = await this.dataSource.transaction(async (manager) =>
         this.templatesRepository.insertTemplate(manager, {
@@ -190,16 +195,22 @@ export class TemplatesService {
           createdBy: created_by,
         }),
       );
+      // DB ok -> promuovi il file temporaneo al percorso definitivo
+      await rename(
+        this.templateFilePath(tmpPath),
+        this.templateFilePath(contentPath),
+      );
       return this.hydrateContent(template);
     } catch (error) {
-      await this.deleteTemplateContent(contentPath);
+      // DB fallito -> elimina il file temporaneo
+      await unlink(this.templateFilePath(tmpPath)).catch(() => undefined);
       throw error;
     }
   }
 
   async update(
     id: string,
-    { section_id, name, description, content, fields }: UpdateTemplateInput,
+    { section_id, name, description, content, fields, status }: UpdateTemplateInput,
   ) {
     const existing = await this.findOneOrThrow(id);
     if (section_id !== undefined && section_id !== null) {
@@ -227,6 +238,7 @@ export class TemplatesService {
         description: description ?? existing.description,
         contentPath,
         fields: nextFields,
+        status: status ?? existing.status,
       }),
     );
     return this.hydrateContent(updated);

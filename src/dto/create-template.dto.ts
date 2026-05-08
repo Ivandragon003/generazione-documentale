@@ -1,40 +1,52 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Type } from "class-transformer";
 import {
   IsArray,
+  IsIn,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
-  ValidateNested,
+  MaxLength,
 } from "class-validator";
-import { TemplateFieldDto } from "./template-field.dto";
+import type { PartialFieldDefinition } from "../common/utils/markdown.utils";
 
 export class CreateTemplateDto {
-  @ApiPropertyOptional({
-    format: "uuid",
-    description: "ID sezione esistente (recuperabile da elenco sezioni)",
-  })
+  @ApiPropertyOptional({ description: "UUID della sezione", format: "uuid" })
   @IsOptional()
   @IsUUID()
   sectionId?: string;
 
-  @ApiProperty({ example: "Template Contratto" })
+  @ApiProperty({ description: "Nome del template", maxLength: 255 })
+  @IsNotEmpty()
   @IsString()
+  @MaxLength(255)
   name!: string;
 
-  @ApiPropertyOptional({ example: "Template base per contratti" })
+  @ApiPropertyOptional({ description: "Descrizione del template" })
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiProperty({ example: "# {{titolo}}\n\nCliente: {{cliente}}" })
+  @ApiProperty({ description: "Contenuto Markdown del template" })
+  @IsNotEmpty()
   @IsString()
   content!: string;
 
-  @ApiPropertyOptional({ type: () => [TemplateFieldDto] })
+  @ApiPropertyOptional({
+    description: "Definizioni dei campi",
+    type: "array",
+    items: { type: "object" },
+  })
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => TemplateFieldDto)
-  fields?: TemplateFieldDto[];
+  fields?: PartialFieldDefinition[];
+
+  @ApiPropertyOptional({
+    description: "Stato del template",
+    enum: ["draft", "published"],
+    default: "draft",
+  })
+  @IsOptional()
+  @IsIn(["draft", "published"])
+  status?: "draft" | "published";
 }
