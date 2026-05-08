@@ -5,154 +5,120 @@ import { CreateTemplateDto } from "../src/dto/create-template.dto";
 import { UpdateDocumentDto } from "../src/dto/update-document.dto";
 import { UpdateTemplateDto } from "../src/dto/update-template.dto";
 
+// Helper: riduce il pattern plainToClass + validate ripetuto in ogni test
+async function validateDto<T extends object>(
+  cls: new (...args: unknown[]) => T,
+  data: Record<string, unknown>,
+) {
+  return validate(plainToClass(cls, data));
+}
+
 describe("DTO Validation", () => {
   describe("CreateDocumentDto", () => {
+    const VALID_UUID = "550e8400-e29b-41d4-a716-446655440000";
+    const validBase = { name: "Test Document", templateId: VALID_UUID };
+
     describe("Black-box tests", () => {
       it("deve accettare input valido", async () => {
-        const dto = plainToClass(CreateDocumentDto, {
-          name: "Test Document",
-          templateId: "550e8400-e29b-41d4-a716-446655440000",
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(await validateDto(CreateDocumentDto, validBase)).toEqual([]);
       });
 
       it("deve rifiutare name non string", async () => {
-        const dto = plainToClass(CreateDocumentDto, {
+        const errors = await validateDto(CreateDocumentDto, {
+          ...validBase,
           name: 123,
-          templateId: "550e8400-e29b-41d4-a716-446655440000",
         });
-
-        const errors = await validate(dto);
-
         expect(errors.length).toBeGreaterThan(0);
         expect(errors[0].property).toBe("name");
       });
 
       it("deve rifiutare name mancante", async () => {
-        const dto = plainToClass(CreateDocumentDto, {
-          templateId: "550e8400-e29b-41d4-a716-446655440000",
+        const errors = await validateDto(CreateDocumentDto, {
+          templateId: VALID_UUID,
         });
-
-        const errors = await validate(dto);
-
         expect(errors.length).toBeGreaterThan(0);
       });
 
       it("deve rifiutare templateId non UUID", async () => {
-        const dto = plainToClass(CreateDocumentDto, {
+        const errors = await validateDto(CreateDocumentDto, {
           name: "Test",
           templateId: "not-a-uuid",
         });
-
-        const errors = await validate(dto);
-
         expect(errors.length).toBeGreaterThan(0);
         expect(errors[0].property).toBe("templateId");
       });
 
       it("deve rifiutare templateId mancante", async () => {
-        const dto = plainToClass(CreateDocumentDto, {
-          name: "Test",
-        });
-
-        const errors = await validate(dto);
-
+        const errors = await validateDto(CreateDocumentDto, { name: "Test" });
         expect(errors.length).toBeGreaterThan(0);
       });
 
       it("deve rifiutare templateId non string", async () => {
-        const dto = plainToClass(CreateDocumentDto, {
+        const errors = await validateDto(CreateDocumentDto, {
           name: "Test",
           templateId: 123,
         });
-
-        const errors = await validate(dto);
-
         expect(errors.length).toBeGreaterThan(0);
       });
 
       it("deve accettare UUID in maiuscolo", async () => {
-        const dto = plainToClass(CreateDocumentDto, {
-          name: "Test",
-          templateId: "550E8400-E29B-41D4-A716-446655440000",
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(CreateDocumentDto, {
+            name: "Test",
+            templateId: "550E8400-E29B-41D4-A716-446655440000",
+          }),
+        ).toEqual([]);
       });
 
       it("deve rifiutare UUID con formato errato", async () => {
-        const dto = plainToClass(CreateDocumentDto, {
+        const errors = await validateDto(CreateDocumentDto, {
           name: "Test",
           templateId: "550e8400e29b41d4a716446655440000",
         });
-
-        const errors = await validate(dto);
-
         expect(errors.length).toBeGreaterThan(0);
       });
     });
 
     describe("Boundary cases", () => {
       it("deve accettare name molto lungo", async () => {
-        const dto = plainToClass(CreateDocumentDto, {
-          name: "A".repeat(10000),
-          templateId: "550e8400-e29b-41d4-a716-446655440000",
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(CreateDocumentDto, {
+            name: "A".repeat(10000),
+            templateId: VALID_UUID,
+          }),
+        ).toEqual([]);
       });
 
       it("deve rifiutare name vuoto come string", async () => {
-        // La validazione @IsString() accetta stringhe vuote
-        // Ma il servizio le rifiuta in logica di business
-        const dto = plainToClass(CreateDocumentDto, {
-          name: "",
-          templateId: "550e8400-e29b-41d4-a716-446655440000",
-        });
-
-        const errors = await validate(dto);
-
-        // IsString accetta, quindi niente errori DTO
-        expect(errors).toEqual([]);
+        // @IsString() accetta stringhe vuote — il rifiuto avviene nella logica di business
+        expect(
+          await validateDto(CreateDocumentDto, { name: "", templateId: VALID_UUID }),
+        ).toEqual([]);
       });
 
       it("deve gestire nome con spazi", async () => {
-        const dto = plainToClass(CreateDocumentDto, {
-          name: "  Nome con spazi  ",
-          templateId: "550e8400-e29b-41d4-a716-446655440000",
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(CreateDocumentDto, {
+            name: "  Nome con spazi  ",
+            templateId: VALID_UUID,
+          }),
+        ).toEqual([]);
       });
 
       it("deve gestire nome con caratteri speciali", async () => {
-        const dto = plainToClass(CreateDocumentDto, {
-          name: "Documento @#$% & speciale",
-          templateId: "550e8400-e29b-41d4-a716-446655440000",
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(CreateDocumentDto, {
+            name: "Documento @#$% & speciale",
+            templateId: VALID_UUID,
+          }),
+        ).toEqual([]);
       });
 
       it("deve gestire null nel nome", async () => {
-        const dto = plainToClass(CreateDocumentDto, {
+        const errors = await validateDto(CreateDocumentDto, {
           name: null,
-          templateId: "550e8400-e29b-41d4-a716-446655440000",
+          templateId: VALID_UUID,
         });
-
-        const errors = await validate(dto);
-
         expect(errors.length).toBeGreaterThan(0);
       });
     });
@@ -161,192 +127,122 @@ describe("DTO Validation", () => {
   describe("UpdateDocumentDto", () => {
     describe("Black-box tests", () => {
       it("deve accettare input vuoto", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {});
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(await validateDto(UpdateDocumentDto, {})).toEqual([]);
       });
 
       it("deve accettare solo name", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
-          name: "Updated Name",
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(UpdateDocumentDto, { name: "Updated Name" }),
+        ).toEqual([]);
       });
 
       it("deve accettare solo content", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
-          content: "# New Content",
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(UpdateDocumentDto, { content: "# New Content" }),
+        ).toEqual([]);
       });
 
       it("deve accettare solo fieldValues", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
-          fieldValues: { titolo: "Test" },
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(UpdateDocumentDto, { fieldValues: { titolo: "Test" } }),
+        ).toEqual([]);
       });
 
       it("deve accettare tutti i campi", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
-          name: "Updated",
-          content: "# Content",
-          fieldValues: { titolo: "Test", importo: 1000 },
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(UpdateDocumentDto, {
+            name: "Updated",
+            content: "# Content",
+            fieldValues: { titolo: "Test", importo: 1000 },
+          }),
+        ).toEqual([]);
       });
 
       it("deve rifiutare name non string", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
-          name: 123,
-        });
-
-        const errors = await validate(dto);
-
+        const errors = await validateDto(UpdateDocumentDto, { name: 123 });
         expect(errors.length).toBeGreaterThan(0);
       });
 
       it("deve rifiutare content non string", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
-          content: 123,
-        });
-
-        const errors = await validate(dto);
-
+        const errors = await validateDto(UpdateDocumentDto, { content: 123 });
         expect(errors.length).toBeGreaterThan(0);
       });
 
       it("deve rifiutare fieldValues non object", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
+        const errors = await validateDto(UpdateDocumentDto, {
           fieldValues: "not an object",
         });
-
-        const errors = await validate(dto);
-
         expect(errors.length).toBeGreaterThan(0);
       });
 
       it("deve rifiutare fieldValues come array", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
+        const errors = await validateDto(UpdateDocumentDto, {
           fieldValues: ["item1", "item2"],
         });
-
-        const errors = await validate(dto);
-
         expect(errors.length).toBeGreaterThan(0);
       });
 
       it("deve accettare fieldValues vuoto", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
-          fieldValues: {},
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(UpdateDocumentDto, { fieldValues: {} }),
+        ).toEqual([]);
       });
     });
 
     describe("Boundary cases", () => {
       it("deve gestire fieldValues con null values", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
-          fieldValues: { titolo: null, cliente: "Test" },
-        });
-
-        const errors = await validate(dto);
-
         // @IsObject accetta oggetti con valori null
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(UpdateDocumentDto, {
+            fieldValues: { titolo: null, cliente: "Test" },
+          }),
+        ).toEqual([]);
       });
 
       it("deve gestire fieldValues con tipi misti", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
-          fieldValues: {
-            string: "text",
-            number: 123,
-            boolean: true,
-            null: null,
-          },
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(UpdateDocumentDto, {
+            fieldValues: { string: "text", number: 123, boolean: true, null: null },
+          }),
+        ).toEqual([]);
       });
 
-      it("deve accettare fieldValues con molte proprietà", async () => {
+      it("deve accettare fieldValues con molte proprieta", async () => {
         const fieldValues = Object.fromEntries(
           Array(100)
             .fill(0)
             .map((_, i) => [`campo${i}`, `value${i}`]),
         );
-
-        const dto = plainToClass(UpdateDocumentDto, {
-          fieldValues,
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(await validateDto(UpdateDocumentDto, { fieldValues })).toEqual([]);
       });
 
       it("deve accettare content molto lungo", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
-          content: "# Content\n" + "Paragrafo\n".repeat(10000),
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(UpdateDocumentDto, {
+            content: "# Content\n" + "Paragrafo\n".repeat(10000),
+          }),
+        ).toEqual([]);
       });
 
       it("deve accettare content vuoto", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
-          content: "",
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(await validateDto(UpdateDocumentDto, { content: "" })).toEqual([]);
       });
     });
 
     describe("Failure modes", () => {
       it("deve gestire undefined come undefined", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
-          name: undefined,
-        });
-
-        const errors = await validate(dto);
-
-        // undefined su campo optional dovrebbe andare bene
-        expect(errors).toEqual([]);
+        // undefined su campo optional va bene
+        expect(await validateDto(UpdateDocumentDto, { name: undefined })).toEqual([]);
       });
 
       it("deve rifiutare proprieta aggiuntive non dichiarate", async () => {
-        const dto = plainToClass(UpdateDocumentDto, {
-          name: "Test",
-          invalidField: "should be ignored or validated",
-        });
-
-        const errors = await validate(dto);
-
         // class-validator non valida proprieta extra
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(UpdateDocumentDto, {
+            name: "Test",
+            invalidField: "should be ignored or validated",
+          }),
+        ).toEqual([]);
       });
     });
   });
@@ -354,139 +250,109 @@ describe("DTO Validation", () => {
   describe("CreateTemplateDto and UpdateTemplateDto", () => {
     describe("CreateTemplateDto", () => {
       it("deve accettare input valido minimo", async () => {
-        const dto = plainToClass(CreateTemplateDto, {
-          name: "Test Template",
-          content: "# {{titolo}}",
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(CreateTemplateDto, {
+            name: "Test Template",
+            content: "# {{titolo}}",
+          }),
+        ).toEqual([]);
       });
 
       it("deve accettare input con section_id", async () => {
-        const dto = plainToClass(CreateTemplateDto, {
-          name: "Test",
-          content: "# Content",
-          section_id: "550e8400-e29b-41d4-a716-446655440000",
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(CreateTemplateDto, {
+            name: "Test",
+            content: "# Content",
+            section_id: "550e8400-e29b-41d4-a716-446655440000",
+          }),
+        ).toEqual([]);
       });
 
       it("deve accettare input con fields", async () => {
-        const dto = plainToClass(CreateTemplateDto, {
-          name: "Test",
-          content: "# {{titolo}}",
-          fields: [
-            { name: "titolo", label: "Titolo", type: "text", required: true },
-          ],
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(CreateTemplateDto, {
+            name: "Test",
+            content: "# {{titolo}}",
+            fields: [
+              { name: "titolo", label: "Titolo", type: "text", required: true },
+            ],
+          }),
+        ).toEqual([]);
       });
 
       it("deve accettare input con description", async () => {
-        const dto = plainToClass(CreateTemplateDto, {
-          name: "Test",
-          content: "Content",
-          description: "Una descrizione di prova",
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(CreateTemplateDto, {
+            name: "Test",
+            content: "Content",
+            description: "Una descrizione di prova",
+          }),
+        ).toEqual([]);
       });
 
       it("deve accettare input con created_by", async () => {
-        const dto = plainToClass(CreateTemplateDto, {
-          name: "Test",
-          content: "Content",
-          created_by: "user@example.com",
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(CreateTemplateDto, {
+            name: "Test",
+            content: "Content",
+            created_by: "user@example.com",
+          }),
+        ).toEqual([]);
       });
 
       it("deve rifiutare name mancante", async () => {
-        const dto = plainToClass(CreateTemplateDto, {
-          content: "Content",
-        });
-
-        const errors = await validate(dto);
-
+        const errors = await validateDto(CreateTemplateDto, { content: "Content" });
         expect(errors.length).toBeGreaterThan(0);
       });
 
       it("deve rifiutare content mancante", async () => {
-        const dto = plainToClass(CreateTemplateDto, {
-          name: "Test",
-        });
-
-        const errors = await validate(dto);
-
+        const errors = await validateDto(CreateTemplateDto, { name: "Test" });
         expect(errors.length).toBeGreaterThan(0);
       });
     });
 
     describe("UpdateTemplateDto", () => {
       it("deve accettare input vuoto", async () => {
-        const dto = plainToClass(UpdateTemplateDto, {});
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(await validateDto(UpdateTemplateDto, {})).toEqual([]);
       });
 
       it("deve accettare section_id null", async () => {
-        const dto = plainToClass(UpdateTemplateDto, {
-          section_id: null,
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(UpdateTemplateDto, { section_id: null }),
+        ).toEqual([]);
       });
 
       it("deve accettare qualsiasi combinazione di campi", async () => {
-        const dto = plainToClass(UpdateTemplateDto, {
-          name: "Updated",
-          description: "Updated description",
-          content: "# Updated",
-          fields: [{ name: "field1" }],
-        });
-
-        const errors = await validate(dto);
-
-        expect(errors).toEqual([]);
+        expect(
+          await validateDto(UpdateTemplateDto, {
+            name: "Updated",
+            description: "Updated description",
+            content: "# Updated",
+            fields: [{ name: "field1" }],
+          }),
+        ).toEqual([]);
       });
     });
   });
 
   describe("Integration - Flusso validazione completo", () => {
     it("deve validare un workflow di creazione e update", async () => {
-      // Create
-      const createDto = plainToClass(CreateDocumentDto, {
-        name: "New Document",
-        templateId: "550e8400-e29b-41d4-a716-446655440000",
-      });
-      const createErrors = await validate(createDto);
-      expect(createErrors).toEqual([]);
+      const VALID_UUID = "550e8400-e29b-41d4-a716-446655440000";
 
-      // Update
-      const updateDto = plainToClass(UpdateDocumentDto, {
-        name: "Updated Document",
-        content: "# New content",
-        fieldValues: { titolo: "Test", cliente: "Mario" },
-      });
-      const updateErrors = await validate(updateDto);
-      expect(updateErrors).toEqual([]);
+      expect(
+        await validateDto(CreateDocumentDto, {
+          name: "New Document",
+          templateId: VALID_UUID,
+        }),
+      ).toEqual([]);
+
+      expect(
+        await validateDto(UpdateDocumentDto, {
+          name: "Updated Document",
+          content: "# New content",
+          fieldValues: { titolo: "Test", cliente: "Mario" },
+        }),
+      ).toEqual([]);
     });
 
     it("deve rifiutare dati non validi in sequenza", async () => {
@@ -497,8 +363,10 @@ describe("DTO Validation", () => {
       ];
 
       for (const data of invalidDatas) {
-        const dto = plainToClass(CreateDocumentDto, data);
-        const errors = await validate(dto);
+        const errors = await validateDto(
+          CreateDocumentDto,
+          data as Record<string, unknown>,
+        );
         expect(errors.length).toBeGreaterThan(0);
       }
     });

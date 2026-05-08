@@ -5,6 +5,23 @@ import { DocumentEntity } from "../src/entities/document.entity";
 import { PdfJobEntity } from "../src/entities/pdf-job.entity";
 import { DocumentsRepository } from "../src/repository/documents.repository";
 
+// Factory: riduce i blocchi mockManager duplicati in ogni test
+function makeMockManager(
+  overrides: Partial<{
+    create: jest.Mock;
+    save: jest.Mock;
+    update: jest.Mock;
+    findOne: jest.Mock;
+  }> = {},
+): EntityManager {
+  return {
+    create: overrides.create ?? jest.fn(),
+    save: overrides.save ?? jest.fn(),
+    update: overrides.update ?? jest.fn(),
+    findOne: overrides.findOne ?? jest.fn(),
+  } as unknown as EntityManager;
+}
+
 describe("DocumentsRepository", () => {
   let repository: DocumentsRepository;
   let documentRepository: jest.Mocked<Repository<DocumentEntity>>;
@@ -67,10 +84,7 @@ describe("DocumentsRepository", () => {
       const documents = [mockDocument, { ...mockDocument, id: "456" }];
       documentRepository.findAndCount.mockResolvedValue([documents, 2]);
 
-      const result = await repository.findAll({
-        limit: 20,
-        offset: 0,
-      });
+      const result = await repository.findAll({ limit: 20, offset: 0 });
 
       expect(result.data).toEqual(documents);
       expect(result.total).toBe(2);
@@ -98,25 +112,17 @@ describe("DocumentsRepository", () => {
     it("deve ordinare per updated_at descending", async () => {
       documentRepository.findAndCount.mockResolvedValue([[], 0]);
 
-      await repository.findAll({
-        limit: 20,
-        offset: 0,
-      });
+      await repository.findAll({ limit: 20, offset: 0 });
 
       expect(documentRepository.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          order: { updated_at: "DESC" },
-        }),
+        expect.objectContaining({ order: { updated_at: "DESC" } }),
       );
     });
 
     it("deve gestire lista vuota", async () => {
       documentRepository.findAndCount.mockResolvedValue([[], 0]);
 
-      const result = await repository.findAll({
-        limit: 20,
-        offset: 0,
-      });
+      const result = await repository.findAll({ limit: 20, offset: 0 });
 
       expect(result.data).toEqual([]);
       expect(result.total).toBe(0);
@@ -128,30 +134,20 @@ describe("DocumentsRepository", () => {
       const documents = Array(9999).fill(mockDocument);
       documentRepository.findAndCount.mockResolvedValue([documents, 9999]);
 
-      await repository.findAll({
-        limit: 9999,
-        offset: 0,
-      });
+      await repository.findAll({ limit: 9999, offset: 0 });
 
       expect(documentRepository.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          take: 9999,
-        }),
+        expect.objectContaining({ take: 9999 }),
       );
     });
 
     it("deve gestire offset oltre i risultati", async () => {
       documentRepository.findAndCount.mockResolvedValue([[], 50]);
 
-      const result = await repository.findAll({
-        limit: 20,
-        offset: 1000,
-      });
+      const result = await repository.findAll({ limit: 20, offset: 1000 });
 
       expect(documentRepository.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          skip: 1000,
-        }),
+        expect.objectContaining({ skip: 1000 }),
       );
       expect(result.data).toEqual([]);
     });
@@ -159,16 +155,10 @@ describe("DocumentsRepository", () => {
     it("deve applicare tutti gli status come where vuoto", async () => {
       documentRepository.findAndCount.mockResolvedValue([[mockDocument], 1]);
 
-      await repository.findAll({
-        status: undefined,
-        limit: 20,
-        offset: 0,
-      });
+      await repository.findAll({ status: undefined, limit: 20, offset: 0 });
 
       expect(documentRepository.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {},
-        }),
+        expect.objectContaining({ where: {} }),
       );
     });
   });
@@ -180,10 +170,7 @@ describe("DocumentsRepository", () => {
       );
 
       await expect(
-        repository.findAll({
-          limit: 20,
-          offset: 0,
-        }),
+        repository.findAll({ limit: 20, offset: 0 }),
       ).rejects.toThrow("Database connection failed");
     });
 
@@ -193,10 +180,7 @@ describe("DocumentsRepository", () => {
       );
 
       await expect(
-        repository.findAll({
-          limit: 20,
-          offset: 0,
-        }),
+        repository.findAll({ limit: 20, offset: 0 }),
       ).rejects.toThrow("Query timeout");
     });
   });
@@ -216,9 +200,7 @@ describe("DocumentsRepository", () => {
     it("deve ritornare null se non trovato", async () => {
       documentRepository.findOne.mockResolvedValue(null);
 
-      const result = await repository.findById("non-existent");
-
-      expect(result).toBeNull();
+      expect(await repository.findById("non-existent")).toBeNull();
     });
   });
 
@@ -235,12 +217,9 @@ describe("DocumentsRepository", () => {
     });
 
     it("deve gestire query di ID malformati", async () => {
-      const malformedId = "not-a-uuid";
       documentRepository.findOne.mockResolvedValue(null);
 
-      const result = await repository.findById(malformedId);
-
-      expect(result).toBeNull();
+      expect(await repository.findById("not-a-uuid")).toBeNull();
     });
   });
 
@@ -256,22 +235,28 @@ describe("DocumentsRepository", () => {
     });
   });
 
+  // Payload base per insertDocument riutilizzato piu volte
+  const baseInsertPayload = {
+    name: "Test",
+    templateId: "template-id",
+    content: "# Content",
+    createdBy: "system",
+  } as const;
+
   describe("insertDocument() - Black-box tests", () => {
     it("deve creare e salvare un documento", async () => {
-      const mockManager = {
+      const manager = makeMockManager({
         create: jest.fn().mockReturnValue(mockDocument),
         save: jest.fn().mockResolvedValue(mockDocument),
-      } as unknown as EntityManager;
+      });
 
-      const result = await repository.insertDocument(mockManager, {
-        name: "Test",
-        templateId: "template-id",
-        content: "# Content",
+      const result = await repository.insertDocument(manager, {
+        ...baseInsertPayload,
         createdBy: "user",
       });
 
       expect(result).toEqual(mockDocument);
-      expect(mockManager.create).toHaveBeenCalledWith(
+      expect(manager.create).toHaveBeenCalledWith(
         DocumentEntity,
         expect.objectContaining({
           name: "Test",
@@ -282,23 +267,18 @@ describe("DocumentsRepository", () => {
           field_values: {},
         }),
       );
-      expect(mockManager.save).toHaveBeenCalled();
+      expect(manager.save).toHaveBeenCalled();
     });
 
     it("deve gestire campi obbligatori", async () => {
-      const mockManager = {
+      const manager = makeMockManager({
         create: jest.fn().mockReturnValue(mockDocument),
         save: jest.fn().mockResolvedValue(mockDocument),
-      } as unknown as EntityManager;
-
-      await repository.insertDocument(mockManager, {
-        name: "Test",
-        templateId: "template-id",
-        content: "# Content",
-        createdBy: "system",
       });
 
-      expect(mockManager.create).toHaveBeenCalledWith(
+      await repository.insertDocument(manager, baseInsertPayload);
+
+      expect(manager.create).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
           name: "Test",
@@ -314,38 +294,31 @@ describe("DocumentsRepository", () => {
   describe("insertDocument() - Boundary cases", () => {
     it("deve gestire nomi molto lunghi", async () => {
       const longName = "A".repeat(500);
-      const mockManager = {
+      const manager = makeMockManager({
         create: jest.fn().mockReturnValue({ ...mockDocument, name: longName }),
         save: jest.fn().mockResolvedValue({ ...mockDocument, name: longName }),
-      } as unknown as EntityManager;
-
-      await repository.insertDocument(mockManager, {
-        name: longName,
-        templateId: "template-id",
-        content: "# Content",
-        createdBy: "system",
       });
 
-      expect(mockManager.create).toHaveBeenCalledWith(
+      await repository.insertDocument(manager, {
+        ...baseInsertPayload,
+        name: longName,
+      });
+
+      expect(manager.create).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({ name: longName }),
       );
     });
 
     it("deve inizializzare field_values come oggetto vuoto", async () => {
-      const mockManager = {
+      const manager = makeMockManager({
         create: jest.fn().mockReturnValue(mockDocument),
         save: jest.fn().mockResolvedValue(mockDocument),
-      } as unknown as EntityManager;
-
-      await repository.insertDocument(mockManager, {
-        name: "Test",
-        templateId: "template-id",
-        content: "# Content",
-        createdBy: "system",
       });
 
-      expect(mockManager.create).toHaveBeenCalledWith(
+      await repository.insertDocument(manager, baseInsertPayload);
+
+      expect(manager.create).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({ field_values: {} }),
       );
@@ -354,57 +327,45 @@ describe("DocumentsRepository", () => {
 
   describe("insertDocument() - Failure modes", () => {
     it("deve gestire errori di database durante save", async () => {
-      const mockManager = {
+      const manager = makeMockManager({
         create: jest.fn().mockReturnValue(mockDocument),
-        save: jest
-          .fn()
-          .mockRejectedValue(new Error("Unique constraint violation")),
-      } as unknown as EntityManager;
+        save: jest.fn().mockRejectedValue(new Error("Unique constraint violation")),
+      });
 
       await expect(
-        repository.insertDocument(mockManager, {
-          name: "Test",
-          templateId: "template-id",
-          content: "# Content",
-          createdBy: "system",
-        }),
+        repository.insertDocument(manager, baseInsertPayload),
       ).rejects.toThrow("Unique constraint violation");
     });
 
     it("deve gestire errori di creazione", async () => {
-      const mockManager = {
+      const manager = makeMockManager({
         create: jest.fn().mockImplementation(() => {
           throw new Error("Invalid entity");
         }),
         save: jest.fn(),
-      } as unknown as EntityManager;
+      });
 
       await expect(
-        repository.insertDocument(mockManager, {
-          name: "Test",
-          templateId: "template-id",
-          content: "# Content",
-          createdBy: "system",
-        }),
+        repository.insertDocument(manager, baseInsertPayload),
       ).rejects.toThrow("Invalid entity");
     });
   });
 
   describe("updateDocument() - Black-box tests", () => {
     it("deve aggiornare un documento", async () => {
-      const mockManager = {
+      const manager = makeMockManager({
         update: jest.fn().mockResolvedValue({}),
         findOne: jest.fn().mockResolvedValue(mockDocument),
-      } as unknown as EntityManager;
+      });
 
-      await repository.updateDocument(mockManager, {
+      await repository.updateDocument(manager, {
         id: mockDocument.id,
         name: "Updated",
         content: "# Updated",
         fieldValues: { titolo: "New" },
       });
 
-      expect(mockManager.update).toHaveBeenCalledWith(
+      expect(manager.update).toHaveBeenCalledWith(
         DocumentEntity,
         { id: mockDocument.id },
         expect.objectContaining({
@@ -418,13 +379,13 @@ describe("DocumentsRepository", () => {
 
   describe("updateDocument() - Failure modes", () => {
     it("deve gestire errori di database durante update", async () => {
-      const mockManager = {
+      const manager = makeMockManager({
         update: jest.fn().mockRejectedValue(new Error("Update failed")),
         findOne: jest.fn(),
-      } as unknown as EntityManager;
+      });
 
       await expect(
-        repository.updateDocument(mockManager, {
+        repository.updateDocument(manager, {
           id: mockDocument.id,
           name: "Updated",
           content: "# Content",
@@ -471,7 +432,7 @@ describe("DocumentsRepository", () => {
       );
     });
 
-    it("deve gestire vincoli di integrità referenziale", async () => {
+    it("deve gestire vincoli di integrita referenziale", async () => {
       documentRepository.delete.mockRejectedValue(
         new Error("Foreign key constraint violation"),
       );
@@ -484,12 +445,12 @@ describe("DocumentsRepository", () => {
 
   describe("Integration - Flusso completo CRUD", () => {
     it("deve eseguire un ciclo completo di create-read-update-delete", async () => {
-      const mockManager = {
+      const manager = makeMockManager({
         create: jest.fn().mockReturnValue(mockDocument),
         save: jest.fn().mockResolvedValue(mockDocument),
         update: jest.fn().mockResolvedValue({}),
         findOne: jest.fn().mockResolvedValue(mockDocument),
-      } as unknown as EntityManager;
+      });
 
       documentRepository.findOne.mockResolvedValue(mockDocument);
       documentRepository.delete.mockResolvedValue({
@@ -497,24 +458,19 @@ describe("DocumentsRepository", () => {
         raw: [],
       } satisfies DeleteResult);
 
-      const created = await repository.insertDocument(mockManager, {
-        name: "New",
-        templateId: "template-id",
-        content: "# Content",
-        createdBy: "system",
-      });
+      const created = await repository.insertDocument(manager, baseInsertPayload);
       expect(created).toBeDefined();
 
       const found = await repository.findById(created.id);
       expect(found).toEqual(mockDocument);
 
-      await repository.updateDocument(mockManager, {
+      await repository.updateDocument(manager, {
         id: created.id,
         name: "Updated",
         content: "# Updated",
         fieldValues: { titolo: "New" },
       });
-      expect(mockManager.update).toHaveBeenCalled();
+      expect(manager.update).toHaveBeenCalled();
 
       await repository.deleteDocument(created.id);
       expect(documentRepository.delete).toHaveBeenCalledWith({
@@ -523,33 +479,28 @@ describe("DocumentsRepository", () => {
     });
 
     it("deve gestire errori in qualsiasi fase del CRUD", async () => {
-      const mockManager = {
+      const manager = makeMockManager({
         create: jest.fn().mockReturnValue(mockDocument),
         save: jest.fn().mockRejectedValue(new Error("DB Error")),
-      } as unknown as EntityManager;
+      });
 
       await expect(
-        repository.insertDocument(mockManager, {
-          name: "Test",
-          templateId: "template-id",
-          content: "# Content",
-          createdBy: "system",
-        }),
+        repository.insertDocument(manager, baseInsertPayload),
       ).rejects.toThrow("DB Error");
     });
   });
 
   describe("Edge cases - Race conditions", () => {
     it("deve gestire multiple operazioni concorrenti su stesso ID", async () => {
-      const mockManager = {
+      const manager = makeMockManager({
         update: jest.fn().mockResolvedValue({}),
         findOne: jest.fn().mockResolvedValue(mockDocument),
-      } as unknown as EntityManager;
+      });
 
       const promises = Array(5)
         .fill(0)
         .map(() =>
-          repository.updateDocument(mockManager, {
+          repository.updateDocument(manager, {
             id: mockDocument.id,
             name: "Updated",
             content: "# Content",
@@ -559,7 +510,7 @@ describe("DocumentsRepository", () => {
 
       await Promise.all(promises);
 
-      expect(mockManager.update).toHaveBeenCalledTimes(5);
+      expect(manager.update).toHaveBeenCalledTimes(5);
     });
   });
 
@@ -572,24 +523,22 @@ describe("DocumentsRepository", () => {
         null: null,
       };
 
-      const mockManager = {
+      const manager = makeMockManager({
         update: jest.fn().mockResolvedValue({}),
         findOne: jest.fn().mockResolvedValue(mockDocument),
-      } as unknown as EntityManager;
+      });
 
-      await repository.updateDocument(mockManager, {
+      await repository.updateDocument(manager, {
         id: mockDocument.id,
         name: "Test",
         content: "# Content",
         fieldValues: complexFieldValues,
       });
 
-      expect(mockManager.update).toHaveBeenCalledWith(
+      expect(manager.update).toHaveBeenCalledWith(
         DocumentEntity,
         expect.anything(),
-        expect.objectContaining({
-          field_values: complexFieldValues,
-        }),
+        expect.objectContaining({ field_values: complexFieldValues }),
       );
     });
 
@@ -600,19 +549,19 @@ describe("DocumentsRepository", () => {
           .map((_, i) => [`campo${i}`, `value${i}`]),
       );
 
-      const mockManager = {
+      const manager = makeMockManager({
         update: jest.fn().mockResolvedValue({}),
         findOne: jest.fn().mockResolvedValue(mockDocument),
-      } as unknown as EntityManager;
+      });
 
-      await repository.updateDocument(mockManager, {
+      await repository.updateDocument(manager, {
         id: mockDocument.id,
         name: "Test",
         content: "# Content",
         fieldValues: largeFieldValues,
       });
 
-      expect(mockManager.update).toHaveBeenCalled();
+      expect(manager.update).toHaveBeenCalled();
     });
   });
 });
