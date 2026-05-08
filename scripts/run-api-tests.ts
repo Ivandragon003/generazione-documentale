@@ -1,4 +1,4 @@
-﻿import { config } from "dotenv";
+import { config } from "dotenv";
 
 config();
 
@@ -12,7 +12,8 @@ const API_ENDPOINT = `${BASE_URL}/api/dev/test-runs/execute`;
  * Sanitize log message to prevent log injection attacks.
  * Removes newline and carriage return characters.
  */
-const sanitizeLog = (text: string): string => text.replace(/[\n\r]/g, " ");
+const sanitizeLog = (text: string): string =>
+  text.replaceAll("\n", " ").replaceAll("\r", " ");
 
 const main = async (): Promise<void> => {
   const response = await fetch(API_ENDPOINT, {
@@ -25,9 +26,10 @@ const main = async (): Promise<void> => {
   // eslint-disable-next-line no-console
   console.log(sanitizeLog(JSON.stringify(body, null, 2)));
 
-  if (!response.ok || body.ok !== true) {
-    process.exit(1);
+  if (response.ok && body.ok === true) {
+    return;
   }
+  process.exit(1);
 };
 
 main().catch((error: unknown) => {

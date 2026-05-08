@@ -187,12 +187,12 @@ describe("DocumentRenderingService", () => {
     });
 
     it("deve gestire molti placeholder", () => {
-      const placeholders = Array(100)
+      const placeholders = new Array(100)
         .fill(0)
         .map((_, i) => `{{campo${i}}}`)
         .join(" ");
       const fieldValues = Object.fromEntries(
-        Array(100)
+        new Array(100)
           .fill(0)
           .map((_, i) => [`campo${i}`, `value${i}`]),
       );
@@ -423,7 +423,7 @@ describe("DocumentRenderingService", () => {
     });
 
     it("deve gestire molti campi obbligatori", () => {
-      const fields: FieldDefinition[] = Array(100)
+      const fields: FieldDefinition[] = new Array(100)
         .fill(0)
         .map((_, i) => ({
           name: `campo${i}`,
@@ -433,7 +433,7 @@ describe("DocumentRenderingService", () => {
           defaultValue: "",
         }));
       const fieldValues = Object.fromEntries(
-        Array(100)
+        new Array(100)
           .fill(0)
           .map((_, i) => (i % 2 !== 0 ? [`campo${i}`, `value${i}`] : []))
           .filter((x) => x.length > 0),
