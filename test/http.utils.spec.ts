@@ -482,11 +482,11 @@ describe("HTTP Utilities", () => {
 
   describe("Integration - Flusso completo pagination", () => {
     it("deve gestire un flusso di paginazione realistico", () => {
-      const results = [];
-
-      results.push(parsePagination({ limit: "20", offset: "0" }));
-      results.push(parsePagination({ limit: "20", offset: "20" }));
-      results.push(parsePagination({ limit: "20", offset: "40" }));
+      const results = [
+        parsePagination({ limit: "20", offset: "0" }),
+        parsePagination({ limit: "20", offset: "20" }),
+        parsePagination({ limit: "20", offset: "40" }),
+      ];
 
       expect(results[0].offset).toBe(0);
       expect(results[1].offset).toBe(20);

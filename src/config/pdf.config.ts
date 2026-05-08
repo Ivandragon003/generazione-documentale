@@ -53,17 +53,15 @@ const ALLOWED_ENGINES = ["xelatex", "lualatex", "pdflatex"] as const;
 const ALLOWED_PAPERS = ["a4", "a3", "a5", "letter", "legal"] as const;
 const ALLOWED_FONT_SIZES = ["9pt", "10pt", "11pt", "12pt", "14pt"] as const;
 const MARGIN_PATTERN = /^\d+(\.\d+)?(cm|mm|in|pt|em)$/;
-const LINE_STRETCH_MIN = 1.0;
-const LINE_STRETCH_MAX = 2.0;
-
-type ValidationError = string;
+const LINE_STRETCH_MIN = 1;
+const LINE_STRETCH_MAX = 2;
 
 const validateEnum = <T extends string>(
   value: string,
   allowed: readonly T[],
   varName: string,
   fallback: T,
-): { value: T; error?: ValidationError } => {
+): { value: T; error?: string } => {
   if ((allowed as readonly string[]).includes(value)) {
     return { value: value as T };
   }
@@ -77,7 +75,7 @@ const validateMargin = (
   raw: string | undefined,
   varName: string,
   fallback: string,
-): { value: string; error?: ValidationError } => {
+): { value: string; error?: string } => {
   const v = raw?.trim() ?? fallback;
   if (MARGIN_PATTERN.test(v)) return { value: v };
   return {
@@ -91,7 +89,7 @@ const validatePositiveInt = (
   varName: string,
   fallback: number,
   min = 1,
-): { value: number; error?: ValidationError } => {
+): { value: number; error?: string } => {
   const parsed = Number.parseInt(raw ?? "", 10);
   if (Number.isInteger(parsed) && parsed >= min) return { value: parsed };
   return {
@@ -102,7 +100,7 @@ const validatePositiveInt = (
 
 const validateLineStretch = (
   raw: string | undefined,
-): { value: number; error?: ValidationError } => {
+): { value: number; error?: string } => {
   const parsed = Number.parseFloat(raw ?? "");
   if (
     !Number.isNaN(parsed) &&
@@ -121,9 +119,9 @@ const validateLineStretch = (
 
 const buildPdfConfig = (): PdfConfig => {
   const logger = new Logger("pdf.config");
-  const warnings: ValidationError[] = [];
+  const warnings: string[] = [];
 
-  const track = <T>(result: { value: T; error?: ValidationError }): T => {
+  const track = <T>(result: { value: T; error?: string }): T => {
     if (result.error) warnings.push(result.error);
     return result.value;
   };

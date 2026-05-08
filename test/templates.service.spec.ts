@@ -1,6 +1,9 @@
-import { Test, type TestingModule } from "@nestjs/testing";
+// ── Mock fs/promises BEFORE any imports
+jest.mock("node:fs/promises");
+
 import { randomUUID } from "node:crypto";
 import * as fsPromises from "node:fs/promises";
+import { Test, type TestingModule } from "@nestjs/testing";
 import { DataSource, type EntityManager } from "typeorm";
 import type { TemplateEntity } from "../src/entities/template.entity";
 import { TemplatesRepository } from "../src/repository/templates.repository";
@@ -11,7 +14,9 @@ const uuid = () => randomUUID();
 const VALID_UUID = "550e8400-e29b-41d4-a716-446655440000";
 const SECTION_UUID = "660e8400-e29b-41d4-a716-446655440001";
 
-const makeTemplate = (overrides: Partial<TemplateEntity & { content: string }> = {}): TemplateEntity & { content: string } => ({
+const makeTemplate = (
+  overrides: Partial<TemplateEntity & { content: string }> = {},
+): TemplateEntity & { content: string } => ({
   id: VALID_UUID,
   name: "Template di Test",
   description: "Descrizione di test",
@@ -21,8 +26,20 @@ const makeTemplate = (overrides: Partial<TemplateEntity & { content: string }> =
   status: "draft",
   created_by: "system",
   fields: [
-    { name: "titolo", label: "Titolo", type: "text", required: true, defaultValue: "" },
-    { name: "nome", label: "Nome", type: "text", required: true, defaultValue: "" },
+    {
+      name: "titolo",
+      label: "Titolo",
+      type: "text",
+      required: true,
+      defaultValue: "",
+    },
+    {
+      name: "nome",
+      label: "Nome",
+      type: "text",
+      required: true,
+      defaultValue: "",
+    },
   ],
   created_at: new Date("2024-01-01"),
   updated_at: new Date("2024-01-01"),
@@ -45,11 +62,13 @@ describe("TemplatesService", () => {
 
   beforeEach(async () => {
     jest.spyOn(console, "warn").mockImplementation(() => {});
-    jest.spyOn(fsPromises, "mkdir").mockResolvedValue(undefined);
-    jest.spyOn(fsPromises, "writeFile").mockResolvedValue(undefined);
-    jest.spyOn(fsPromises, "rename").mockResolvedValue(undefined);
-    jest.spyOn(fsPromises, "unlink").mockResolvedValue(undefined);
-    jest.spyOn(fsPromises, "readFile").mockResolvedValue("# {{titolo}}\n\nTesto con {{nome}}." as never);
+    jest.mocked(fsPromises.mkdir).mockResolvedValue(undefined);
+    jest.mocked(fsPromises.writeFile).mockResolvedValue(undefined);
+    jest.mocked(fsPromises.rename).mockResolvedValue(undefined);
+    jest.mocked(fsPromises.unlink).mockResolvedValue(undefined);
+    jest
+      .mocked(fsPromises.readFile)
+      .mockResolvedValue("# {{titolo}}\n\nTesto con {{nome}}." as never);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -74,11 +93,13 @@ describe("TemplatesService", () => {
     }).compile();
 
     service = module.get<TemplatesService>(TemplatesService);
-    templatesRepository = module.get(TemplatesRepository) as jest.Mocked<TemplatesRepository>;
+    templatesRepository = module.get(
+      TemplatesRepository,
+    ) as jest.Mocked<TemplatesRepository>;
     dataSource = module.get(DataSource) as jest.Mocked<DataSource>;
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => jest.resetAllMocks());
 
   // ── create() ────────────────────────────────────────────────────────────────
 
@@ -138,7 +159,9 @@ describe("TemplatesService", () => {
         section_id: SECTION_UUID,
       });
 
-      expect(templatesRepository.sectionExists).toHaveBeenCalledWith(SECTION_UUID);
+      expect(templatesRepository.sectionExists).toHaveBeenCalledWith(
+        SECTION_UUID,
+      );
     });
   });
 
@@ -181,7 +204,11 @@ describe("TemplatesService", () => {
 
     it("lancia 400 se section_id non è un UUID valido", async () => {
       await expect(
-        service.create({ name: "T", content: "# {{titolo}}", section_id: "not-a-uuid" }),
+        service.create({
+          name: "T",
+          content: "# {{titolo}}",
+          section_id: "not-a-uuid",
+        }),
       ).rejects.toMatchObject({ status: 400 });
     });
 
@@ -189,13 +216,20 @@ describe("TemplatesService", () => {
       templatesRepository.sectionExists.mockResolvedValue(false);
 
       await expect(
-        service.create({ name: "T", content: "# {{titolo}}", section_id: SECTION_UUID }),
+        service.create({
+          name: "T",
+          content: "# {{titolo}}",
+          section_id: SECTION_UUID,
+        }),
       ).rejects.toMatchObject({ status: 400 });
     });
 
     it("lancia 400 per contenuto con tag <script>", async () => {
       await expect(
-        service.create({ name: "T", content: "# {{titolo}}<script>alert(1)</script>" }),
+        service.create({
+          name: "T",
+          content: "# {{titolo}}<script>alert(1)</script>",
+        }),
       ).rejects.toMatchObject({ status: 400 });
     });
 
@@ -207,7 +241,10 @@ describe("TemplatesService", () => {
 
     it("lancia 400 per comandi LaTeX pericolosi", async () => {
       await expect(
-        service.create({ name: "T", content: "# {{titolo}}\\input{/etc/passwd}" }),
+        service.create({
+          name: "T",
+          content: "# {{titolo}}\\input{/etc/passwd}",
+        }),
       ).rejects.toMatchObject({ status: 400 });
     });
 
@@ -243,7 +280,9 @@ describe("TemplatesService", () => {
     });
 
     it("lancia 400 per UUID non valido", async () => {
-      await expect(service.findOne("not-a-uuid")).rejects.toMatchObject({ status: 400 });
+      await expect(service.findOne("not-a-uuid")).rejects.toMatchObject({
+        status: 400,
+      });
     });
   });
 
@@ -252,7 +291,10 @@ describe("TemplatesService", () => {
   describe("findAll() - casi nominali e limite", () => {
     it("ritorna lista paginata di template", async () => {
       const templates = [makeTemplate(), makeTemplate({ id: uuid() })];
-      templatesRepository.findAll.mockResolvedValue({ data: templates, total: 2 });
+      templatesRepository.findAll.mockResolvedValue({
+        data: templates,
+        total: 2,
+      });
 
       const result = await service.findAll({ limit: 20, offset: 0 });
 
@@ -379,7 +421,9 @@ describe("TemplatesService", () => {
       const result = await service.delete(VALID_UUID);
 
       expect(result).toEqual({ deleted: true });
-      expect(templatesRepository.deleteTemplate).toHaveBeenCalledWith(VALID_UUID);
+      expect(templatesRepository.deleteTemplate).toHaveBeenCalledWith(
+        VALID_UUID,
+      );
     });
 
     it("elimina anche il file su disco", async () => {
@@ -396,18 +440,24 @@ describe("TemplatesService", () => {
     it("lancia 404 se il template non esiste", async () => {
       templatesRepository.findById.mockResolvedValue(null);
 
-      await expect(service.delete(VALID_UUID)).rejects.toMatchObject({ status: 404 });
+      await expect(service.delete(VALID_UUID)).rejects.toMatchObject({
+        status: 404,
+      });
     });
 
     it("lancia 409 se esistono documenti attivi", async () => {
       templatesRepository.findById.mockResolvedValue(makeTemplate());
       templatesRepository.countActiveDocuments.mockResolvedValue(3);
 
-      await expect(service.delete(VALID_UUID)).rejects.toMatchObject({ status: 409 });
+      await expect(service.delete(VALID_UUID)).rejects.toMatchObject({
+        status: 409,
+      });
     });
 
     it("lancia 400 per UUID non valido", async () => {
-      await expect(service.delete("not-a-uuid")).rejects.toMatchObject({ status: 400 });
+      await expect(service.delete("not-a-uuid")).rejects.toMatchObject({
+        status: 400,
+      });
     });
   });
 
@@ -415,7 +465,9 @@ describe("TemplatesService", () => {
 
   describe("validateMarkdown() - casi limite", () => {
     it("valida correttamente un template corretto", () => {
-      const result = service.validateMarkdown("# {{titolo}}\n\nTesto {{nome}}.");
+      const result = service.validateMarkdown(
+        "# {{titolo}}\n\nTesto {{nome}}.",
+      );
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
@@ -431,7 +483,9 @@ describe("TemplatesService", () => {
     });
 
     it("rileva tag <script>", () => {
-      const result = service.validateMarkdown("# {{t}}<script>alert(1)</script>");
+      const result = service.validateMarkdown(
+        "# {{t}}<script>alert(1)</script>",
+      );
       expect(result.valid).toBe(false);
     });
   });
@@ -444,7 +498,12 @@ describe("TemplatesService", () => {
         .spyOn(service, "create")
         .mockResolvedValue(makeTemplate());
 
-      await service.importFromMarkdown("# {{titolo}}", "Importato", "user1", SECTION_UUID);
+      await service.importFromMarkdown(
+        "# {{titolo}}",
+        "Importato",
+        "user1",
+        SECTION_UUID,
+      );
 
       expect(createSpy).toHaveBeenCalledWith({
         section_id: SECTION_UUID,
