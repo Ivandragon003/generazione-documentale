@@ -1,4 +1,4 @@
-import { createReadStream } from "node:fs";
+import { createReadStream, type ReadStream } from "node:fs";
 import { access, mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { Test, type TestingModule } from "@nestjs/testing";
@@ -20,7 +20,7 @@ jest.mock("node:crypto", () => ({
   randomUUID: jest.fn(() => "test-uuid-1234"),
 }));
 
-import { spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 
 const spawnMock = spawn as jest.MockedFunction<typeof spawn>;
 const accessMock = access as jest.MockedFunction<typeof access>;
@@ -30,22 +30,28 @@ const createReadStreamMock = createReadStream as jest.MockedFunction<
   typeof createReadStream
 >;
 
-function makeSpawnMock(exitCode: number, stderrData = "") {
-  const stdin = { end: jest.fn() };
-  const stderr = {
-    on: jest.fn((event: string, cb: (d: Buffer) => void) => {
-      if (event === "data" && stderrData) cb(Buffer.from(stderrData));
-    }),
-  };
-  const proc: any = {
-    stdin,
-    stderr,
+// Tipo esplicito per il processo mockato — evita `any`
+type MockChildProcess = {
+  stdin: { end: jest.Mock };
+  stderr: { on: jest.Mock };
+  on: jest.Mock;
+  kill: jest.Mock;
+};
+
+function makeSpawnMock(exitCode: number, stderrData = ""): MockChildProcess {
+  const proc: MockChildProcess = {
+    stdin: { end: jest.fn() },
+    stderr: {
+      on: jest.fn((event: string, cb: (d: Buffer) => void) => {
+        if (event === "data" && stderrData) cb(Buffer.from(stderrData));
+      }),
+    },
     on: jest.fn((event: string, cb: (code: number) => void) => {
       if (event === "close") setTimeout(() => cb(exitCode), 0);
     }),
     kill: jest.fn(),
   };
-  spawnMock.mockReturnValue(proc);
+  spawnMock.mockReturnValue(proc as unknown as ChildProcess);
   return proc;
 }
 
@@ -55,7 +61,7 @@ describe("PdfGenerationService", () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    mkdirMock.mockResolvedValue(undefined as any);
+    mkdirMock.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [PdfGenerationService, DocumentRenderingService],
@@ -111,9 +117,8 @@ describe("PdfGenerationService", () => {
 
     it("deve usare 'Documento' come titolo di default se non fornito", async () => {
       makeSpawnMock(0);
-      const argsSpy = spawnMock;
       await service.generatePdf({ ...baseInput, title: "" });
-      const callArgs = argsSpy.mock.calls[0][1] as string[];
+      const callArgs = spawnMock.mock.calls[0][1] as string[];
       expect(callArgs.some((a: string) => a.includes("Documento"))).toBe(true);
     });
 
@@ -132,17 +137,15 @@ describe("PdfGenerationService", () => {
     });
 
     it("deve lanciare errore se pandoc emette evento error", async () => {
-      const stdin = { end: jest.fn() };
-      const stderr = { on: jest.fn() };
-      const proc: any = {
-        stdin,
-        stderr,
+      const proc: MockChildProcess = {
+        stdin: { end: jest.fn() },
+        stderr: { on: jest.fn() },
         on: jest.fn((event: string, cb: (err?: Error) => void) => {
           if (event === "error") setTimeout(() => cb(new Error("ENOENT")), 0);
         }),
         kill: jest.fn(),
       };
-      spawnMock.mockReturnValue(proc);
+      spawnMock.mockReturnValue(proc as unknown as ChildProcess);
       await expect(service.generatePdf(baseInput)).rejects.toThrow(
         /Pandoc non trovato/,
       );
@@ -151,15 +154,14 @@ describe("PdfGenerationService", () => {
     it("deve ritentare in caso di fallimento e poi fallire", async () => {
       makeSpawnMock(1);
       await expect(service.generatePdf(baseInput)).rejects.toThrow();
-      // spawn viene chiamato retries+1 volte (default 0 retries => 1 call)
       expect(spawnMock.mock.calls.length).toBeGreaterThanOrEqual(1);
     });
   });
 
   describe("getPdfStream()", () => {
     it("deve restituire uno stream se il file esiste", async () => {
-      accessMock.mockResolvedValue(undefined as any);
-      const fakeStream = {} as any;
+      accessMock.mockResolvedValue(undefined);
+      const fakeStream = {} as ReadStream;
       createReadStreamMock.mockReturnValue(fakeStream);
       const result = await service.getPdfStream("test-uuid-1234.pdf");
       expect(result).toBe(fakeStream);
@@ -175,7 +177,7 @@ describe("PdfGenerationService", () => {
 
   describe("deletePdf()", () => {
     it("deve eliminare il file PDF", async () => {
-      unlinkMock.mockResolvedValue(undefined as any);
+      unlinkMock.mockResolvedValue(undefined);
       await expect(
         service.deletePdf("test-uuid-1234.pdf"),
       ).resolves.not.toThrow();
