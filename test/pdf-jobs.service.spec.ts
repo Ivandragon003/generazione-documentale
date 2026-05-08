@@ -504,8 +504,9 @@ describe("PdfJobsService", () => {
       documentsRepository.findQueuedPdfJobs.mockResolvedValue([queuedJob]);
       documentsRepository.claimQueuedPdfJob.mockResolvedValue(false);
 
-      // Flush setImmediate from constructor
-      await jest.runAllImmediatesAsync();
+      // Flush setImmediate callbacks scheduled during construction
+      jest.runAllImmediates();
+      await Promise.resolve();
 
       expect(documentsRepository.findQueuedPdfJobs).toHaveBeenCalled();
     });
@@ -515,7 +516,8 @@ describe("PdfJobsService", () => {
       documentsRepository.findQueuedPdfJobs.mockResolvedValue([queuedJob]);
       documentsRepository.claimQueuedPdfJob.mockRejectedValue(new Error("DB error"));
 
-      await expect(jest.runAllImmediatesAsync()).resolves.not.toThrow();
+      jest.runAllImmediates();
+      await expect(Promise.resolve()).resolves.not.toThrow();
     });
   });
 
