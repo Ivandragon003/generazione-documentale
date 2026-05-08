@@ -42,16 +42,41 @@ const makeJob = (overrides: Partial<PdfJobEntity> = {}): PdfJobEntity => ({
   ...overrides,
 });
 
-const makeMockResponse = (): jest.Mocked<Response> =>
-  ({
+/**
+ * Mock di Express Response che simula correttamente il comportamento di pipe:
+ * quando il readable termina (evento "finish" o "end") la Promise di
+ * pipeToResponse() deve risolversi.
+ * Si ottiene facendo sì che response.on("finish", cb) chiami `cb` al
+ * tick successivo, emulando il momento in cui il writable ha finito di
+ * ricevere tutti i chunk.
+ */
+const makeMockResponse = (): jest.Mocked<Response> => {
+  const listeners: Record<string, Array<() => void>> = {};
+
+  const res = {
     setHeader: jest.fn(),
     write: jest.fn(),
     end: jest.fn(),
-    on: jest.fn(),
-    once: jest.fn(),
-    emit: jest.fn(),
     writable: true,
-  }) as unknown as jest.Mocked<Response>;
+    on: jest.fn((event: string, cb: () => void) => {
+      if (!listeners[event]) listeners[event] = [];
+      listeners[event].push(cb);
+      // Simula il "finish" al tick successivo appena viene registrato
+      if (event === "finish") {
+        setImmediate(() => cb());
+      }
+      return res;
+    }),
+    once: jest.fn(),
+    emit: jest.fn((event: string) => {
+      for (const cb of listeners[event] ?? []) cb();
+      return true;
+    }),
+    pipe: jest.fn(),
+  } as unknown as jest.Mocked<Response>;
+
+  return res;
+};
 
 // ── factory per il modulo di test ─────────────────────────────────────────────
 async function buildModule() {
@@ -605,8 +630,6 @@ describe("PdfJobsService", () => {
 
   describe("triggerQueueProcessor() — jobs in coda", () => {
     it("processa i job in coda al bootstrap", async () => {
-      // Costruisce un modulo dedicato con findQueuedPdfJobs mockato PRIMA del compile
-      // così il setImmediate interno al costruttore vede già la mock corretta
       const mod = await Test.createTestingModule({
         providers: [
           PdfJobsService,
@@ -655,7 +678,6 @@ describe("PdfJobsService", () => {
         DocumentsRepository,
       ) as jest.Mocked<DocumentsRepository>;
 
-      // Lascia scorrere il setImmediate + microtask queue con timer reali
       await new Promise<void>((resolve) => setImmediate(resolve));
       await Promise.resolve();
 
@@ -709,14 +731,11 @@ describe("PdfJobsService", () => {
         ],
       }).compile();
 
-      // Aspetta che il setImmediate interno esegua (con timer reali)
       await new Promise<void>((resolve) => setImmediate(resolve));
       await Promise.resolve();
 
-      // Se non lancia qui il test passa
       await expect(Promise.resolve()).resolves.not.toThrow();
 
-      // cleanup
       await mod.close();
     });
   });
