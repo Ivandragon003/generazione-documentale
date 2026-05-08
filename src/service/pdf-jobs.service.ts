@@ -1,5 +1,5 @@
-import { pipeline } from "node:stream/promises";
 import { Inject, Injectable, type OnModuleDestroy } from "@nestjs/common";
+import type { Readable } from "node:stream";
 import type { Response } from "express";
 import { makeError } from "../common/utils/errors";
 import { appConfig } from "../config/app.config";
@@ -10,6 +10,15 @@ import { PdfGenerationService } from "./pdf-generation.service";
 import { TemplatesService } from "./templates.service";
 
 const QUEUE_RECOVERY_RETRY_MS = appConfig.pdfQueueRecoveryRetryMs;
+
+function pipeToResponse(readable: Readable, response: Response): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    readable.on("error", reject);
+    response.on("error", reject);
+    response.on("finish", resolve);
+    readable.pipe(response as unknown as NodeJS.WritableStream);
+  });
+}
 
 @Injectable()
 export class PdfJobsService implements OnModuleDestroy {
@@ -72,7 +81,7 @@ export class PdfJobsService implements OnModuleDestroy {
     if (this.queueRecoveryStarted) return;
     this.queueRecoveryStarted = true;
     try {
-      this.triggerQueueProcessor();
+      await this.triggerQueueProcessor();
     } catch {
       this.queueRecoveryStarted = false;
       if (!this.queueRecoveryTimer) {
@@ -84,23 +93,17 @@ export class PdfJobsService implements OnModuleDestroy {
     }
   }
 
-  private triggerQueueProcessor(): void {
+  private async triggerQueueProcessor(): Promise<void> {
     if (this.processorRunning) return;
     this.processorRunning = true;
-    setImmediate(() => {
-      (async () => {
-        try {
-          const queuedJobs = await this.documentsRepository.findQueuedPdfJobs();
-          for (const job of queuedJobs) {
-            await this.processPdfJob(job.id).catch(() => undefined);
-          }
-        } finally {
-          this.processorRunning = false;
-        }
-      })().catch(() => {
-        this.processorRunning = false;
-      });
-    });
+    try {
+      const queuedJobs = await this.documentsRepository.findQueuedPdfJobs();
+      for (const job of queuedJobs) {
+        await this.processPdfJob(job.id).catch(() => undefined);
+      }
+    } finally {
+      this.processorRunning = false;
+    }
   }
 
   async enqueuePdfGeneration(id: string, actor = "system") {
@@ -115,7 +118,7 @@ export class PdfJobsService implements OnModuleDestroy {
     }
     const job = await this.documentsRepository.insertPdfJob(id, actor);
     this.documentEventsService.emitDocumentFinalized({ jobId: job.id });
-    this.triggerQueueProcessor();
+    this.triggerQueueProcessor().catch(() => undefined);
     return job;
   }
 
@@ -185,7 +188,7 @@ export class PdfJobsService implements OnModuleDestroy {
       "Content-Disposition",
       `attachment; filename="${job.filename}"`,
     );
-    await pipeline(stream, response);
+    await pipeToResponse(stream, response);
   }
 
   async streamLatestPdfDownload(
@@ -200,7 +203,7 @@ export class PdfJobsService implements OnModuleDestroy {
       "Content-Disposition",
       `attachment; filename="${job.filename}"`,
     );
-    await pipeline(stream, response);
+    await pipeToResponse(stream, response);
   }
 
   async deleteGeneratedPdf(documentId: string, jobId: string): Promise<void> {
