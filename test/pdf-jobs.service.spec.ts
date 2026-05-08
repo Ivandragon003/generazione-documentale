@@ -53,6 +53,56 @@ const makeMockResponse = (): jest.Mocked<Response> =>
     writable: true,
   } as unknown as jest.Mocked<Response>);
 
+// ── factory per il modulo di test ─────────────────────────────────────────────
+async function buildModule() {
+  const module: TestingModule = await Test.createTestingModule({
+    providers: [
+      PdfJobsService,
+      {
+        provide: DocumentsRepository,
+        useValue: {
+          findById: jest.fn(),
+          insertPdfJob: jest.fn(),
+          findPdfJobById: jest.fn(),
+          findPdfJob: jest.fn(),
+          findPdfJobsByDocument: jest.fn(),
+          findLatestCompletedPdfJob: jest.fn(),
+          findQueuedPdfJobs: jest.fn().mockResolvedValue([]),
+          claimQueuedPdfJob: jest.fn(),
+          updatePdfJobCompleted: jest.fn(),
+          updatePdfJobFailed: jest.fn(),
+          updateDocumentStatusGenerated: jest.fn(),
+        },
+      },
+      {
+        provide: TemplatesService,
+        useValue: { findOne: jest.fn() },
+      },
+      {
+        provide: PdfGenerationService,
+        useValue: {
+          generatePdf: jest.fn(),
+          getPdfStream: jest.fn(),
+          deletePdf: jest.fn(),
+        },
+      },
+      {
+        provide: DocumentRenderingService,
+        useValue: { getMissingRequiredFields: jest.fn() },
+      },
+      {
+        provide: DocumentEventsService,
+        useValue: {
+          onDocumentFinalized: jest.fn(),
+          emitDocumentFinalized: jest.fn(),
+        },
+      },
+    ],
+  }).compile();
+
+  return module;
+}
+
 describe("PdfJobsService", () => {
   let service: PdfJobsService;
   let documentsRepository: jest.Mocked<DocumentsRepository>;
@@ -62,74 +112,19 @@ describe("PdfJobsService", () => {
   let _documentEventsService: jest.Mocked<DocumentEventsService>;
 
   beforeEach(async () => {
-    jest.useFakeTimers();
     jest.spyOn(console, "warn").mockImplementation(() => {});
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        PdfJobsService,
-        {
-          provide: DocumentsRepository,
-          useValue: {
-            findById: jest.fn(),
-            insertPdfJob: jest.fn(),
-            findPdfJobById: jest.fn(),
-            findPdfJob: jest.fn(),
-            findPdfJobsByDocument: jest.fn(),
-            findLatestCompletedPdfJob: jest.fn(),
-            findQueuedPdfJobs: jest.fn().mockResolvedValue([]),
-            claimQueuedPdfJob: jest.fn(),
-            updatePdfJobCompleted: jest.fn(),
-            updatePdfJobFailed: jest.fn(),
-            updateDocumentStatusGenerated: jest.fn(),
-          },
-        },
-        {
-          provide: TemplatesService,
-          useValue: { findOne: jest.fn() },
-        },
-        {
-          provide: PdfGenerationService,
-          useValue: {
-            generatePdf: jest.fn(),
-            getPdfStream: jest.fn(),
-            deletePdf: jest.fn(),
-          },
-        },
-        {
-          provide: DocumentRenderingService,
-          useValue: { getMissingRequiredFields: jest.fn() },
-        },
-        {
-          provide: DocumentEventsService,
-          useValue: {
-            onDocumentFinalized: jest.fn(),
-            emitDocumentFinalized: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
+    const module = await buildModule();
 
     service = module.get<PdfJobsService>(PdfJobsService);
-    documentsRepository = module.get(
-      DocumentsRepository,
-    ) as jest.Mocked<DocumentsRepository>;
-    _templatesService = module.get(
-      TemplatesService,
-    ) as jest.Mocked<TemplatesService>;
-    pdfGenerationService = module.get(
-      PdfGenerationService,
-    ) as jest.Mocked<PdfGenerationService>;
-    documentRenderingService = module.get(
-      DocumentRenderingService,
-    ) as jest.Mocked<DocumentRenderingService>;
-    _documentEventsService = module.get(
-      DocumentEventsService,
-    ) as jest.Mocked<DocumentEventsService>;
+    documentsRepository = module.get(DocumentsRepository) as jest.Mocked<DocumentsRepository>;
+    _templatesService = module.get(TemplatesService) as jest.Mocked<TemplatesService>;
+    pdfGenerationService = module.get(PdfGenerationService) as jest.Mocked<PdfGenerationService>;
+    documentRenderingService = module.get(DocumentRenderingService) as jest.Mocked<DocumentRenderingService>;
+    _documentEventsService = module.get(DocumentEventsService) as jest.Mocked<DocumentEventsService>;
   });
 
   afterEach(() => {
-    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -500,24 +495,79 @@ describe("PdfJobsService", () => {
 
   describe("triggerQueueProcessor() — jobs in coda", () => {
     it("processa i job in coda al bootstrap", async () => {
-      const queuedJob = makeJob({ id: "queued-job-id" });
-      documentsRepository.findQueuedPdfJobs.mockResolvedValue([queuedJob]);
-      documentsRepository.claimQueuedPdfJob.mockResolvedValue(false);
+      // Costruisce un modulo dedicato con findQueuedPdfJobs mockato PRIMA del compile
+      // così il setImmediate interno al costruttore vede già la mock corretta
+      const mod = await Test.createTestingModule({
+        providers: [
+          PdfJobsService,
+          {
+            provide: DocumentsRepository,
+            useValue: {
+              findById: jest.fn(),
+              insertPdfJob: jest.fn(),
+              findPdfJobById: jest.fn(),
+              findPdfJob: jest.fn(),
+              findPdfJobsByDocument: jest.fn(),
+              findLatestCompletedPdfJob: jest.fn(),
+              findQueuedPdfJobs: jest.fn().mockResolvedValue([makeJob({ id: "queued-job-id" })]),
+              claimQueuedPdfJob: jest.fn().mockResolvedValue(false),
+              updatePdfJobCompleted: jest.fn(),
+              updatePdfJobFailed: jest.fn(),
+              updateDocumentStatusGenerated: jest.fn(),
+            },
+          },
+          { provide: TemplatesService, useValue: { findOne: jest.fn() } },
+          { provide: PdfGenerationService, useValue: { generatePdf: jest.fn(), getPdfStream: jest.fn(), deletePdf: jest.fn() } },
+          { provide: DocumentRenderingService, useValue: { getMissingRequiredFields: jest.fn() } },
+          { provide: DocumentEventsService, useValue: { onDocumentFinalized: jest.fn(), emitDocumentFinalized: jest.fn() } },
+        ],
+      }).compile();
 
-      // Flush setImmediate callbacks scheduled during construction
-      jest.runAllImmediates();
+      const repo = mod.get(DocumentsRepository) as jest.Mocked<DocumentsRepository>;
+
+      // Lascia scorrere il setImmediate + microtask queue con timer reali
+      await new Promise<void>((resolve) => setImmediate(resolve));
       await Promise.resolve();
 
-      expect(documentsRepository.findQueuedPdfJobs).toHaveBeenCalled();
+      expect(repo.findQueuedPdfJobs).toHaveBeenCalled();
     });
 
     it("non lancia se processPdfJob fallisce durante recovery", async () => {
-      const queuedJob = makeJob({ id: "bad-job-id" });
-      documentsRepository.findQueuedPdfJobs.mockResolvedValue([queuedJob]);
-      documentsRepository.claimQueuedPdfJob.mockRejectedValue(new Error("DB error"));
+      const mod = await Test.createTestingModule({
+        providers: [
+          PdfJobsService,
+          {
+            provide: DocumentsRepository,
+            useValue: {
+              findById: jest.fn(),
+              insertPdfJob: jest.fn(),
+              findPdfJobById: jest.fn(),
+              findPdfJob: jest.fn(),
+              findPdfJobsByDocument: jest.fn(),
+              findLatestCompletedPdfJob: jest.fn(),
+              findQueuedPdfJobs: jest.fn().mockResolvedValue([makeJob({ id: "bad-job-id" })]),
+              claimQueuedPdfJob: jest.fn().mockRejectedValue(new Error("DB error")),
+              updatePdfJobCompleted: jest.fn(),
+              updatePdfJobFailed: jest.fn(),
+              updateDocumentStatusGenerated: jest.fn(),
+            },
+          },
+          { provide: TemplatesService, useValue: { findOne: jest.fn() } },
+          { provide: PdfGenerationService, useValue: { generatePdf: jest.fn(), getPdfStream: jest.fn(), deletePdf: jest.fn() } },
+          { provide: DocumentRenderingService, useValue: { getMissingRequiredFields: jest.fn() } },
+          { provide: DocumentEventsService, useValue: { onDocumentFinalized: jest.fn(), emitDocumentFinalized: jest.fn() } },
+        ],
+      }).compile();
 
-      jest.runAllImmediates();
+      // Aspetta che il setImmediate interno esegua (con timer reali)
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      await Promise.resolve();
+
+      // Se non lancia qui il test passa
       await expect(Promise.resolve()).resolves.not.toThrow();
+
+      // cleanup
+      await mod.close();
     });
   });
 
@@ -529,7 +579,6 @@ describe("PdfJobsService", () => {
     });
 
     it("cancella il timer recovery se attivo", () => {
-      // Forza l'assegnazione di un timer fittizio
       (service as unknown as Record<string, unknown>)["queueRecoveryTimer"] = setTimeout(() => {}, 99999);
       expect(() => service.onModuleDestroy()).not.toThrow();
       expect((service as unknown as Record<string, unknown>)["queueRecoveryTimer"]).toBeNull();
