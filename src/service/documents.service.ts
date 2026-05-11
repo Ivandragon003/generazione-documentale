@@ -72,6 +72,14 @@ export class DocumentsService {
     if (!name || name.trim().length === 0) {
       throw makeError("Il nome documento e obbligatorio", 400);
     }
+    console.log(
+      "[POST /documents] templateId:",
+      templateId,
+      "isUuid:",
+      this.isValidUuid(templateId),
+      "type:",
+      typeof templateId,
+    );
     if (!this.isValidUuid(templateId)) {
       throw makeError("Template ID non è un UUID valido", 400);
     }

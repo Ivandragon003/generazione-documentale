@@ -68,7 +68,8 @@ export const validateMarkdownContent = (
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (content.trim().length === 0) {
+  // Valida che content sia definito e sia una stringa
+  if (!content || typeof content !== "string" || content.trim().length === 0) {
     return {
       valid: false,
       errors: ["Il contenuto del template non puo essere vuoto"],
