@@ -103,8 +103,11 @@ export const validateMarkdownContent = (
 
   const blockedPatterns: Array<{ pattern: RegExp; label: string }> = [
     {
+      // input/include/write18: richiedono separatore dopo il nome del comando
+      // openout/read: possono essere seguiti da cifre (es. \openout5, \read0),
+      // quindi accettiamo qualsiasi carattere non-lettera dopo il nome
       pattern:
-        /\\(?:input|include|write18|openout|read)(?:\s|$|[^a-zA-Z0-9_])/i,
+        /\\(?:input|include|write18)(?=\s|[^a-zA-Z]|$)|\\(?:openout|read)(?=[^a-zA-Z]|$)/i,
       label: "comandi LaTeX di input/output",
     },
     { pattern: /<script\b/i, label: "tag script HTML" },

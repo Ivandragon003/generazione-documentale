@@ -72,7 +72,7 @@ export class DocumentsRepository {
     const document = await manager.findOne(DocumentEntity, {
       where: { id: payload.id },
     });
-    if (!document) throw new Error("Documento non trovato");
+    if (!document) throw new Error("Documento non trovato dopo update");
 
     document.name = payload.name;
     document.content = payload.content;
