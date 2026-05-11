@@ -12,6 +12,17 @@ async function bootstrap(): Promise<void> {
     logger: ["log", "warn", "error"],
   });
 
+  app.enableCors({
+    origin: [
+      "http://localhost:4173",
+      "http://localhost:5173",
+      "http://localhost:3001",
+    ],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-user"],
+    credentials: true,
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

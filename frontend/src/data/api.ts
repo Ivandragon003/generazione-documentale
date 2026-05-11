@@ -1,10 +1,22 @@
 import type { TemplateVersion } from './mock';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000') + '/api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type DocumentStatus = 'draft' | 'generated' | 'published' | 'archived';
+
+export type TemplateDto = {
+  id: string;
+  name: string;
+  description: string | null;
+  content: string;
+  fields: TemplateVersion['fields'];
+  status: 'draft' | 'published';
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
 
 export type DocumentDto = {
   id: string;
@@ -31,122 +43,132 @@ export type PdfJobDto = {
   completed_at: string | null;
 };
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+async function api<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+  const res = await fetch(input, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-user': 'frontend',
+      ...(init?.headers ?? {}),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`[${res.status}] ${text}`);
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json() as Promise<T>;
+}
+
 // ─── Templates ───────────────────────────────────────────────────────────────
 
-export async function getTemplates(): Promise<TemplateVersion[]> {
-  const res = await fetch(`${BASE_URL}/templates`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<TemplateVersion[]>;
+export function getTemplates(): Promise<{ data: TemplateDto[]; total: number }> {
+  return api(`${BASE}/templates`);
 }
 
-export async function getTemplateById(id: string): Promise<TemplateVersion> {
-  const res = await fetch(`${BASE_URL}/templates/${id}`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<TemplateVersion>;
+export function getTemplateById(id: string): Promise<TemplateDto> {
+  return api(`${BASE}/templates/${id}`);
 }
 
-export async function createTemplate(payload: {
+export function createTemplate(payload: {
   name: string;
-  markdown: string;
+  content: string;
   fields: TemplateVersion['fields'];
-}): Promise<TemplateVersion> {
-  const res = await fetch(`${BASE_URL}/templates`, {
+  sectionId?: string;
+  status?: 'draft' | 'published';
+}): Promise<TemplateDto> {
+  return api(`${BASE}/templates`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<TemplateVersion>;
 }
 
-export async function updateTemplate(
+export function updateTemplate(
   id: string,
-  payload: { markdown: string; fields: TemplateVersion['fields'] }
-): Promise<TemplateVersion> {
-  const res = await fetch(`${BASE_URL}/templates/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+  payload: {
+    name?: string;
+    content?: string;
+    fields?: TemplateVersion['fields'];
+    status?: 'draft' | 'published';
+  },
+): Promise<TemplateDto> {
+  return api(`${BASE}/templates/${id}`, {
+    method: 'PUT',
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<TemplateVersion>;
+}
+
+export function deleteTemplate(id: string): Promise<void> {
+  return api(`${BASE}/templates/${id}`, { method: 'DELETE' });
 }
 
 // ─── Documents ───────────────────────────────────────────────────────────────
 
-export async function getDocuments(): Promise<DocumentDto[]> {
-  const res = await fetch(`${BASE_URL}/documents`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<DocumentDto[]>;
+export function getDocuments(): Promise<{ data: DocumentDto[]; total: number }> {
+  return api(`${BASE}/documents`);
 }
 
-export async function getDocumentById(id: string): Promise<DocumentDto> {
-  const res = await fetch(`${BASE_URL}/documents/${id}`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<DocumentDto>;
+export function getDocumentById(id: string): Promise<DocumentDto> {
+  return api(`${BASE}/documents/${id}`);
 }
 
-export async function createDocument(payload: {
+export function createDocument(payload: {
   name: string;
-  template_id: string;
-  content: string;
-  field_values: Record<string, string | number | boolean | null>;
+  templateId: string;
 }): Promise<DocumentDto> {
-  const res = await fetch(`${BASE_URL}/documents`, {
+  return api(`${BASE}/documents`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<DocumentDto>;
 }
 
-export async function updateDocumentFields(
+/**
+ * Aggiorna nome, content e/o field_values di un documento.
+ * Usa PUT /api/documents/:id (unico endpoint di update nel backend).
+ */
+export function updateDocument(
   id: string,
-  field_values: Record<string, string | number | boolean | null>
+  payload: {
+    name?: string;
+    content?: string;
+    fieldValues?: Record<string, string | number | boolean | null>;
+  },
 ): Promise<DocumentDto> {
-  const res = await fetch(`${BASE_URL}/documents/${id}/field-values`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ field_values }),
+  return api(`${BASE}/documents/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<DocumentDto>;
 }
 
-export async function updateDocumentStatus(
-  id: string,
-  status: DocumentStatus
-): Promise<DocumentDto> {
-  const res = await fetch(`${BASE_URL}/documents/${id}/status`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<DocumentDto>;
+export function deleteDocument(id: string): Promise<void> {
+  return api(`${BASE}/documents/${id}`, { method: 'DELETE' });
 }
 
 // ─── PDF Jobs ─────────────────────────────────────────────────────────────────
 
-export async function triggerPdfGeneration(document_id: string): Promise<PdfJobDto> {
-  const res = await fetch(`${BASE_URL}/pdf-jobs`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ document_id }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<PdfJobDto>;
+/** Avvia generazione PDF → POST /api/documents/:id/pdf */
+export function triggerPdfGeneration(documentId: string): Promise<PdfJobDto> {
+  return api(`${BASE}/documents/${documentId}/pdf`, { method: 'POST' });
 }
 
-export async function getPdfJobStatus(job_id: string): Promise<PdfJobDto> {
-  const res = await fetch(`${BASE_URL}/pdf-jobs/${job_id}`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<PdfJobDto>;
+/** Lista job PDF di un documento → GET /api/documents/:id/pdf/jobs */
+export function getPdfJobs(documentId: string): Promise<PdfJobDto[]> {
+  return api(`${BASE}/documents/${documentId}/pdf/jobs`);
 }
 
-export async function getPdfJobsByDocument(document_id: string): Promise<PdfJobDto[]> {
-  const res = await fetch(`${BASE_URL}/pdf-jobs?document_id=${document_id}`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<PdfJobDto[]>;
+/** Stato singolo job → GET /api/documents/:id/pdf/jobs/:jobId */
+export function getPdfJob(documentId: string, jobId: string): Promise<PdfJobDto> {
+  return api(`${BASE}/documents/${documentId}/pdf/jobs/${jobId}`);
+}
+
+/** URL download PDF completato */
+export function getPdfDownloadUrl(documentId: string, jobId: string): string {
+  return `${BASE}/documents/${documentId}/pdf/jobs/${jobId}/download`;
+}
+
+/** URL ultimo PDF completato */
+export function getLatestPdfUrl(documentId: string): string {
+  return `${BASE}/documents/${documentId}/pdf/latest`;
 }
