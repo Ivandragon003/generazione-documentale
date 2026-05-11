@@ -66,7 +66,7 @@ export function TemplateEditor({
     reader.readAsText(file, "utf-8");
   }
 
-  // ── Drag & drop ────────────────────────────────────────────────────
+  // ── Drag & drop ────────────────────────────────────────────────────────
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
@@ -82,7 +82,7 @@ export function TemplateEditor({
     }
   }
 
-  // ── Crea campo: inserisce {{nuovo_campo_N}} alla fine ─────────────────
+  // ── Crea campo: inserisce {{nuovo_campo_N}} alla fine ──────────────────
   function handleCreateField() {
     const existing = (markdown.match(/\{\{(\w+)\}\}/g) ?? []).length;
     const fieldName = `campo_${existing + 1}`;
@@ -194,7 +194,7 @@ export function TemplateEditor({
         <Stack direction="row" gap={1} flexWrap="wrap">
           {placeholders.length === 0 && (
             <Typography variant="body2" color="text.secondary">
-              Nessun placeholder {{ campo }} trovato
+              {"Nessun placeholder {{campo}} trovato"}
             </Typography>
           )}
           {placeholders.map((field) => (
