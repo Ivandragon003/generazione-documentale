@@ -120,11 +120,13 @@ export default function App() {
 
   // ── Callback da TemplateEditor quando viene importato un template via API ──
   const handleTemplateImported = useCallback(
-    (name: string, content: string) => {
-      originalPlaceholders.current = extractPlaceholders(content);
+    (importedTemplate: TemplateDto) => {
+      setTemplate(importedTemplate);
+      setMarkdown(importedTemplate.content);
+      originalPlaceholders.current = extractPlaceholders(importedTemplate.content);
       setSnack({
         open: true,
-        msg: `Template "${name}" importato.`,
+        msg: `Template "${importedTemplate.name}" importato.`,
         severity: "success",
       });
     },
@@ -143,6 +145,7 @@ export default function App() {
       const structureChanged = diff.added.length > 0 || diff.removed.length > 0;
 
       if (structureChanged) {
+        // Struttura cambiata → nuovo template + nuovo documento
         const newTmpl = await createTemplate({
           name: (template?.name ?? "Template") + " (rev)",
           content: markdown,
@@ -153,10 +156,10 @@ export default function App() {
 
         const newDoc = await createDocument({
           name: document?.name ?? "Documento",
-          templateId: newTmpl.id,
+          templateId: newTmpl.id, // UUID garantito dalla risposta API
         });
         const saved = await updateDocument(newDoc.id, {
-          fieldValues: Object.fromEntries(Object.entries(fieldValues)),
+          fieldValues: { ...fieldValues },
         });
         setDocument(saved);
         setSnack({
@@ -165,29 +168,31 @@ export default function App() {
           severity: "success",
         });
       } else if (document) {
+        // Stessa struttura, documento già esistente → aggiorna solo field_values
         const saved = await updateDocument(document.id, {
-          fieldValues: Object.fromEntries(Object.entries(fieldValues)),
+          fieldValues: { ...fieldValues },
         });
         setDocument(saved);
-        setSnack({
-          open: true,
-          msg: "Documento salvato.",
-          severity: "success",
-        });
+        setSnack({ open: true, msg: "Documento salvato.", severity: "success" });
       } else {
-        const newTmpl = template
-          ? await updateTemplate(template.id, { content: markdown })
-          : await createTemplate({
-              name: "Nuovo Template",
-              content: markdown,
-              fields: currentPlaceholders.map(fieldFromKey),
-            });
-        setTemplate(newTmpl);
-        originalPlaceholders.current = extractPlaceholders(newTmpl.content);
+        // Nessun documento in DB → crea template (o aggiorna) + crea documento
+        let activeTmpl: TemplateDto;
+        if (template) {
+          activeTmpl = await updateTemplate(template.id, { content: markdown });
+        } else {
+          activeTmpl = await createTemplate({
+            name: "Nuovo Template",
+            content: markdown,
+            fields: currentPlaceholders.map(fieldFromKey),
+          });
+        }
+        setTemplate(activeTmpl);
+        originalPlaceholders.current = extractPlaceholders(activeTmpl.content);
 
+        // Usa activeTmpl.id (UUID reale) — mai template?.id che può essere undefined
         const newDoc = await createDocument({
           name: "Nuovo Documento",
-          templateId: newTmpl.id,
+          templateId: activeTmpl.id,
         });
         setDocument(newDoc);
         setSnack({

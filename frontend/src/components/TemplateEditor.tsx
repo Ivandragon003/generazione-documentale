@@ -1,5 +1,4 @@
 import AddIcon from "@mui/icons-material/Add";
-import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import {
   Alert,
@@ -12,6 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useRef } from "react";
+import type { TemplateDto } from "../data/api";
 
 const BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:3000") + "/api";
 
@@ -21,7 +21,7 @@ type Props = {
   placeholders: string[];
   added: string[];
   removed: string[];
-  onTemplateImported?: (name: string, content: string) => void;
+  onTemplateImported?: (template: TemplateDto) => void;
 };
 
 export function TemplateEditor({
@@ -33,9 +33,8 @@ export function TemplateEditor({
   onTemplateImported,
 }: Props) {
   const importInputRef = useRef<HTMLInputElement>(null);
-  const loadInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Importa template via API (multipart) ───────────────────────────────
+  // ── Importa template via API (multipart) ─────────────────────────────────
   async function handleImportFile(file: File) {
     const formData = new FormData();
     formData.append("file", file);
@@ -48,25 +47,15 @@ export function TemplateEditor({
         body: formData,
       });
       if (!res.ok) throw new Error(await res.text());
-      const tmpl = (await res.json()) as { name: string; content: string };
+      const tmpl = (await res.json()) as TemplateDto;
       onChange(tmpl.content);
-      onTemplateImported?.(tmpl.name, tmpl.content);
+      onTemplateImported?.(tmpl); // passa il TemplateDto completo con id UUID
     } catch (err) {
       alert(`Errore importazione: ${String(err)}`);
     }
   }
 
-  // ── Carica documento: legge il testo localmente e lo incolla ───────────
-  function handleLoadFile(file: File) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result;
-      if (typeof text === "string") onChange(text);
-    };
-    reader.readAsText(file, "utf-8");
-  }
-
-  // ── Drag & drop ────────────────────────────────────────────────────────
+  // ── Drag & drop ──────────────────────────────────────────────────────────
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
@@ -76,22 +65,24 @@ export function TemplateEditor({
       file.type === "text/plain" ||
       file.type === "text/markdown"
     ) {
-      handleLoadFile(file);
+      void handleImportFile(file);
     } else {
       alert("Formato non supportato. Carica un file .md");
     }
   }
 
-  // ── Crea campo: inserisce {{nuovo_campo_N}} alla fine ──────────────────
+  // ── Crea campo: inserisce {{campo_N}} nel testo ───────────────────────────
   function handleCreateField() {
-    const existing = (markdown.match(/\{\{(\w+)\}\}/g) ?? []).length;
-    const fieldName = `campo_${existing + 1}`;
-    onChange(markdown + `\n{{${fieldName}}}`);
+    // Usa la lunghezza dei placeholder già presenti per generare un nome unico
+    const fieldName = `campo_${placeholders.length + 1}`;
+    // Inserisce su nuova riga in fondo (o all'inizio se l'editor è vuoto)
+    const separator = markdown.length > 0 ? "\n" : "";
+    onChange(`${markdown}${separator}{{${fieldName}}}`);
   }
 
   return (
     <Stack gap={2}>
-      {/* file input nascosti */}
+      {/* file input nascosto — solo .md */}
       <input
         ref={importInputRef}
         type="file"
@@ -100,17 +91,6 @@ export function TemplateEditor({
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) void handleImportFile(file);
-          e.target.value = "";
-        }}
-      />
-      <input
-        ref={loadInputRef}
-        type="file"
-        accept=".md,.txt,text/markdown,text/plain"
-        style={{ display: "none" }}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleLoadFile(file);
           e.target.value = "";
         }}
       />
@@ -129,16 +109,9 @@ export function TemplateEditor({
             >
               Importa template
             </Button>
-            <Button
-              variant="outlined"
-              startIcon={<FolderOpenIcon />}
-              onClick={() => loadInputRef.current?.click()}
-            >
-              Carica documento
-            </Button>
           </Stack>
           <Typography variant="body2" color="text.secondary">
-            Trascina un file .md
+            Trascina un file .md per importarlo
           </Typography>
         </Stack>
         <Divider sx={{ my: 2 }} />
