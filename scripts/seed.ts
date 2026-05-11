@@ -1,11 +1,11 @@
 import "reflect-metadata";
+import { config } from "dotenv";
 import { DataSource } from "typeorm";
-import * as dotenvx from "@dotenvx/dotenvx";
-import { CategoryEntity } from "../src/entities/category.entity";
+import { CategoryEntity, type CategoryType } from "../src/entities/category.entity";
 import { SectionEntity } from "../src/entities/section.entity";
 import { parsePort } from "../src/common/utils/parse-port";
 
-dotenvx.config();
+config();
 
 const dataSource = new DataSource({
   type: "postgres",
@@ -18,7 +18,7 @@ const dataSource = new DataSource({
   synchronize: false,
 });
 
-const CATEGORIES = [
+const CATEGORIES: { id: string; type: CategoryType; name: string }[] = [
   { id: "11111111-1111-4111-8111-111111111111", type: "portfolio", name: "Portfolio Demo" },
   { id: "22222222-2222-4222-8222-222222222222", type: "programma", name: "Programma Demo" },
   { id: "33333333-3333-4333-8333-333333333333", type: "progetto",  name: "Progetto Demo" },
