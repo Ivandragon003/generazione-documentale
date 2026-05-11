@@ -406,7 +406,13 @@
         ],
         "responses": {
           "202": {
-            "description": ""
+            "description": "PDF job creato con successo - processing avviato"
+          },
+          "404": {
+            "description": "Documento o template non trovato"
+          },
+          "422": {
+            "description": "Campi obbligatori non compilati"
           }
         },
         "summary": "Avvia generazione PDF",
