@@ -1,0 +1,128 @@
+:root {
+  font-family: Inter, sans-serif;
+  color: #111827;
+  background: #f5f7fb;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+.top-appbar {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(10px);
+}
+
+.header-bar {
+  padding: 24px 0;
+}
+
+.doc-icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
+  border-radius: 12px;
+}
+
+.workspace-shell,
+.architecture-note,
+.panel-shell,
+.editor-paper,
+.field-card,
+.preview-sheet {
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.workspace-body {
+  padding: 24px;
+  background: #eef2f8;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.panel-shell {
+  padding: 16px;
+}
+
+.editor-paper {
+  padding: 18px;
+  background: white;
+}
+
+.editor-input textarea {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.field-card {
+  padding: 16px;
+}
+
+.preview-sheet {
+  padding: 48px 56px;
+  min-height: 960px;
+  background: white;
+}
+
+.logo-box {
+  display: inline-grid;
+  place-items: center;
+  width: 68px;
+  height: 32px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  color: #2563eb;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.markdown-preview h1 {
+  font-size: 2.2rem;
+  line-height: 1.2;
+  margin-bottom: 0.25rem;
+  color: #0f4fb8;
+}
+
+.markdown-preview h2 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: #1346a0;
+  font-size: 1.2rem;
+}
+
+.markdown-preview p,
+.markdown-preview li {
+  color: #334155;
+  line-height: 1.8;
+}
+
+.markdown-preview hr {
+  border: 0;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  margin: 2rem 0;
+}
+
+.architecture-note {
+  margin-top: 20px;
+  padding: 20px 24px;
+}
+
+@media (max-width: 900px) {
+  .preview-sheet {
+    padding: 24px;
+  }
+
+  .workspace-body {
+    padding: 16px;
+  }
+}
