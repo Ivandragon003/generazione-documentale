@@ -1,4 +1,6 @@
 import "reflect-metadata";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { config } from "dotenv";
 import { DataSource } from "typeorm";
 import { CategoryEntity, type CategoryType } from "../src/entities/category.entity";
@@ -10,6 +12,8 @@ import type { FieldDefinition } from "../src/common/types/field-definition.type"
 import { parsePort } from "../src/common/utils/parse-port";
 
 config();
+
+const STORAGE = resolve(process.env.TEMPLATES_STORAGE_PATH ?? "./storage/templates");
 
 const dataSource = new DataSource({
   type: "postgres",
@@ -204,44 +208,54 @@ const FIELDS_COLLAUDO: FieldDefinition[] = [
 ];
 
 const FIELDS_CONSUNTIVO: FieldDefinition[] = [
-  f("titolo",                "Titolo consuntivo",       "text"),
-  f("progetto_rif",          "Progetto di riferimento", "text"),
-  f("responsabile",          "Responsabile",            "text"),
-  f("data_chiusura",         "Data chiusura",           "date"),
-  f("budget_iniziale",       "Budget iniziale (€)",     "currency"),
-  f("costo_finale",          "Costo finale (€)",        "currency"),
-  f("scostamento",           "Scostamento (€)",         "currency", false),
-  f("obiettivi_raggiunti",   "Obiettivi raggiunti",     "textarea"),
-  f("obiettivi_mancati",     "Obiettivi non raggiunti", "textarea", false),
-  f("lezioni_apprese",       "Lezioni apprese",         "textarea", false),
-  f("note",                  "Note finali",             "textarea", false),
-  f("chiuso",                "Progetto chiuso",         "boolean",  false, "false"),
+  f("titolo",              "Titolo consuntivo",       "text"),
+  f("progetto_rif",        "Progetto di riferimento", "text"),
+  f("responsabile",        "Responsabile",            "text"),
+  f("data_chiusura",       "Data chiusura",           "date"),
+  f("budget_iniziale",     "Budget iniziale (€)",     "currency"),
+  f("costo_finale",        "Costo finale (€)",        "currency"),
+  f("scostamento",         "Scostamento (€)",         "currency", false),
+  f("obiettivi_raggiunti", "Obiettivi raggiunti",     "textarea"),
+  f("obiettivi_mancati",   "Obiettivi non raggiunti", "textarea", false),
+  f("lezioni_apprese",     "Lezioni apprese",         "textarea", false),
+  f("note",                "Note finali",             "textarea", false),
+  f("chiuso",              "Progetto chiuso",         "boolean",  false, "false"),
 ];
 
 // ═══════════════════════════════════════════════════════════════════
 // UUID validi formato 8-4-4-4-12
 // ═══════════════════════════════════════════════════════════════════
-const TEMPLATES: { id: string; sectionId: string; name: string; description: string; status: "draft" | "published"; fields: FieldDefinition[] }[] = [
-  { id: "00000001-0000-4000-8000-000000000001", sectionId: "aa000001-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "Lettera di presentazione",   description: "Lettera formale di presentazione o accompagnamento",          status: "published", fields: FIELDS_LETTERA_PRESENTAZIONE },
-  { id: "00000001-0000-4000-8000-000000000002", sectionId: "aa000001-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "Profilo aziendale",           description: "Scheda sintetica di presentazione dell'azienda",            status: "published", fields: FIELDS_PROFILO_AZIENDALE },
-  { id: "00000001-0000-4000-8000-000000000003", sectionId: "aa000002-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "Offerta commerciale standard", description: "Offerta commerciale con importo e condizioni base",        status: "published", fields: FIELDS_OFFERTA_STANDARD },
-  { id: "00000001-0000-4000-8000-000000000004", sectionId: "aa000002-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "Preventivo dettagliato",      description: "Preventivo con voci di costo, imponibile e IVA",           status: "published", fields: FIELDS_PREVENTIVO },
-  { id: "00000001-0000-4000-8000-000000000005", sectionId: "bb000001-bbbb-4bbb-8bbb-bbbbbbbbbbbb", name: "Piano operativo annuale",    description: "Pianificazione annuale con obiettivi, azioni e KPI",       status: "published", fields: FIELDS_PIANO_OPERATIVO },
-  { id: "00000001-0000-4000-8000-000000000006", sectionId: "bb000001-bbbb-4bbb-8bbb-bbbbbbbbbbbb", name: "Cronoprogramma attività",   description: "Schedulazione temporale delle attività con milestone",     status: "published", fields: FIELDS_CRONOPROGRAMMA },
-  { id: "00000001-0000-4000-8000-000000000007", sectionId: "bb000002-bbbb-4bbb-8bbb-bbbbbbbbbbbb", name: "Report avanzamento lavori",  description: "Report periodico sullo stato avanzamento del progetto",   status: "published", fields: FIELDS_REPORT_AVANZAMENTO },
-  { id: "00000001-0000-4000-8000-000000000008", sectionId: "bb000002-bbbb-4bbb-8bbb-bbbbbbbbbbbb", name: "Verbale di riunione",        description: "Verbale con partecipanti, punti discussi e delibere",      status: "published", fields: FIELDS_VERBALE },
-  { id: "00000001-0000-4000-8000-000000000009", sectionId: "cc000001-cccc-4ccc-8ccc-cccccccccccc", name: "Scheda progetto completa",   description: "Anagrafica completa del progetto con budget e milestone",  status: "published", fields: FIELDS_SCHEDA_PROGETTO },
-  { id: "00000001-0000-4000-8000-000000000010", sectionId: "cc000001-cccc-4ccc-8ccc-cccccccccccc", name: "Brief creativo",             description: "Brief per progetti creativi: obiettivo, target, tono",    status: "published", fields: FIELDS_BRIEF_CREATIVO },
-  { id: "00000001-0000-4000-8000-000000000011", sectionId: "cc000002-cccc-4ccc-8ccc-cccccccccccc", name: "Registro rischi",            description: "Identificazione e gestione dei rischi di progetto",        status: "published", fields: FIELDS_REGISTRO_RISCHI },
-  { id: "00000001-0000-4000-8000-000000000012", sectionId: "cc000002-cccc-4ccc-8ccc-cccccccccccc", name: "Piano di comunicazione",    description: "Pianificazione delle comunicazioni verso gli stakeholder",  status: "published", fields: FIELDS_PIANO_COMUNICAZIONE },
-  { id: "00000001-0000-4000-8000-000000000013", sectionId: "cc000003-cccc-4ccc-8ccc-cccccccccccc", name: "Collaudo e accettazione",    description: "Verbale di collaudo con esito e accettazione cliente",    status: "published", fields: FIELDS_COLLAUDO },
-  { id: "00000001-0000-4000-8000-000000000014", sectionId: "cc000003-cccc-4ccc-8ccc-cccccccccccc", name: "Consuntivo finale",          description: "Consuntivo di chiusura con costi, risultati e lezioni",   status: "published", fields: FIELDS_CONSUNTIVO },
+const TEMPLATES: {
+  id: string;
+  sectionId: string;
+  name: string;
+  description: string;
+  status: "draft" | "published";
+  fields: FieldDefinition[];
+  content: string;
+}[] = [
+  { id: "00000001-0000-4000-8000-000000000001", sectionId: "aa000001-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "Lettera di presentazione",   description: "Lettera formale di presentazione o accompagnamento",          status: "published", fields: FIELDS_LETTERA_PRESENTAZIONE, content: "# Lettera di presentazione\n\n> Lettera formale di presentazione o accompagnamento.\n" },
+  { id: "00000001-0000-4000-8000-000000000002", sectionId: "aa000001-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "Profilo aziendale",           description: "Scheda sintetica di presentazione dell'azienda",              status: "published", fields: FIELDS_PROFILO_AZIENDALE,       content: "# Profilo aziendale\n\n> Scheda sintetica di presentazione dell'azienda.\n" },
+  { id: "00000001-0000-4000-8000-000000000003", sectionId: "aa000002-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "Offerta commerciale standard", description: "Offerta commerciale con importo e condizioni base",          status: "published", fields: FIELDS_OFFERTA_STANDARD,        content: "# Offerta commerciale standard\n\n> Offerta commerciale con importo e condizioni base.\n" },
+  { id: "00000001-0000-4000-8000-000000000004", sectionId: "aa000002-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "Preventivo dettagliato",      description: "Preventivo con voci di costo, imponibile e IVA",             status: "published", fields: FIELDS_PREVENTIVO,              content: "# Preventivo dettagliato\n\n> Preventivo con voci di costo, imponibile e IVA.\n" },
+  { id: "00000001-0000-4000-8000-000000000005", sectionId: "bb000001-bbbb-4bbb-8bbb-bbbbbbbbbbbb", name: "Piano operativo annuale",     description: "Pianificazione annuale con obiettivi, azioni e KPI",         status: "published", fields: FIELDS_PIANO_OPERATIVO,         content: "# Piano operativo annuale\n\n> Pianificazione annuale con obiettivi, azioni e KPI.\n" },
+  { id: "00000001-0000-4000-8000-000000000006", sectionId: "bb000001-bbbb-4bbb-8bbb-bbbbbbbbbbbb", name: "Cronoprogramma attività",     description: "Schedulazione temporale delle attività con milestone",       status: "published", fields: FIELDS_CRONOPROGRAMMA,          content: "# Cronoprogramma attività\n\n> Schedulazione temporale delle attività con milestone.\n" },
+  { id: "00000001-0000-4000-8000-000000000007", sectionId: "bb000002-bbbb-4bbb-8bbb-bbbbbbbbbbbb", name: "Report avanzamento lavori",   description: "Report periodico sullo stato avanzamento del progetto",     status: "published", fields: FIELDS_REPORT_AVANZAMENTO,      content: "# Report avanzamento lavori\n\n> Report periodico sullo stato avanzamento del progetto.\n" },
+  { id: "00000001-0000-4000-8000-000000000008", sectionId: "bb000002-bbbb-4bbb-8bbb-bbbbbbbbbbbb", name: "Verbale di riunione",         description: "Verbale con partecipanti, punti discussi e delibere",        status: "published", fields: FIELDS_VERBALE,                 content: "# Verbale di riunione\n\n> Verbale con partecipanti, punti discussi e delibere.\n" },
+  { id: "00000001-0000-4000-8000-000000000009", sectionId: "cc000001-cccc-4ccc-8ccc-cccccccccccc", name: "Scheda progetto completa",    description: "Anagrafica completa del progetto con budget e milestone",    status: "published", fields: FIELDS_SCHEDA_PROGETTO,         content: "# Scheda progetto completa\n\n> Anagrafica completa del progetto con budget e milestone.\n" },
+  { id: "00000001-0000-4000-8000-000000000010", sectionId: "cc000001-cccc-4ccc-8ccc-cccccccccccc", name: "Brief creativo",              description: "Brief per progetti creativi: obiettivo, target, tono",      status: "published", fields: FIELDS_BRIEF_CREATIVO,          content: "# Brief creativo\n\n> Brief per progetti creativi: obiettivo, target, tono.\n" },
+  { id: "00000001-0000-4000-8000-000000000011", sectionId: "cc000002-cccc-4ccc-8ccc-cccccccccccc", name: "Registro rischi",             description: "Identificazione e gestione dei rischi di progetto",          status: "published", fields: FIELDS_REGISTRO_RISCHI,         content: "# Registro rischi\n\n> Identificazione e gestione dei rischi di progetto.\n" },
+  { id: "00000001-0000-4000-8000-000000000012", sectionId: "cc000002-cccc-4ccc-8ccc-cccccccccccc", name: "Piano di comunicazione",      description: "Pianificazione delle comunicazioni verso gli stakeholder",    status: "published", fields: FIELDS_PIANO_COMUNICAZIONE,     content: "# Piano di comunicazione\n\n> Pianificazione delle comunicazioni verso gli stakeholder.\n" },
+  { id: "00000001-0000-4000-8000-000000000013", sectionId: "cc000003-cccc-4ccc-8ccc-cccccccccccc", name: "Collaudo e accettazione",     description: "Verbale di collaudo con esito e accettazione cliente",      status: "published", fields: FIELDS_COLLAUDO,                content: "# Collaudo e accettazione\n\n> Verbale di collaudo con esito e accettazione cliente.\n" },
+  { id: "00000001-0000-4000-8000-000000000014", sectionId: "cc000003-cccc-4ccc-8ccc-cccccccccccc", name: "Consuntivo finale",           description: "Consuntivo di chiusura con costi, risultati e lezioni",     status: "published", fields: FIELDS_CONSUNTIVO,              content: "# Consuntivo finale\n\n> Consuntivo di chiusura con costi, risultati e lezioni.\n" },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
 const runSeed = async (): Promise<void> => {
   await dataSource.initialize();
   console.log("Connessione DB ok");
+
+  await mkdir(STORAGE, { recursive: true });
 
   const categoryRepo = dataSource.getRepository(CategoryEntity);
   const sectionRepo  = dataSource.getRepository(SectionEntity);
@@ -261,15 +275,18 @@ const runSeed = async (): Promise<void> => {
   }
 
   for (const tpl of TEMPLATES) {
+    const contentPath = `${tpl.id}.md`;
+    await writeFile(join(STORAGE, contentPath), tpl.content, "utf8");
     await templateRepo.upsert(
       {
-        id:          tpl.id,
-        name:        tpl.name,
-        description: tpl.description,
-        status:      tpl.status,
-        fields:      tpl.fields,
-        created_by:  "seed",
-        section:     { id: tpl.sectionId },
+        id:           tpl.id,
+        name:         tpl.name,
+        description:  tpl.description,
+        status:       tpl.status,
+        fields:       tpl.fields,
+        content_path: contentPath,
+        created_by:   "seed",
+        section:      { id: tpl.sectionId },
       },
       ["id"],
     );
