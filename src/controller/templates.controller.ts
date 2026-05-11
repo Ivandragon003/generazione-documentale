@@ -19,6 +19,7 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import {
   ApiBody,
   ApiConsumes,
+  ApiHeader,
   ApiOperation,
   ApiParam,
   ApiQuery,
@@ -34,11 +35,11 @@ import {
   readAndCleanupUpload,
 } from "../common/utils/http.utils";
 import { appConfig } from "../config/app.config";
-import type { CreateTemplateDto } from "../dto/create-template.dto";
+import { CreateTemplateDto } from "../dto/create-template.dto";
 import { ImportTemplateFileDto } from "../dto/import-template-file.dto";
-import type { TemplateQueryDto } from "../dto/template-query.dto";
-import type { UpdateTemplateDto } from "../dto/update-template.dto";
-import type { ValidateMarkdownDto } from "../dto/validate-markdown.dto";
+import { TemplateQueryDto } from "../dto/template-query.dto";
+import { UpdateTemplateDto } from "../dto/update-template.dto";
+import { ValidateMarkdownDto } from "../dto/validate-markdown.dto";
 import { TemplatesService } from "../service/templates.service";
 
 const UPLOAD_PATH = appConfig.uploadPath;
@@ -124,6 +125,12 @@ export class TemplatesController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Crea template" })
+  @ApiHeader({
+    name: "x-user",
+    description: "Identificativo utente (propagato dal BFF)",
+    required: false,
+    example: "ivan",
+  })
   async create(@Body() body: CreateTemplateDto, @Req() request: Request) {
     const template = await this.templatesService.create({
       section_id: body.sectionId,
@@ -141,6 +148,12 @@ export class TemplatesController {
   @Put(":id")
   @ApiOperation({ summary: "Aggiorna template" })
   @ApiParam({ name: "id", description: "UUID template" })
+  @ApiHeader({
+    name: "x-user",
+    description: "Identificativo utente (propagato dal BFF)",
+    required: false,
+    example: "ivan",
+  })
   async update(@Param("id") id: string, @Body() body: UpdateTemplateDto) {
     const template = await this.templatesService.update(id, {
       section_id: body.sectionId,
@@ -158,6 +171,12 @@ export class TemplatesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Elimina template" })
   @ApiParam({ name: "id", description: "UUID template" })
+  @ApiHeader({
+    name: "x-user",
+    description: "Identificativo utente (propagato dal BFF)",
+    required: false,
+    example: "ivan",
+  })
   delete(@Param("id") id: string) {
     return this.templatesService.delete(id);
   }
@@ -185,6 +204,12 @@ export class TemplatesController {
   @ApiConsumes("multipart/form-data")
   @ApiBody({ type: ImportTemplateFileDto })
   @ApiOperation({ summary: "Importa template da file .md" })
+  @ApiHeader({
+    name: "x-user",
+    description: "Identificativo utente (propagato dal BFF)",
+    required: false,
+    example: "ivan",
+  })
   async import(
     @UploadedFile() file: UploadedMarkdownFile,
     @Body() body: ImportTemplateFileDto,
