@@ -14,6 +14,7 @@ import {
   Res,
 } from "@nestjs/common";
 import {
+  ApiHeader,
   ApiOperation,
   ApiParam,
   ApiQuery,
@@ -27,9 +28,9 @@ import {
 } from "../common/mappers/response.mapper";
 import { makeError } from "../common/utils/errors";
 import { getActor, parsePagination } from "../common/utils/http.utils";
-import type { CreateDocumentDto } from "../dto/create-document.dto";
-import type { DocumentQueryDto } from "../dto/document-query.dto";
-import type { UpdateDocumentDto } from "../dto/update-document.dto";
+import { CreateDocumentDto } from "../dto/create-document.dto";
+import { DocumentQueryDto } from "../dto/document-query.dto";
+import { UpdateDocumentDto } from "../dto/update-document.dto";
 import { DocumentsService } from "../service/documents.service";
 import { PdfJobsService } from "../service/pdf-jobs.service";
 import { PreviewService } from "../service/preview.service";
@@ -84,6 +85,12 @@ export class DocumentsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Crea documento da template" })
+  @ApiHeader({
+    name: "x-user",
+    description: "Identificativo utente (propagato dal BFF)",
+    required: false,
+    example: "ivan",
+  })
   create(@Body() body: CreateDocumentDto, @Req() request: Request) {
     return this.documentsService
       .create({
@@ -97,6 +104,12 @@ export class DocumentsController {
   @Put(":id")
   @ApiOperation({ summary: "Aggiorna documento" })
   @ApiParam({ name: "id", description: "UUID documento" })
+  @ApiHeader({
+    name: "x-user",
+    description: "Identificativo utente (propagato dal BFF)",
+    required: false,
+    example: "ivan",
+  })
   update(@Param("id") id: string, @Body() body: UpdateDocumentDto) {
     return this.documentsService
       .update(id, {
@@ -111,6 +124,12 @@ export class DocumentsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Elimina documento" })
   @ApiParam({ name: "id", description: "UUID documento" })
+  @ApiHeader({
+    name: "x-user",
+    description: "Identificativo utente (propagato dal BFF)",
+    required: false,
+    example: "ivan",
+  })
   delete(@Param("id") id: string) {
     return this.documentsService.delete(id);
   }
@@ -118,6 +137,12 @@ export class DocumentsController {
   @Post(":id/pdf")
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: "Avvia generazione PDF" })
+  @ApiHeader({
+    name: "x-user",
+    description: "Identificativo utente (propagato dal BFF)",
+    required: false,
+    example: "ivan",
+  })
   @ApiResponse({
     status: 202,
     description: "PDF job creato con successo - processing avviato",
