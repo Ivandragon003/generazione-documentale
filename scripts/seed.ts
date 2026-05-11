@@ -3,6 +3,9 @@ import { config } from "dotenv";
 import { DataSource } from "typeorm";
 import { CategoryEntity, type CategoryType } from "../src/entities/category.entity";
 import { SectionEntity } from "../src/entities/section.entity";
+import { TemplateEntity } from "../src/entities/template.entity";
+import { DocumentEntity } from "../src/entities/document.entity";
+import { PdfJobEntity } from "../src/entities/pdf-job.entity";
 import { parsePort } from "../src/common/utils/parse-port";
 
 config();
@@ -14,7 +17,7 @@ const dataSource = new DataSource({
   username: process.env.DB_USER ?? "postgres",
   password: process.env.DB_PASSWORD ?? "postgres",
   database: process.env.DB_NAME ?? "mac_documents",
-  entities: [CategoryEntity, SectionEntity],
+  entities: [CategoryEntity, SectionEntity, TemplateEntity, DocumentEntity, PdfJobEntity],
   synchronize: false,
 });
 
