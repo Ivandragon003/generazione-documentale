@@ -1,0 +1,38 @@
+# ── Dipendenze ────────────────────────────────────────────────
+node_modules/
+
+# ── Build output ──────────────────────────────────────────────
+dist/
+dist-ssr/
+
+# ── Variabili d'ambiente (tenere solo .env.example) ───────────
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+.env.test
+
+# ── Cache Vite / TypeScript ───────────────────────────────────
+.vite/
+*.tsbuildinfo
+
+# ── Log ───────────────────────────────────────────────────────
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Editor / OS ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── Test coverage ─────────────────────────────────────────────
+coverage/
