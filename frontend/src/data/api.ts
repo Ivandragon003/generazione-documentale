@@ -22,7 +22,7 @@ export type TemplateDto = {
 export type DocumentDto = {
   id: string;
   name: string;
-  templateId: string | null;   // camelCase — backend: toDocumentResponse
+  templateId: string | null; // camelCase — backend: toDocumentResponse
   content: string;
   fieldValues: Record<string, string | number | boolean | null>;
   status: DocumentStatus;
@@ -32,7 +32,7 @@ export type DocumentDto = {
 
 export type PdfJobDto = {
   id: string;
-  documentId: string;          // camelCase — backend: toPdfJobResponse
+  documentId: string; // camelCase — backend: toPdfJobResponse
   status: "queued" | "running" | "completed" | "failed";
   filename: string | null;
   unresolvedFields: string[];

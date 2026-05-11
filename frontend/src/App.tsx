@@ -46,7 +46,9 @@ function fieldFromKey(key: string): TemplateField {
 /** Controlla se una stringa è un UUID v1-v5 valido */
 function isUuid(s: string | null | undefined): s is string {
   if (!s) return false;
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    s,
+  );
 }
 
 export default function App() {
@@ -130,7 +132,9 @@ export default function App() {
     (importedTemplate: TemplateDto) => {
       setTemplate(importedTemplate);
       setMarkdown(importedTemplate.content);
-      originalPlaceholders.current = extractPlaceholders(importedTemplate.content);
+      originalPlaceholders.current = extractPlaceholders(
+        importedTemplate.content,
+      );
       setSnack({
         open: true,
         msg: `Template "${importedTemplate.name}" importato.`,
@@ -180,7 +184,11 @@ export default function App() {
           fieldValues: { ...fieldValues },
         });
         setDocument(saved);
-        setSnack({ open: true, msg: "Documento salvato.", severity: "success" });
+        setSnack({
+          open: true,
+          msg: "Documento salvato.",
+          severity: "success",
+        });
       } else {
         // Nessun documento in DB → crea template (se serve) + crea documento
         let activeTmpl: TemplateDto;

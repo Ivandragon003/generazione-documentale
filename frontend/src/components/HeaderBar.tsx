@@ -31,11 +31,16 @@ function statusColor(
 
 function statusLabel(s: DocumentDto["status"] | undefined): string {
   switch (s) {
-    case "draft":     return "Bozza";
-    case "generated": return "Generato";
-    case "published": return "Pubblicato";
-    case "archived":  return "Archiviato";
-    default:          return "Non Generato";
+    case "draft":
+      return "Bozza";
+    case "generated":
+      return "Generato";
+    case "published":
+      return "Pubblicato";
+    case "archived":
+      return "Archiviato";
+    default:
+      return "Non Generato";
   }
 }
 

@@ -25,8 +25,8 @@ function jobStatusColor(
   status: PdfJobDto["status"],
 ): "default" | "warning" | "success" | "error" {
   if (status === "completed") return "success";
-  if (status === "failed")    return "error";
-  if (status === "running")   return "warning";
+  if (status === "failed") return "error";
+  if (status === "running") return "warning";
   return "default";
 }
 
