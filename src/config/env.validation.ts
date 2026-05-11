@@ -13,8 +13,10 @@ export const validateEnv = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
   const dbUser = requireEnv(env.DB_USER, "DB_USER");
   const dbPassword = requireEnv(env.DB_PASSWORD, "DB_PASSWORD");
   const dbName = requireEnv(env.DB_NAME, "DB_NAME");
+  const port = requireEnv(env.PORT, "PORT");
 
   parsePort(dbPortRaw, "DB_PORT");
+  parsePort(port, "PORT");
 
   return {
     ...env,
@@ -23,5 +25,6 @@ export const validateEnv = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
     DB_USER: dbUser,
     DB_PASSWORD: dbPassword,
     DB_NAME: dbName,
+    PORT: port,
   };
 };

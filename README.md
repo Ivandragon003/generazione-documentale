@@ -162,7 +162,7 @@ Endpoint rimossi/non esposti attualmente: `POST /api/templates/:id/publish`, `PO
 | `GET`    | `/api/documents/:id`              | Dettaglio documento                               |
 | `PUT`    | `/api/documents/:id`              | Aggiorna contenuto / `fieldValues`                |
 | `DELETE` | `/api/documents/:id`              | Elimina documento                                 |
-| `POST`   | `/api/documents/:id/generate-pdf` | Accoda generazione PDF asincrona e risponde `202` |
+| `POST`   | `/api/documents/:id/pdf`          | Accoda generazione PDF asincrona e risponde `202` |
 | `GET`    | `/api/documents/:id/pdf/latest`   | Scarica l'ultimo PDF completato                   |
 | `GET`    | `/api/documents/:id/preview-pdf`  | Anteprima PDF temporanea (non salvata)            |
 | `GET`    | `/api/documents/:id/versions`     | Cronologia versioni documento                     |

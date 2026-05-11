@@ -28,8 +28,10 @@ export const buildTypeOrmOptions = (
       PdfJobEntity,
     ],
     // Entity-first policy:
-    // - development: direct sync from entities
-    // - production: entity-generated migrations only
+    // - development: direct sync from entities (automatic schema updates)
+    // - staging/production: DISABLED - use migrations only (safer for production data)
+    // WARNING: Never set synchronize:true in staging or production environments!
+    // This can cause data loss when schema changes are deployed.
     synchronize: !isProduction,
     migrationsRun: isProduction,
     migrations: ["dist/migrations/*.js"],

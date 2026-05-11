@@ -26,6 +26,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     if (exception instanceof AppError) {
+      this.logger.error(
+        `AppError on ${request.method} ${request.url}: ${exception.message}`,
+        exception.stack,
+      );
       response.status(exception.status).json({
         statusCode: exception.status,
         message: exception.message,

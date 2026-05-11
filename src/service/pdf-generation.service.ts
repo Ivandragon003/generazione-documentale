@@ -14,7 +14,8 @@ export interface PdfGenerationInput {
   strict: boolean;
 }
 
-const STORAGE_PATH = resolve(pdfConfig.storagePath);
+// STORAGE_PATH should be resolved at request time, not module load
+// to allow proper dependency injection and configuration
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
@@ -25,6 +26,10 @@ export class PdfGenerationService {
     @Inject(DocumentRenderingService)
     private readonly documentRenderingService: DocumentRenderingService,
   ) {}
+
+  private getStoragePath(): string {
+    return resolve(pdfConfig.storagePath);
+  }
 
   private buildPandocArgs(
     outputPath: string,
@@ -132,9 +137,9 @@ export class PdfGenerationService {
         strict,
       );
 
-    await mkdir(STORAGE_PATH, { recursive: true });
+    await mkdir(this.getStoragePath(), { recursive: true });
     const filename = `${randomUUID()}.pdf`;
-    const outputPath = join(STORAGE_PATH, filename);
+    const outputPath = join(this.getStoragePath(), filename);
     const args = this.buildPandocArgs(outputPath, title, author);
 
     let lastError: Error | undefined;
@@ -152,7 +157,7 @@ export class PdfGenerationService {
   }
 
   async getPdfStream(filename: string): Promise<ReadStream> {
-    const filepath = join(STORAGE_PATH, filename);
+    const filepath = join(this.getStoragePath(), filename);
     try {
       await access(filepath);
     } catch {
@@ -162,7 +167,7 @@ export class PdfGenerationService {
   }
 
   async deletePdf(filename: string): Promise<void> {
-    const filepath = join(STORAGE_PATH, filename);
+    const filepath = join(this.getStoragePath(), filename);
     await unlink(filepath).catch(() => undefined);
   }
 }

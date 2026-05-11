@@ -33,6 +33,8 @@ export class DocumentRenderingService {
             fieldValues[field.name] === null ||
             fieldValues[field.name] === ""),
       )
-      .map((field) => field.label ?? field.name);
+      .map((field) =>
+        field.label && field.label.trim().length > 0 ? field.label : field.name,
+      );
   }
 }

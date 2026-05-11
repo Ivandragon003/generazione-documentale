@@ -69,20 +69,16 @@ export class DocumentsRepository {
       fieldValues: Record<string, string | number | boolean | null>;
     },
   ): Promise<DocumentEntity> {
-    await manager.update(
-      DocumentEntity,
-      { id: payload.id },
-      {
-        name: payload.name,
-        content: payload.content,
-        field_values: payload.fieldValues,
-      },
-    );
-    const updated = await manager.findOne(DocumentEntity, {
+    const document = await manager.findOne(DocumentEntity, {
       where: { id: payload.id },
     });
-    if (!updated) throw new Error("Documento non trovato dopo update");
-    return updated;
+    if (!document) throw new Error("Documento non trovato");
+
+    document.name = payload.name;
+    document.content = payload.content;
+    document.field_values = payload.fieldValues;
+
+    return manager.save(DocumentEntity, document);
   }
 
   async insertPdfJob(

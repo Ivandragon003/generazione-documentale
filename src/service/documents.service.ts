@@ -31,6 +31,12 @@ export class DocumentsService {
     private readonly pdfJobsService: PdfJobsService,
   ) {}
 
+  private isValidUuid(uuid: string): boolean {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  }
+
   private async findOneOrThrow(id: string) {
     const document = await this.findOne(id);
     if (!document) throw makeError("Documento non trovato", 404);
@@ -65,6 +71,9 @@ export class DocumentsService {
   }: CreateDocumentInput) {
     if (!name || name.trim().length === 0) {
       throw makeError("Il nome documento e obbligatorio", 400);
+    }
+    if (!this.isValidUuid(templateId)) {
+      throw makeError("Template ID non è un UUID valido", 400);
     }
     const template = await this.templatesService.findOne(templateId);
     if (!template) throw makeError("Template non trovato", 404);

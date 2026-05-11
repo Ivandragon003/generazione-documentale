@@ -118,6 +118,18 @@ export class DocumentsController {
   @Post(":id/pdf")
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: "Avvia generazione PDF" })
+  @ApiResponse({
+    status: 202,
+    description: "PDF job creato con successo - processing avviato",
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Documento o template non trovato",
+  })
+  @ApiResponse({
+    status: 422,
+    description: "Campi obbligatori non compilati",
+  })
   enqueuePdf(@Param("id") id: string, @Req() request: Request) {
     return this.pdfJobsService
       .enqueuePdfGeneration(id, getActor(request))

@@ -103,7 +103,8 @@ export const validateMarkdownContent = (
 
   const blockedPatterns: Array<{ pattern: RegExp; label: string }> = [
     {
-      pattern: /\\(?:input|include|write18|openout|read)\b/i,
+      pattern:
+        /\\(?:input|include|write18|openout|read)(?:\s|$|[^a-zA-Z0-9_])/i,
       label: "comandi LaTeX di input/output",
     },
     { pattern: /<script\b/i, label: "tag script HTML" },

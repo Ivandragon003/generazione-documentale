@@ -82,7 +82,8 @@ export class PdfJobsService implements OnModuleDestroy {
     this.queueRecoveryStarted = true;
     try {
       await this.triggerQueueProcessor();
-    } catch {
+    } catch (error) {
+      // Reset flag on retry to allow recovery attempts
       this.queueRecoveryStarted = false;
       if (!this.queueRecoveryTimer) {
         this.queueRecoveryTimer = setTimeout(() => {

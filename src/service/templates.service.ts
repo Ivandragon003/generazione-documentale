@@ -91,6 +91,10 @@ export class TemplatesService {
     const content = await this.readTemplateContent(row.content_path);
     if (content === null) {
       // Il file su disco non e disponibile: e un problema di infrastruttura, non un bug applicativo
+      this.logger.error(
+        `Template content file not found - missing path: "${row.content_path}"`,
+        "Template hydration failed",
+      );
       throw makeError("Contenuto template locale non disponibile", 503);
     }
     return { ...row, content };
