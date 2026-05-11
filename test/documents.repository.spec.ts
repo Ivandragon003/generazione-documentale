@@ -133,8 +133,8 @@ describe("DocumentsRepository", () => {
     it("deve aggiornare e restituire il documento", async () => {
       const doc = fakeDoc();
       const manager: any = {
-        update: jest.fn().mockResolvedValue(undefined),
         findOne: jest.fn().mockResolvedValue(doc),
+        save: jest.fn().mockResolvedValue(doc),
       };
       const result = await repo.updateDocument(manager, {
         id: "doc-1",
@@ -147,7 +147,6 @@ describe("DocumentsRepository", () => {
 
     it("deve lanciare errore se documento non trovato dopo update", async () => {
       const manager: any = {
-        update: jest.fn().mockResolvedValue(undefined),
         findOne: jest.fn().mockResolvedValue(null),
       };
       await expect(

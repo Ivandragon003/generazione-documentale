@@ -152,7 +152,6 @@ describe("DocumentsRepository — edge cases aggiuntivi", () => {
   describe("updateDocument()", () => {
     it("lancia errore con messaggio specifico se documento non trovato dopo update", async () => {
       const manager = {
-        update: jest.fn().mockResolvedValue(undefined),
         findOne: jest.fn().mockResolvedValue(null),
       };
 
@@ -169,26 +168,32 @@ describe("DocumentsRepository — edge cases aggiuntivi", () => {
     it("aggiorna tutti e tre i campi: name, content, field_values", async () => {
       const doc = fakeDoc();
       const manager = {
-        update: jest.fn().mockResolvedValue(undefined),
         findOne: jest.fn().mockResolvedValue(doc),
+        save: jest.fn().mockResolvedValue({
+          ...doc,
+          name: "Nuovo nome",
+          content: "Nuovo contenuto",
+          field_values: { titolo: "T", importo: 100 },
+        }),
       };
 
-      await repo.updateDocument(manager as never, {
+      const result = await repo.updateDocument(manager as never, {
         id: "doc-1",
         name: "Nuovo nome",
         content: "Nuovo contenuto",
         fieldValues: { titolo: "T", importo: 100 },
       });
 
-      expect(manager.update).toHaveBeenCalledWith(
+      expect(manager.findOne).toHaveBeenCalled();
+      expect(manager.save).toHaveBeenCalledWith(
         DocumentEntity,
-        { id: "doc-1" },
         expect.objectContaining({
           name: "Nuovo nome",
           content: "Nuovo contenuto",
           field_values: { titolo: "T", importo: 100 },
         }),
       );
+      expect(result.name).toBe("Nuovo nome");
     });
   });
 

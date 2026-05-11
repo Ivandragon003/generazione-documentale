@@ -27,9 +27,9 @@ const runTransaction = (
 };
 
 const makeDoc = (overrides: Partial<DocumentEntity> = {}): DocumentEntity => ({
-  id: "dddddddd-dddd-4ddd-dddd-dddddddddddd",
+  id: "dddddddd-dddd-4ddd-addd-dddddddddddd",
   name: "Test",
-  template_id: "tttttttt-tttt-4ttt-tttt-tttttttttttt",
+  template_id: "550e8400-e29b-41d4-a716-446655440000",
   content: "# {{titolo}}",
   field_values: { titolo: "X" },
   status: "draft",
@@ -40,7 +40,7 @@ const makeDoc = (overrides: Partial<DocumentEntity> = {}): DocumentEntity => ({
 });
 
 const makeTemplate = (): TemplateEntity & { content: string } => ({
-  id: "tttttttt-tttt-4ttt-tttt-tttttttttttt",
+  id: "550e8400-e29b-41d4-a716-446655440000",
   name: "Template",
   content: "# {{titolo}}",
   content_path: null,
@@ -121,7 +121,7 @@ describe("DocumentsService — edge cases aggiuntivi", () => {
       await expect(
         service.create({
           name: "Doc",
-          templateId: "ffffffff-ffff-4fff-ffff-ffffffffffff",
+          templateId: "ffffffff-ffff-4fff-afff-ffffffffffff",
         }),
       ).rejects.toMatchObject({ status: 404 });
     });
