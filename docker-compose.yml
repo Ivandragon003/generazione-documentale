@@ -67,7 +67,7 @@ services:
     volumes:
       - pdf_storage:/app/storage/pdf
       - upload_storage:/app/storage/uploads
-      - template_storage:/app/storage/templates
+      - ./storage/templates:/app/storage/templates
 
     ports:
       - "${PORT:-3000}:3000"
@@ -83,7 +83,6 @@ volumes:
   postgres_data:
   pdf_storage:
   upload_storage:
-  template_storage:
 
 
 # ───────────────────────────────────────────────────────────────
