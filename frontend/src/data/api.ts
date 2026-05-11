@@ -13,34 +13,34 @@ export type TemplateDto = {
   content: string;
   fields: TemplateVersion["fields"];
   status: "draft" | "published";
-  created_by: string;
-  created_at: string;
-  updated_at: string;
+  sectionId: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
+// Backend risponde camelCase (response.mapper.ts)
 export type DocumentDto = {
   id: string;
   name: string;
-  template_id: string | null;
+  templateId: string | null;   // camelCase — backend: toDocumentResponse
   content: string;
-  field_values: Record<string, string | number | boolean | null>;
+  fieldValues: Record<string, string | number | boolean | null>;
   status: DocumentStatus;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type PdfJobDto = {
   id: string;
-  document_id: string;
+  documentId: string;          // camelCase — backend: toPdfJobResponse
   status: "queued" | "running" | "completed" | "failed";
   filename: string | null;
-  unresolved_fields: string[];
-  error_message: string | null;
-  requested_by: string;
-  created_at: string;
-  started_at: string | null;
-  completed_at: string | null;
+  unresolvedFields: string[];
+  errorMessage: string | null;
+  requestedBy: string;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -131,8 +131,8 @@ export function createDocument(payload: {
 }
 
 /**
- * Aggiorna nome, content e/o field_values di un documento.
- * Usa PUT /api/documents/:id (unico endpoint di update nel backend).
+ * Aggiorna nome, content e/o fieldValues di un documento.
+ * Usa PUT /api/documents/:id
  */
 export function updateDocument(
   id: string,

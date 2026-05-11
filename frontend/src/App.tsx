@@ -43,6 +43,12 @@ function fieldFromKey(key: string): TemplateField {
   return { key, label: key, type: "text", placeholder: `Valore per ${key}` };
 }
 
+/** Controlla se una stringa è un UUID v1-v5 valido */
+function isUuid(s: string | null | undefined): s is string {
+  if (!s) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
   const [appStatus, setAppStatus] = useState<AppStatus>("loading");
@@ -86,9 +92,10 @@ export default function App() {
 
         if (firstDocument) {
           setDocument(firstDocument);
+          // fieldValues è già camelCase dal backend
           const fv: Record<string, string> = {};
           for (const [k, v] of Object.entries(
-            firstDocument.field_values ?? {},
+            firstDocument.fieldValues ?? {},
           )) {
             fv[k] = v != null ? String(v) : "";
           }
@@ -156,7 +163,7 @@ export default function App() {
 
         const newDoc = await createDocument({
           name: document?.name ?? "Documento",
-          templateId: newTmpl.id, // UUID garantito dalla risposta API
+          templateId: newTmpl.id,
         });
         const saved = await updateDocument(newDoc.id, {
           fieldValues: { ...fieldValues },
@@ -168,20 +175,22 @@ export default function App() {
           severity: "success",
         });
       } else if (document) {
-        // Stessa struttura, documento già esistente → aggiorna solo field_values
+        // Stessa struttura, documento già esistente → aggiorna solo fieldValues
         const saved = await updateDocument(document.id, {
           fieldValues: { ...fieldValues },
         });
         setDocument(saved);
         setSnack({ open: true, msg: "Documento salvato.", severity: "success" });
       } else {
-        // Nessun documento in DB → crea template (o aggiorna) + crea documento
+        // Nessun documento in DB → crea template (se serve) + crea documento
         let activeTmpl: TemplateDto;
-        if (template) {
+        if (template && isUuid(template.id)) {
+          // Template UUID reale già in DB → aggiornalo
           activeTmpl = await updateTemplate(template.id, { content: markdown });
         } else {
+          // Nessun template o ID mock → crea nuovo
           activeTmpl = await createTemplate({
-            name: "Nuovo Template",
+            name: template?.name ?? "Nuovo Template",
             content: markdown,
             fields: currentPlaceholders.map(fieldFromKey),
           });
@@ -189,7 +198,7 @@ export default function App() {
         setTemplate(activeTmpl);
         originalPlaceholders.current = extractPlaceholders(activeTmpl.content);
 
-        // Usa activeTmpl.id (UUID reale) — mai template?.id che può essere undefined
+        // activeTmpl.id è sempre UUID reale (dalla risposta API)
         const newDoc = await createDocument({
           name: "Nuovo Documento",
           templateId: activeTmpl.id,
@@ -213,7 +222,7 @@ export default function App() {
     }
   }, [markdown, fieldValues, template, document]);
 
-  // ── Genera PDF ──────────────────────────────────────────────────────────────
+  // ── Genera PDF ────────────────────────────────────────────────────────────
   const handleGeneratePdf = useCallback(async () => {
     if (!document) {
       setSnack({
@@ -240,7 +249,7 @@ export default function App() {
     }
   }, [document]);
 
-  // ── Derivati ────────────────────────────────────────────────────────────────
+  // ── Derivati ──────────────────────────────────────────────────────────────
   const currentPlaceholders = useMemo(
     () => extractPlaceholders(markdown),
     [markdown],
@@ -268,7 +277,7 @@ export default function App() {
     [markdown, fieldValues],
   );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   if (appStatus === "loading") {
     return (
       <Box
