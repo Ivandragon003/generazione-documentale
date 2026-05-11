@@ -25,8 +25,8 @@ function jobStatusColor(
   status: PdfJobDto["status"],
 ): "default" | "warning" | "success" | "error" {
   if (status === "completed") return "success";
-  if (status === "failed") return "error";
-  if (status === "running") return "warning";
+  if (status === "failed")    return "error";
+  if (status === "running")   return "warning";
   return "default";
 }
 
@@ -54,7 +54,9 @@ export function PdfPreview({ content, pdfJobs = [], documentId }: Props) {
             {pdfJobs.slice(0, 3).map((job) => (
               <Tooltip
                 key={job.id}
-                title={`${job.created_at}${job.error_message ? " — " + job.error_message : ""}`}
+                title={`${
+                  job.createdAt
+                }${job.errorMessage ? " — " + job.errorMessage : ""}`}
               >
                 <Chip
                   label={`PDF ${job.status}`}
@@ -104,7 +106,7 @@ export function PdfPreview({ content, pdfJobs = [], documentId }: Props) {
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {latestCompleted
-                ? `Generato: ${new Date(latestCompleted.created_at).toLocaleDateString("it-IT")}`
+                ? `Generato: ${new Date(latestCompleted.createdAt).toLocaleDateString("it-IT")}`
                 : "Non ancora generato"}
             </Typography>
           </Box>

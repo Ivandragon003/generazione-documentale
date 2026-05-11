@@ -31,16 +31,11 @@ function statusColor(
 
 function statusLabel(s: DocumentDto["status"] | undefined): string {
   switch (s) {
-    case "draft":
-      return "Bozza";
-    case "generated":
-      return "Generato";
-    case "published":
-      return "Pubblicato";
-    case "archived":
-      return "Archiviato";
-    default:
-      return "Non Generato";
+    case "draft":     return "Bozza";
+    case "generated": return "Generato";
+    case "published": return "Pubblicato";
+    case "archived":  return "Archiviato";
+    default:          return "Non Generato";
   }
 }
 
@@ -53,8 +48,10 @@ export function HeaderBar({
   pdfJobs,
 }: HeaderBarProps) {
   const latestJob = pdfJobs[0];
-  const lastGenerated = document?.updated_at
-    ? new Date(document.updated_at).toLocaleDateString("it-IT")
+
+  // updatedAt (camelCase) — allineato a DocumentDto
+  const lastGenerated = document?.updatedAt
+    ? new Date(document.updatedAt).toLocaleDateString("it-IT")
     : "—";
 
   return (
@@ -72,8 +69,7 @@ export function HeaderBar({
               {document?.name ?? template?.name ?? "Nessun documento"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {template?.name ?? "—"} · {lastGenerated} ·{" "}
-              {document?.created_by ?? "—"}
+              {template?.name ?? "—"} · {lastGenerated}
             </Typography>
             <Chip
               label={statusLabel(document?.status)}
@@ -87,7 +83,7 @@ export function HeaderBar({
         <Stack direction="row" gap={1} alignItems="center">
           {latestJob && (
             <Tooltip
-              title={`Ultimo job: ${latestJob.status} — ${latestJob.created_at}`}
+              title={`Ultimo job: ${latestJob.status} — ${latestJob.createdAt}`}
             >
               <Chip
                 icon={<HistoryIcon />}
