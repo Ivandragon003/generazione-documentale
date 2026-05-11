@@ -5,8 +5,14 @@ export function extractPlaceholders(markdown: string): string[] {
   return [...new Set([...matches].map((match) => match[1]))];
 }
 
-export function renderMarkdown(markdown: string, values: Record<string, string>): string {
-  return markdown.replace(PLACEHOLDER_REGEX, (_, key: string) => values[key] || `{{${key}}}`);
+export function renderMarkdown(
+  markdown: string,
+  values: Record<string, string>,
+): string {
+  return markdown.replace(
+    PLACEHOLDER_REGEX,
+    (_, key: string) => values[key] || `{{${key}}}`,
+  );
 }
 
 export function comparePlaceholderSets(previous: string[], next: string[]) {

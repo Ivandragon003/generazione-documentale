@@ -1,18 +1,18 @@
-import type { TemplateVersion } from './mock';
+import type { TemplateVersion } from "./mock";
 
-const BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000') + '/api';
+const BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:3000") + "/api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type DocumentStatus = 'draft' | 'generated' | 'published' | 'archived';
+export type DocumentStatus = "draft" | "generated" | "published" | "archived";
 
 export type TemplateDto = {
   id: string;
   name: string;
   description: string | null;
   content: string;
-  fields: TemplateVersion['fields'];
-  status: 'draft' | 'published';
+  fields: TemplateVersion["fields"];
+  status: "draft" | "published";
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -33,7 +33,7 @@ export type DocumentDto = {
 export type PdfJobDto = {
   id: string;
   document_id: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
+  status: "queued" | "running" | "completed" | "failed";
   filename: string | null;
   unresolved_fields: string[];
   error_message: string | null;
@@ -49,8 +49,8 @@ async function api<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const res = await fetch(input, {
     ...init,
     headers: {
-      'Content-Type': 'application/json',
-      'x-user': 'frontend',
+      "Content-Type": "application/json",
+      "x-user": "frontend",
       ...(init?.headers ?? {}),
     },
   });
@@ -64,7 +64,10 @@ async function api<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
 
 // ─── Templates ───────────────────────────────────────────────────────────────
 
-export function getTemplates(): Promise<{ data: TemplateDto[]; total: number }> {
+export function getTemplates(): Promise<{
+  data: TemplateDto[];
+  total: number;
+}> {
   return api(`${BASE}/templates`);
 }
 
@@ -75,12 +78,12 @@ export function getTemplateById(id: string): Promise<TemplateDto> {
 export function createTemplate(payload: {
   name: string;
   content: string;
-  fields: TemplateVersion['fields'];
+  fields: TemplateVersion["fields"];
   sectionId?: string;
-  status?: 'draft' | 'published';
+  status?: "draft" | "published";
 }): Promise<TemplateDto> {
   return api(`${BASE}/templates`, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify(payload),
   });
 }
@@ -90,23 +93,26 @@ export function updateTemplate(
   payload: {
     name?: string;
     content?: string;
-    fields?: TemplateVersion['fields'];
-    status?: 'draft' | 'published';
+    fields?: TemplateVersion["fields"];
+    status?: "draft" | "published";
   },
 ): Promise<TemplateDto> {
   return api(`${BASE}/templates/${id}`, {
-    method: 'PUT',
+    method: "PUT",
     body: JSON.stringify(payload),
   });
 }
 
 export function deleteTemplate(id: string): Promise<void> {
-  return api(`${BASE}/templates/${id}`, { method: 'DELETE' });
+  return api(`${BASE}/templates/${id}`, { method: "DELETE" });
 }
 
 // ─── Documents ───────────────────────────────────────────────────────────────
 
-export function getDocuments(): Promise<{ data: DocumentDto[]; total: number }> {
+export function getDocuments(): Promise<{
+  data: DocumentDto[];
+  total: number;
+}> {
   return api(`${BASE}/documents`);
 }
 
@@ -119,7 +125,7 @@ export function createDocument(payload: {
   templateId: string;
 }): Promise<DocumentDto> {
   return api(`${BASE}/documents`, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify(payload),
   });
 }
@@ -137,20 +143,20 @@ export function updateDocument(
   },
 ): Promise<DocumentDto> {
   return api(`${BASE}/documents/${id}`, {
-    method: 'PUT',
+    method: "PUT",
     body: JSON.stringify(payload),
   });
 }
 
 export function deleteDocument(id: string): Promise<void> {
-  return api(`${BASE}/documents/${id}`, { method: 'DELETE' });
+  return api(`${BASE}/documents/${id}`, { method: "DELETE" });
 }
 
 // ─── PDF Jobs ─────────────────────────────────────────────────────────────────
 
 /** Avvia generazione PDF → POST /api/documents/:id/pdf */
 export function triggerPdfGeneration(documentId: string): Promise<PdfJobDto> {
-  return api(`${BASE}/documents/${documentId}/pdf`, { method: 'POST' });
+  return api(`${BASE}/documents/${documentId}/pdf`, { method: "POST" });
 }
 
 /** Lista job PDF di un documento → GET /api/documents/:id/pdf/jobs */
@@ -159,7 +165,10 @@ export function getPdfJobs(documentId: string): Promise<PdfJobDto[]> {
 }
 
 /** Stato singolo job → GET /api/documents/:id/pdf/jobs/:jobId */
-export function getPdfJob(documentId: string, jobId: string): Promise<PdfJobDto> {
+export function getPdfJob(
+  documentId: string,
+  jobId: string,
+): Promise<PdfJobDto> {
   return api(`${BASE}/documents/${documentId}/pdf/jobs/${jobId}`);
 }
 

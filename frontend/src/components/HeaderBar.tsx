@@ -1,3 +1,6 @@
+import HistoryIcon from "@mui/icons-material/History";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import SaveIcon from "@mui/icons-material/Save";
 import {
   Box,
   Button,
@@ -6,11 +9,8 @@ import {
   Stack,
   Tooltip,
   Typography,
-} from '@mui/material';
-import HistoryIcon from '@mui/icons-material/History';
-import SaveIcon from '@mui/icons-material/Save';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import type { DocumentDto, PdfJobDto, TemplateDto } from '../data/api';
+} from "@mui/material";
+import type { DocumentDto, PdfJobDto, TemplateDto } from "../data/api";
 
 interface HeaderBarProps {
   document: DocumentDto | null;
@@ -21,19 +21,26 @@ interface HeaderBarProps {
   pdfJobs: PdfJobDto[];
 }
 
-function statusColor(s: DocumentDto['status']): 'default' | 'warning' | 'success' | 'secondary' {
-  if (s === 'generated' || s === 'published') return 'success';
-  if (s === 'archived') return 'default';
-  return 'secondary'; // draft
+function statusColor(
+  s: DocumentDto["status"],
+): "default" | "warning" | "success" | "secondary" {
+  if (s === "generated" || s === "published") return "success";
+  if (s === "archived") return "default";
+  return "secondary"; // draft
 }
 
-function statusLabel(s: DocumentDto['status'] | undefined): string {
+function statusLabel(s: DocumentDto["status"] | undefined): string {
   switch (s) {
-    case 'draft': return 'Bozza';
-    case 'generated': return 'Generato';
-    case 'published': return 'Pubblicato';
-    case 'archived': return 'Archiviato';
-    default: return 'Non Generato';
+    case "draft":
+      return "Bozza";
+    case "generated":
+      return "Generato";
+    case "published":
+      return "Pubblicato";
+    case "archived":
+      return "Archiviato";
+    default:
+      return "Non Generato";
   }
 }
 
@@ -47,24 +54,30 @@ export function HeaderBar({
 }: HeaderBarProps) {
   const latestJob = pdfJobs[0];
   const lastGenerated = document?.updated_at
-    ? new Date(document.updated_at).toLocaleDateString('it-IT')
-    : '—';
+    ? new Date(document.updated_at).toLocaleDateString("it-IT")
+    : "—";
 
   return (
     <Box className="header-bar">
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="flex-start"
+        gap={2}
+      >
         <Stack direction="row" gap={2} alignItems="center">
           <Box className="doc-icon">DOC</Box>
           <Box>
             <Typography variant="h5">
-              {document?.name ?? template?.name ?? 'Nessun documento'}
+              {document?.name ?? template?.name ?? "Nessun documento"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {template?.name ?? '—'} · {lastGenerated} · {document?.created_by ?? '—'}
+              {template?.name ?? "—"} · {lastGenerated} ·{" "}
+              {document?.created_by ?? "—"}
             </Typography>
             <Chip
               label={statusLabel(document?.status)}
-              color={statusColor(document?.status ?? 'draft')}
+              color={statusColor(document?.status ?? "draft")}
               size="small"
               sx={{ mt: 1 }}
             />
@@ -73,12 +86,14 @@ export function HeaderBar({
 
         <Stack direction="row" gap={1} alignItems="center">
           {latestJob && (
-            <Tooltip title={`Ultimo job: ${latestJob.status} — ${latestJob.created_at}`}>
+            <Tooltip
+              title={`Ultimo job: ${latestJob.status} — ${latestJob.created_at}`}
+            >
               <Chip
                 icon={<HistoryIcon />}
                 label={`PDF: ${latestJob.status}`}
                 size="small"
-                color={latestJob.status === 'completed' ? 'success' : 'default'}
+                color={latestJob.status === "completed" ? "success" : "default"}
               />
             </Tooltip>
           )}
@@ -98,11 +113,17 @@ export function HeaderBar({
 
           <Button
             variant="contained"
-            startIcon={isSaving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+            startIcon={
+              isSaving ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <SaveIcon />
+              )
+            }
             onClick={onSave}
             disabled={isSaving}
           >
-            {isSaving ? 'Salvataggio…' : 'Salva'}
+            {isSaving ? "Salvataggio…" : "Salva"}
           </Button>
         </Stack>
       </Stack>

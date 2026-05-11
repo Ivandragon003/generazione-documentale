@@ -28,9 +28,9 @@ import {
 } from "../common/mappers/response.mapper";
 import { makeError } from "../common/utils/errors";
 import { getActor, parsePagination } from "../common/utils/http.utils";
-import { CreateDocumentDto } from "../dto/create-document.dto";
-import { DocumentQueryDto } from "../dto/document-query.dto";
-import { UpdateDocumentDto } from "../dto/update-document.dto";
+import type { CreateDocumentDto } from "../dto/create-document.dto";
+import type { DocumentQueryDto } from "../dto/document-query.dto";
+import type { UpdateDocumentDto } from "../dto/update-document.dto";
 import { DocumentsService } from "../service/documents.service";
 import { PdfJobsService } from "../service/pdf-jobs.service";
 import { PreviewService } from "../service/preview.service";

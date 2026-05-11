@@ -3,16 +3,16 @@ import { IsBoolean, IsEnum, IsOptional, IsString } from "class-validator";
 import type { FieldType } from "../common/types/field-definition.type";
 
 const fieldTypes: FieldType[] = [
-  "text",      // input singola riga
-  "textarea",  // testo multi-riga
-  "number",    // numero
-  "date",      // data (YYYY-MM-DD)
-  "boolean",   // checkbox si/no
-  "email",     // indirizzo email
-  "url",       // link/URL
-  "tel",       // numero di telefono
-  "select",    // scelta da lista (opzioni in defaultValue separate da virgola)
-  "currency",  // importo monetario (es. € 1.000,00)
+  "text", // input singola riga
+  "textarea", // testo multi-riga
+  "number", // numero
+  "date", // data (YYYY-MM-DD)
+  "boolean", // checkbox si/no
+  "email", // indirizzo email
+  "url", // link/URL
+  "tel", // numero di telefono
+  "select", // scelta da lista (opzioni in defaultValue separate da virgola)
+  "currency", // importo monetario (es. € 1.000,00)
 ];
 
 export class TemplateFieldDto {
@@ -43,7 +43,7 @@ export class TemplateFieldDto {
   @ApiPropertyOptional({
     example: "",
     description:
-      "Valore di default. Per type=select: lista opzioni separate da virgola (es. \"Attivo,In attesa,Chiuso\").",
+      'Valore di default. Per type=select: lista opzioni separate da virgola (es. "Attivo,In attesa,Chiuso").',
   })
   @IsOptional()
   @IsString()
