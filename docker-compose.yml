@@ -62,10 +62,12 @@ services:
 
       STORAGE_PATH: /app/storage/pdf
       UPLOAD_PATH: /app/storage/uploads
+      TEMPLATES_STORAGE_PATH: /app/storage/templates
 
     volumes:
       - pdf_storage:/app/storage/pdf
       - upload_storage:/app/storage/uploads
+      - template_storage:/app/storage/templates
 
     ports:
       - "${PORT:-3000}:3000"
@@ -81,6 +83,7 @@ volumes:
   postgres_data:
   pdf_storage:
   upload_storage:
+  template_storage:
 
 
 # ───────────────────────────────────────────────────────────────
