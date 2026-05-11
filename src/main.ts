@@ -16,7 +16,6 @@ async function bootstrap(): Promise<void> {
     new ValidationPipe({
       whitelist: true,
       transform: true,
-      forbidUnknownValues: true,
       transformOptions: { enableImplicitConversion: true },
     }),
   );
