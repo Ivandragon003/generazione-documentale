@@ -33,41 +33,36 @@ import { comparePlaceholderSets, extractPlaceholders, renderMarkdown } from './u
 
 const tabLabels = ['Template', 'Campi', 'Anteprima PDF'];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tipi di stato dell'applicazione
-// ─────────────────────────────────────────────────────────────────────────────
 type AppStatus = 'loading' | 'ready' | 'saving' | 'error';
 
+/** Costruisce un TemplateField minimale da una chiave placeholder */
+function fieldFromKey(key: string): TemplateField {
+  return { key, label: key, type: 'text', placeholder: `Valore per ${key}` };
+}
+
 export default function App() {
-  // ── stato UI ──────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState(0);
   const [appStatus, setAppStatus] = useState<AppStatus>('loading');
   const [snack, setSnack] = useState<{ open: boolean; msg: string; severity: 'success' | 'error' }>(
     { open: false, msg: '', severity: 'success' },
   );
 
-  // ── dati dal backend ──────────────────────────────────────────────────────
   const [template, setTemplate] = useState<TemplateDto | null>(null);
   const [document, setDocument] = useState<DocumentDto | null>(null);
   const [pdfJobs, setPdfJobs] = useState<PdfJobDto[]>([]);
 
-  // ── stato editor (locale, sincronizzato al salvataggio) ──────────────────
   const [markdown, setMarkdown] = useState('');
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
 
-  // placeholder originali del template caricato (usati per rilevare struttura cambiata)
   const originalPlaceholders = useRef<string[]>([]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Boot: carica il primo template e il primo documento dal backend
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Boot ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
 
     async function boot() {
       try {
         const [tmplRes, docRes] = await Promise.all([getTemplates(), getDocuments()]);
-
         if (cancelled) return;
 
         const firstTemplate = tmplRes.data[0] ?? null;
@@ -81,14 +76,12 @@ export default function App() {
 
         if (firstDocument) {
           setDocument(firstDocument);
-          // i field_values del documento prevalgono
           const fv: Record<string, string> = {};
           for (const [k, v] of Object.entries(firstDocument.field_values ?? {})) {
             fv[k] = v != null ? String(v) : '';
           }
           setFieldValues(fv);
 
-          // carica i job PDF del documento
           const jobs = await getPdfJobs(firstDocument.id);
           if (!cancelled) setPdfJobs(jobs);
         }
@@ -107,9 +100,7 @@ export default function App() {
     return () => { cancelled = true; };
   }, []);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Salvataggio
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Salva ─────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     setAppStatus('saving');
     try {
@@ -118,62 +109,40 @@ export default function App() {
       const structureChanged = diff.added.length > 0 || diff.removed.length > 0;
 
       if (structureChanged) {
-        // ── struttura cambiata: crea nuovo template + nuovo documento ──────
         const newTmpl = await createTemplate({
           name: (template?.name ?? 'Template') + ' (rev)',
           content: markdown,
-          fields: currentPlaceholders.map((key) => ({
-            key,
-            label: key,
-            type: 'text' as const,
-            required: false,
-          })),
+          fields: currentPlaceholders.map(fieldFromKey),
         });
         setTemplate(newTmpl);
         originalPlaceholders.current = extractPlaceholders(newTmpl.content);
 
-        const newDoc = await createDocument({
-          name: document?.name ?? 'Documento',
-          templateId: newTmpl.id,
-        });
-        // aggiorna subito i field_values sul nuovo documento
+        const newDoc = await createDocument({ name: document?.name ?? 'Documento', templateId: newTmpl.id });
         const saved = await updateDocument(newDoc.id, {
-          fieldValues: Object.fromEntries(
-            Object.entries(fieldValues).map(([k, v]) => [k, v]),
-          ),
+          fieldValues: Object.fromEntries(Object.entries(fieldValues)),
         });
         setDocument(saved);
         setSnack({ open: true, msg: 'Struttura cambiata: nuovo template e documento creati.', severity: 'success' });
+
       } else if (document) {
-        // ── solo valori cambiati: aggiorna documento esistente ─────────────
         const saved = await updateDocument(document.id, {
-          fieldValues: Object.fromEntries(
-            Object.entries(fieldValues).map(([k, v]) => [k, v]),
-          ),
+          fieldValues: Object.fromEntries(Object.entries(fieldValues)),
         });
         setDocument(saved);
         setSnack({ open: true, msg: 'Documento salvato.', severity: 'success' });
+
       } else {
-        // ── nessun documento ancora: crea template + documento ────────────
         const newTmpl = template
           ? await updateTemplate(template.id, { content: markdown })
           : await createTemplate({
               name: 'Nuovo Template',
               content: markdown,
-              fields: currentPlaceholders.map((key) => ({
-                key,
-                label: key,
-                type: 'text' as const,
-                required: false,
-              })),
+              fields: currentPlaceholders.map(fieldFromKey),
             });
         setTemplate(newTmpl);
         originalPlaceholders.current = extractPlaceholders(newTmpl.content);
 
-        const newDoc = await createDocument({
-          name: 'Nuovo Documento',
-          templateId: newTmpl.id,
-        });
+        const newDoc = await createDocument({ name: 'Nuovo Documento', templateId: newTmpl.id });
         setDocument(newDoc);
         setSnack({ open: true, msg: 'Template e documento creati.', severity: 'success' });
       }
@@ -185,9 +154,7 @@ export default function App() {
     }
   }, [markdown, fieldValues, template, document]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Genera PDF
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Genera PDF ──────────────────────────────────────────────────────────────
   const handleGeneratePdf = useCallback(async () => {
     if (!document) {
       setSnack({ open: true, msg: 'Salva prima il documento.', severity: 'error' });
@@ -202,9 +169,7 @@ export default function App() {
     }
   }, [document]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Derivati
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Derivati ────────────────────────────────────────────────────────────────
   const currentPlaceholders = useMemo(() => extractPlaceholders(markdown), [markdown]);
 
   const diff = useMemo(
@@ -214,18 +179,16 @@ export default function App() {
 
   const visibleFields = useMemo((): TemplateField[] => {
     const keys = new Set(currentPlaceholders);
-    const tmplFields: TemplateField[] = (template?.fields ?? []).filter((f) => keys.has(f.key));
+    const tmplFields: TemplateField[] = (template?.fields as TemplateField[] ?? []).filter((f) => keys.has(f.key));
     const extra: TemplateField[] = currentPlaceholders
       .filter((k) => !tmplFields.some((f) => f.key === k))
-      .map((k) => ({ key: k, label: k, type: 'text' as const, placeholder: `Valore per ${k}` }));
+      .map(fieldFromKey);
     return [...tmplFields, ...extra];
   }, [currentPlaceholders, template]);
 
   const rendered = useMemo(() => renderMarkdown(markdown, fieldValues), [markdown, fieldValues]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
   if (appStatus === 'loading') {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -288,7 +251,7 @@ export default function App() {
 
         {appStatus === 'error' && (
           <Alert severity="warning" sx={{ mt: 2 }}>
-            Backend non raggiungibile — i dati mostrati sono vuoti. Assicurati che il server sia in esecuzione su <strong>localhost:3000</strong>.
+            Backend non raggiungibile — assicurati che il server sia in esecuzione su <strong>localhost:3000</strong>.
           </Alert>
         )}
 
