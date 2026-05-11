@@ -35,7 +35,6 @@ const tabLabels = ['Template', 'Campi', 'Anteprima PDF'];
 
 type AppStatus = 'loading' | 'ready' | 'saving' | 'error';
 
-/** Costruisce un TemplateField minimale da una chiave placeholder */
 function fieldFromKey(key: string): TemplateField {
   return { key, label: key, type: 'text', placeholder: `Valore per ${key}` };
 }
@@ -98,6 +97,12 @@ export default function App() {
 
     void boot();
     return () => { cancelled = true; };
+  }, []);
+
+  // ── Callback da TemplateEditor quando viene importato un template via API ──
+  const handleTemplateImported = useCallback((name: string, content: string) => {
+    originalPlaceholders.current = extractPlaceholders(content);
+    setSnack({ open: true, msg: `Template "${name}" importato.`, severity: 'success' });
   }, []);
 
   // ── Salva ─────────────────────────────────────────────────────────────────
@@ -226,6 +231,7 @@ export default function App() {
                 placeholders={currentPlaceholders}
                 added={diff.added}
                 removed={diff.removed}
+                onTemplateImported={handleTemplateImported}
               />
             )}
 
