@@ -1,513 +1,128 @@
-/* ═══════════════════════════════════════════════════════════════════
-   MAC DOCUMENTS — Editorial Government Design System
-   Aesthetic: Istituzionale/editoriale — inchiostro + ambra + carta
-   Font: DM Serif Display (headings) + IBM Plex Sans (UI) + IBM Plex Mono (code)
-═══════════════════════════════════════════════════════════════════ */
-
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
-
-/* ─── Tokens ──────────────────────────────────────────────────────── */
 :root {
-  --ink:          #0f1923;
-  --ink-soft:     #374151;
-  --ink-muted:    #6b7280;
-  --ink-faint:    #9ca3af;
-
-  --paper:        #faf9f7;
-  --paper-warm:   #f5f3ef;
-  --paper-border: #e5e1d8;
-  --paper-card:   #ffffff;
-
-  --amber:        #c47d1a;
-  --amber-light:  #fef3cd;
-  --amber-hover:  #a36515;
-
-  --blue-deep:    #0d2d6b;
-  --blue-mid:     #1a4fa8;
-  --blue-light:   #dbeafe;
-  --blue-tint:    #f0f5ff;
-
-  --success:      #166534;
-  --success-bg:   #dcfce7;
-  --error:        #991b1b;
-  --error-bg:     #fee2e2;
-  --warning:      #92400e;
-  --warning-bg:   #fef3c7;
-
-  --radius-sm:    6px;
-  --radius-md:    10px;
-  --radius-lg:    16px;
-  --radius-xl:    20px;
-
-  --shadow-card:  0 1px 3px rgba(15, 25, 35, 0.06), 0 4px 16px rgba(15, 25, 35, 0.05);
-  --shadow-float: 0 4px 24px rgba(15, 25, 35, 0.10), 0 1px 4px rgba(15, 25, 35, 0.06);
-
-  --font-display: 'DM Serif Display', Georgia, serif;
-  --font-ui:      'IBM Plex Sans', 'Helvetica Neue', sans-serif;
-  --font-mono:    'IBM Plex Mono', 'Courier New', monospace;
-
-  --transition:   180ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* ─── Reset & Base ────────────────────────────────────────────────── */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+  font-family: Inter, sans-serif;
+  color: #111827;
+  background: #f5f7fb;
 }
 
 body {
-  font-family: var(--font-ui);
-  font-size: 15px;
-  color: var(--ink);
-  background: var(--paper);
+  margin: 0;
   min-width: 320px;
-  line-height: 1.6;
 }
 
-/* ─── Top AppBar ──────────────────────────────────────────────────── */
 .top-appbar {
-  background: rgba(250, 249, 247, 0.92) !important;
-  backdrop-filter: blur(16px) saturate(1.4);
-  border-bottom: 1px solid var(--paper-border) !important;
-  box-shadow: 0 1px 0 rgba(15, 25, 35, 0.04) !important;
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(10px);
 }
 
-/* ─── Header Bar ──────────────────────────────────────────────────── */
 .header-bar {
-  padding: 20px 0;
+  padding: 24px 0;
 }
 
-/* Doc icon — sigillo istituzionale */
 .doc-icon {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   display: grid;
   place-items: center;
-  font-family: var(--font-ui);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--blue-deep);
-  background: var(--blue-tint);
-  border: 1.5px solid rgba(13, 45, 107, 0.18);
-  border-radius: var(--radius-md);
-  position: relative;
-  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
+  border-radius: 12px;
 }
 
-.doc-icon::after {
-  content: '';
-  position: absolute;
-  inset: 3px;
-  border: 1px solid rgba(13, 45, 107, 0.10);
-  border-radius: var(--radius-sm);
-  pointer-events: none;
+.workspace-shell,
+.architecture-note,
+.panel-shell,
+.editor-paper,
+.field-card,
+.preview-sheet {
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
 }
 
-/* ─── Workspace Shell ─────────────────────────────────────────────── */
-.workspace-shell {
-  border-radius: var(--radius-xl) !important;
-  box-shadow: var(--shadow-card) !important;
-  overflow: hidden;
-  border: 1px solid var(--paper-border);
-  background: var(--paper-card) !important;
-}
-
-/* MUI Tabs override — stile editoriale */
-.workspace-shell .MuiTabs-root {
-  background: var(--paper-warm);
-  border-bottom: 1px solid var(--paper-border);
-  padding: 0 8px;
-  min-height: 48px;
-}
-
-.workspace-shell .MuiTab-root {
-  font-family: var(--font-ui) !important;
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  letter-spacing: 0.02em;
-  text-transform: none !important;
-  color: var(--ink-muted) !important;
-  min-height: 48px;
-  padding: 0 16px !important;
-  transition: color var(--transition);
-}
-
-.workspace-shell .MuiTab-root.Mui-selected {
-  color: var(--blue-deep) !important;
-  font-weight: 600 !important;
-}
-
-.workspace-shell .MuiTabs-indicator {
-  background-color: var(--amber) !important;
-  height: 2.5px;
-  border-radius: 2px 2px 0 0;
-}
-
-/* ─── Workspace Body ──────────────────────────────────────────────── */
 .workspace-body {
   padding: 24px;
-  background: var(--paper-warm);
-  border-top: 1px solid var(--paper-border);
+  background: #eef2f8;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
 }
 
-/* ─── Panel Shell (toolbar sopra editor/campi/preview) ────────────── */
 .panel-shell {
-  padding: 14px 16px;
-  background: var(--paper-card) !important;
-  border: 1px solid var(--paper-border) !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--shadow-card) !important;
+  padding: 16px;
 }
 
-/* ─── Editor Paper ────────────────────────────────────────────────── */
 .editor-paper {
-  padding: 20px;
-  background: var(--paper-card) !important;
-  border: 1px solid var(--paper-border) !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--shadow-card) !important;
+  padding: 18px;
+  background: white;
 }
 
-/* Textarea monospace — stile codice/template */
 .editor-input textarea {
-  font-family: var(--font-mono);
-  font-size: 13.5px;
-  line-height: 1.9;
-  color: var(--ink);
-  caret-color: var(--amber);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 15px;
+  line-height: 1.8;
 }
 
-/* Placeholder dei campi nel testo — evidenziazione ambra */
-.editor-input textarea::selection {
-  background: var(--amber-light);
-}
-
-/* MUI TextField override per l'editor */
-.editor-input .MuiOutlinedInput-root {
-  border-radius: var(--radius-md) !important;
-  background: var(--paper) !important;
-}
-
-.editor-input .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
-  border-color: rgba(13, 45, 107, 0.3) !important;
-}
-
-.editor-input .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: var(--blue-mid) !important;
-  border-width: 1.5px !important;
-}
-
-/* ─── Field Cards ─────────────────────────────────────────────────── */
 .field-card {
-  padding: 16px 18px;
-  background: var(--paper-card) !important;
-  border: 1px solid var(--paper-border) !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--shadow-card) !important;
-  transition: box-shadow var(--transition), border-color var(--transition);
+  padding: 16px;
 }
 
-.field-card:hover {
-  border-color: rgba(13, 45, 107, 0.2) !important;
-  box-shadow: var(--shadow-float) !important;
-}
-
-.field-card .MuiOutlinedInput-root {
-  border-radius: var(--radius-sm) !important;
-  font-family: var(--font-ui) !important;
-  font-size: 14px !important;
-}
-
-.field-card .MuiInputLabel-root {
-  font-family: var(--font-ui) !important;
-  font-size: 13px !important;
-}
-
-/* ─── Preview Sheet — foglio documento ───────────────────────────── */
 .preview-sheet {
-  padding: 56px 64px;
-  min-height: 980px;
-  background: var(--paper-card) !important;
-  border: 1px solid var(--paper-border) !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--shadow-card) !important;
-  position: relative;
+  padding: 48px 56px;
+  min-height: 960px;
+  background: white;
 }
 
-/* Watermark sottile sul foglio */
-.preview-sheet::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-lg);
-  background:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 27px,
-      rgba(13, 45, 107, 0.025) 27px,
-      rgba(13, 45, 107, 0.025) 28px
-    );
-  pointer-events: none;
-}
-
-/* Logo box nel preview */
 .logo-box {
   display: inline-grid;
   place-items: center;
-  width: 72px;
-  height: 30px;
-  margin-bottom: 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(13, 45, 107, 0.22);
-  background: var(--blue-tint);
-  color: var(--blue-deep);
-  font-family: var(--font-ui);
-  font-weight: 600;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-/* ─── Markdown Preview Typography ────────────────────────────────── */
-.markdown-preview {
-  position: relative;
-  z-index: 1;
+  width: 68px;
+  height: 32px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  color: #2563eb;
+  font-weight: 700;
+  font-size: 12px;
 }
 
 .markdown-preview h1 {
-  font-family: var(--font-display);
-  font-size: 2rem;
-  font-weight: 400;
-  line-height: 1.25;
-  color: var(--blue-deep);
-  margin-bottom: 0.5rem;
-  letter-spacing: -0.01em;
+  font-size: 2.2rem;
+  line-height: 1.2;
+  margin-bottom: 0.25rem;
+  color: #0f4fb8;
 }
 
 .markdown-preview h2 {
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 400;
-  font-style: italic;
-  color: var(--blue-mid);
-  margin-top: 2.5rem;
+  margin-top: 2rem;
   margin-bottom: 0.75rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--paper-border);
+  color: #1346a0;
+  font-size: 1.2rem;
 }
 
-.markdown-preview h3 {
-  font-family: var(--font-ui);
-  font-size: 0.875rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-  margin-top: 1.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.markdown-preview p {
-  color: var(--ink-soft);
-  line-height: 1.85;
-  margin-bottom: 1rem;
-  max-width: 72ch;
-}
-
-.markdown-preview strong {
-  color: var(--ink);
-  font-weight: 600;
-}
-
+.markdown-preview p,
 .markdown-preview li {
-  color: var(--ink-soft);
-  line-height: 1.75;
-  margin-bottom: 0.35rem;
-}
-
-.markdown-preview ul, .markdown-preview ol {
-  padding-left: 1.5rem;
-  margin-bottom: 1rem;
+  color: #334155;
+  line-height: 1.8;
 }
 
 .markdown-preview hr {
-  border: none;
-  border-top: 1px solid var(--paper-border);
-  margin: 2.5rem 0;
+  border: 0;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  margin: 2rem 0;
 }
 
-.markdown-preview code {
-  font-family: var(--font-mono);
-  font-size: 0.85em;
-  background: var(--paper-warm);
-  border: 1px solid var(--paper-border);
-  border-radius: 4px;
-  padding: 0.1em 0.4em;
-  color: var(--amber);
-}
-
-/* Placeholder non sostituiti — evidenziati in ambra */
-.markdown-preview p:has(strong) strong {
-  background: linear-gradient(90deg, transparent 0%, var(--amber-light) 20%, var(--amber-light) 80%, transparent 100%);
-}
-
-/* ─── Architecture Note ───────────────────────────────────────────── */
 .architecture-note {
-  padding: 18px 22px;
-  background: var(--paper-card) !important;
-  border: 1px solid var(--paper-border) !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: none !important;
+  margin-top: 20px;
+  padding: 20px 24px;
 }
 
-/* ─── MUI Global Overrides ────────────────────────────────────────── */
-
-/* Typography */
-.MuiTypography-h5 {
-  font-family: var(--font-display) !important;
-  font-size: 1.45rem !important;
-  font-weight: 400 !important;
-  letter-spacing: -0.01em !important;
-  line-height: 1.3 !important;
-  color: var(--ink) !important;
-}
-
-.MuiTypography-h6 {
-  font-family: var(--font-ui) !important;
-  font-size: 0.875rem !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.04em !important;
-  text-transform: uppercase !important;
-  color: var(--ink-muted) !important;
-}
-
-.MuiTypography-body2 {
-  font-family: var(--font-ui) !important;
-  font-size: 13px !important;
-  color: var(--ink-muted) !important;
-  line-height: 1.6 !important;
-}
-
-/* Buttons */
-.MuiButton-containedPrimary {
-  background: var(--blue-deep) !important;
-  color: #fff !important;
-  font-family: var(--font-ui) !important;
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  letter-spacing: 0.03em !important;
-  text-transform: none !important;
-  border-radius: var(--radius-md) !important;
-  box-shadow: 0 1px 3px rgba(13, 45, 107, 0.25) !important;
-  padding: 7px 18px !important;
-  transition: background var(--transition), box-shadow var(--transition) !important;
-}
-
-.MuiButton-containedPrimary:hover {
-  background: var(--blue-mid) !important;
-  box-shadow: 0 4px 12px rgba(13, 45, 107, 0.30) !important;
-}
-
-.MuiButton-outlinedPrimary {
-  color: var(--blue-deep) !important;
-  border-color: rgba(13, 45, 107, 0.3) !important;
-  font-family: var(--font-ui) !important;
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  text-transform: none !important;
-  border-radius: var(--radius-md) !important;
-  padding: 7px 18px !important;
-  transition: background var(--transition), border-color var(--transition) !important;
-}
-
-.MuiButton-outlinedPrimary:hover {
-  background: var(--blue-tint) !important;
-  border-color: var(--blue-mid) !important;
-}
-
-.MuiButton-text {
-  font-family: var(--font-ui) !important;
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  text-transform: none !important;
-  border-radius: var(--radius-sm) !important;
-  color: var(--ink-soft) !important;
-  padding: 5px 10px !important;
-}
-
-.MuiButton-text:hover {
-  background: var(--paper-warm) !important;
-  color: var(--ink) !important;
-}
-
-/* Chips */
-.MuiChip-root {
-  font-family: var(--font-ui) !important;
-  font-size: 12px !important;
-  font-weight: 500 !important;
-  letter-spacing: 0.02em !important;
-  border-radius: 6px !important;
-  height: 24px !important;
-}
-
-.MuiChip-colorSecondary {
-  background: var(--paper-warm) !important;
-  color: var(--ink-muted) !important;
-  border: 1px solid var(--paper-border) !important;
-}
-
-.MuiChip-colorSuccess {
-  background: var(--success-bg) !important;
-  color: var(--success) !important;
-}
-
-.MuiChip-colorWarning {
-  background: var(--warning-bg) !important;
-  color: var(--warning) !important;
-}
-
-.MuiChip-colorError {
-  background: var(--error-bg) !important;
-  color: var(--error) !important;
-}
-
-.MuiChip-colorDefault {
-  background: var(--paper-warm) !important;
-  color: var(--ink-muted) !important;
-}
-
-/* Alerts */
-.MuiAlert-root {
-  font-family: var(--font-ui) !important;
-  font-size: 13.5px !important;
-  border-radius: var(--radius-md) !important;
-}
-
-/* Scrollbar — sottile e discreta */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--paper-border);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
-
-/* ─── Responsive ──────────────────────────────────────────────────── */
 @media (max-width: 900px) {
-  .preview-sheet { padding: 28px 24px; }
-  .workspace-body { padding: 16px; }
-  .header-bar { padding: 14px 0; }
+  .preview-sheet {
+    padding: 24px;
+  }
+
+  .workspace-body {
+    padding: 16px;
+  }
 }
