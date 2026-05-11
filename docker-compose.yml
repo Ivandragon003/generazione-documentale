@@ -76,6 +76,30 @@ services:
       - mac_net
 
 
+  # ───────────────────────────────────────────────────────────────
+  # Frontend React (Vite → Nginx)
+  # ───────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Il browser chiama il backend dall'esterno → usa localhost o il dominio reale
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+
+    container_name: mac_frontend
+    restart: unless-stopped
+
+    depends_on:
+      - app
+
+    ports:
+      - "4173:4173"
+
+    networks:
+      - mac_net
+
+
 # ───────────────────────────────────────────────────────────────
 # Volumes
 # ───────────────────────────────────────────────────────────────
