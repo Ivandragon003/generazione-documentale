@@ -17,7 +17,7 @@ import type { PdfJobDto } from "../data/api";
 type Props = {
   content: string;
   pdfJobs?: PdfJobDto[];
-  documentId?: string;
+  templateId?: string;
   documentName?: string;
 };
 
@@ -35,13 +35,13 @@ function jobStatusColor(
 export function PdfPreview({
   content,
   pdfJobs = [],
-  documentId,
+  templateId,
   documentName,
 }: Props) {
   const latestCompleted = pdfJobs.find((j) => j.status === "completed");
   const downloadUrl =
-    latestCompleted && documentId
-      ? `${BASE}/documents/${documentId}/pdf/jobs/${latestCompleted.id}/download`
+    latestCompleted && templateId
+      ? `${BASE}/templates/${templateId}/pdf/jobs/${latestCompleted.id}/download`
       : null;
 
   return (
