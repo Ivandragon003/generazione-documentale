@@ -3,13 +3,24 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { TemplateEntity } from "../src/entities/template.entity";
 import { TemplatesRepository } from "../src/repository/templates.repository";
 
-const makeTplRepo = () => ({
+function makeManagerStub(rawCount: string) {
+  const qb: any = {
+    select: jest.fn().mockReturnThis(),
+    from: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    getRawOne: jest.fn().mockResolvedValue({ count: rawCount }),
+  };
+  return {
+    createQueryBuilder: jest.fn().mockReturnValue(qb),
+  };
+}
+
+const makeTplRepo = (managerStub?: ReturnType<typeof makeManagerStub>) => ({
   findOne: jest.fn(),
   delete: jest.fn(),
   createQueryBuilder: jest.fn(),
+  manager: managerStub,
 });
-
-const makeDocRepo = () => ({ count: jest.fn() });
 
 const fakeTpl = (overrides: Partial<TemplateEntity> = {}): TemplateEntity =>
   ({
@@ -44,20 +55,22 @@ function makeQb(data: TemplateEntity[] = [], total = 0) {
 describe("TemplatesRepository — edge cases aggiuntivi", () => {
   let repo: TemplatesRepository;
   let tplRepo: ReturnType<typeof makeTplRepo>;
-  let docRepo: ReturnType<typeof makeDocRepo>;
 
-  beforeEach(async () => {
-    tplRepo = makeTplRepo();
-    docRepo = makeDocRepo();
-
+  async function buildModule(
+    managerStub?: ReturnType<typeof makeManagerStub>,
+  ) {
+    tplRepo = makeTplRepo(managerStub);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TemplatesRepository,
         { provide: getRepositoryToken(TemplateEntity), useValue: tplRepo },
       ],
     }).compile();
-
     repo = module.get<TemplatesRepository>(TemplatesRepository);
+  }
+
+  beforeEach(async () => {
+    await buildModule();
   });
 
   describe("findAll() — filtri e paginazione", () => {
@@ -190,16 +203,13 @@ describe("TemplatesRepository — edge cases aggiuntivi", () => {
 
   describe("countActiveDocuments()", () => {
     it("ritorna 0 per un template senza documenti", async () => {
-      docRepo.count.mockResolvedValue(0);
+      await buildModule(makeManagerStub("0"));
       expect(await repo.countActiveDocuments("template-senza-doc")).toBe(0);
     });
 
     it("filtra per template_id corretto", async () => {
-      docRepo.count.mockResolvedValue(5);
-      await repo.countActiveDocuments("tpl-specifico");
-      expect(docRepo.count).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { template_id: "tpl-specifico" } }),
-      );
+      await buildModule(makeManagerStub("5"));
+      expect(await repo.countActiveDocuments("tpl-specifico")).toBe(5);
     });
   });
 

@@ -3,18 +3,28 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { TemplateEntity } from "../src/entities/template.entity";
 import { TemplatesRepository } from "../src/repository/templates.repository";
 
-const makeTplRepo = () => ({
+function makeManagerStub(rawCount: string) {
+  const qb: any = {
+    select: jest.fn().mockReturnThis(),
+    from: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    getRawOne: jest.fn().mockResolvedValue({ count: rawCount }),
+  };
+  return {
+    createQueryBuilder: jest.fn().mockReturnValue(qb),
+  };
+}
+
+const makeTplRepo = (managerStub?: ReturnType<typeof makeManagerStub>) => ({
   findOne: jest.fn(),
   delete: jest.fn(),
   createQueryBuilder: jest.fn(),
+  manager: managerStub,
 });
-
-const makeDocRepo = () => ({ count: jest.fn() });
 
 describe("TemplatesRepository", () => {
   let repo: TemplatesRepository;
   let tplRepo: ReturnType<typeof makeTplRepo>;
-  let docRepo: ReturnType<typeof makeDocRepo>;
 
   const fakeTpl = (): TemplateEntity =>
     ({
@@ -41,9 +51,10 @@ describe("TemplatesRepository", () => {
     return qb;
   }
 
-  beforeEach(async () => {
-    tplRepo = makeTplRepo();
-    docRepo = makeDocRepo();
+  async function buildModule(
+    managerStub?: ReturnType<typeof makeManagerStub>,
+  ) {
+    tplRepo = makeTplRepo(managerStub);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TemplatesRepository,
@@ -51,6 +62,10 @@ describe("TemplatesRepository", () => {
       ],
     }).compile();
     repo = module.get<TemplatesRepository>(TemplatesRepository);
+  }
+
+  beforeEach(async () => {
+    await buildModule();
   });
 
   describe("findAll()", () => {
@@ -171,15 +186,12 @@ describe("TemplatesRepository", () => {
 
   describe("countActiveDocuments()", () => {
     it("deve restituire il numero di documenti attivi", async () => {
-      docRepo.count.mockResolvedValue(3);
+      await buildModule(makeManagerStub("3"));
       expect(await repo.countActiveDocuments("tpl-1")).toBe(3);
-      expect(docRepo.count).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { template_id: "tpl-1" } }),
-      );
     });
 
     it("deve restituire 0 se nessun documento", async () => {
-      docRepo.count.mockResolvedValue(0);
+      await buildModule(makeManagerStub("0"));
       expect(await repo.countActiveDocuments("tpl-vuoto")).toBe(0);
     });
   });

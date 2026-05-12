@@ -56,13 +56,12 @@ describe("DTO Validation", () => {
       expect(errors.length).toBeGreaterThan(0);
     });
 
-    it("deve accettare name molto lungo", async () => {
-      expect(
-        await validateDto(CreateTemplateDto, {
-          name: "A".repeat(10000),
-          content: "# test",
-        }),
-      ).toEqual([]);
+    it("deve rifiutare name molto lungo (> 255 caratteri)", async () => {
+      const errors = await validateDto(CreateTemplateDto, {
+        name: "A".repeat(10000),
+        content: "# test",
+      });
+      expect(errors.length).toBeGreaterThan(0);
     });
   });
 
