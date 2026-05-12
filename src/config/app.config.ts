@@ -2,7 +2,6 @@ import { Logger } from "@nestjs/common";
 
 export interface AppConfig {
   uploadPath: string;
-  templatesStoragePath: string;
   maxFileSizeBytes: number;
   maxTemplateContentBytes: number;
   pdfQueueRecoveryRetryMs: number;
@@ -34,8 +33,6 @@ const buildAppConfig = (): AppConfig => {
 
   return {
     uploadPath: process.env.UPLOAD_PATH ?? "./storage/uploads",
-    templatesStoragePath:
-      process.env.TEMPLATES_STORAGE_PATH ?? "./storage/templates",
     maxFileSizeBytes: maxFileSizeMb * 1024 * 1024,
     maxTemplateContentBytes: readPositiveInt(
       process.env.MAX_TEMPLATE_CONTENT_BYTES,

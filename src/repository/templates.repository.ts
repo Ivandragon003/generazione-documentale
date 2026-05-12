@@ -2,7 +2,6 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { EntityManager, Repository, SelectQueryBuilder } from "typeorm";
 import type { FieldDefinition } from "../common/types/field-definition.type";
-import { DocumentEntity } from "../entities/document.entity";
 import { TemplateEntity } from "../entities/template.entity";
 
 interface FindAllOptions {
@@ -35,8 +34,6 @@ export class TemplatesRepository {
   constructor(
     @InjectRepository(TemplateEntity)
     private readonly templateRepository: Repository<TemplateEntity>,
-    @InjectRepository(DocumentEntity)
-    private readonly documentRepository: Repository<DocumentEntity>,
   ) {}
 
   private withFilters(
@@ -109,9 +106,13 @@ export class TemplatesRepository {
   }
 
   async countActiveDocuments(templateId: string): Promise<number> {
-    return this.documentRepository.count({
-      where: { template_id: templateId },
-    });
+    const result = await this.templateRepository.manager
+      .createQueryBuilder()
+      .select("COUNT(*)", "count")
+      .from("pdf_jobs", "j")
+      .where("j.template_id = :templateId", { templateId })
+      .getRawOne<{ count: string }>();
+    return Number(result?.count ?? 0);
   }
 
   async deleteTemplate(id: string): Promise<void> {

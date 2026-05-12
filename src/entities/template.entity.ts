@@ -4,12 +4,10 @@ import {
   CreateDateColumn,
   Entity,
   Index,
-  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
 import type { FieldDefinition } from "../common/types/field-definition.type";
-import { DocumentEntity } from "./document.entity";
 
 @Entity({ name: "templates" })
 @Check("ck_templates_status", `"status" IN ('draft', 'published')`)
@@ -41,12 +39,6 @@ export class TemplateEntity {
 
   @UpdateDateColumn({ type: "timestamptz" })
   updated_at!: Date;
-
-  @OneToMany(
-    () => DocumentEntity,
-    (document) => document.template,
-  )
-  documents?: DocumentEntity[];
 
   // ✅ Campo virtuale — non persistito nel DB, iniettato da hydrateContent()
   content?: string;
