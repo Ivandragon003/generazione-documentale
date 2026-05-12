@@ -1,7 +1,6 @@
 import "dotenv/config";
 import { DataSource } from "typeorm";
 import { parsePort } from "../common/utils/parse-port";
-import { DocumentEntity } from "../entities/document.entity";
 import { PdfJobEntity } from "../entities/pdf-job.entity";
 import { TemplateEntity } from "../entities/template.entity";
 
@@ -20,7 +19,7 @@ export default new DataSource({
   username: requireEnv("DB_USER"),
   password: requireEnv("DB_PASSWORD"),
   database: requireEnv("DB_NAME"),
-  entities: [TemplateEntity, DocumentEntity, PdfJobEntity],
+  entities: [TemplateEntity, PdfJobEntity],
   migrations: ["src/migrations/*.ts"],
   synchronize: false,
 });
