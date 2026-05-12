@@ -13,21 +13,21 @@ import { TemplatesService } from "../src/service/templates.service";
 const VALID_TPL_UUID = "789e0123-e89b-12d3-a456-426614174002";
 const VALID_JOB_UUID = "456e7890-e89b-12d3-a456-426614174001";
 
-const makeTpl = (overrides: Partial<TemplateEntity> = {}): TemplateEntity => ({
+const makeTpl = (
+  overrides: Partial<TemplateEntity & { content: string }> = {},
+): TemplateEntity & { content: string } => ({
   id: VALID_TPL_UUID,
   name: "Template Test",
-  content: "# {{titolo}}",
   description: "",
-  category: "offerta",
-  tags: [],
+  content_path: "/storage/tpl.md",
+  status: "draft",
   fields: [],
-  is_active: true,
-  version: 1,
   created_by: "system",
   created_at: new Date(),
   updated_at: new Date(),
+  content: "# {{titolo}}",
   ...overrides,
-} as TemplateEntity);
+});
 
 const makeJob = (overrides: Partial<PdfJobEntity> = {}): PdfJobEntity => ({
   id: VALID_JOB_UUID,
