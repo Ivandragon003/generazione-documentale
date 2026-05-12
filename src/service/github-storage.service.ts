@@ -268,6 +268,7 @@ export class GitHubStorageService {
   /**
    * Legge il contenuto Markdown di un template da GitHub.
    * Ritorna null se il file non esiste.
+   * Se GitHub è configurato, NON effettua fallback locale.
    */
   async readTemplate(templateId: string): Promise<string | null> {
     if (!this.isConfigured()) {
@@ -277,14 +278,14 @@ export class GitHubStorageService {
     const path = this.filePath(templateId);
     try {
       const meta = await this.getFileMeta(path);
-      if (meta?.content !== undefined) return meta.content;
+      return meta?.content ?? null;
     } catch (error) {
       this.logger.error(
         `Impossibile leggere template ${templateId} da GitHub`,
         error instanceof Error ? error.stack : undefined,
       );
+      return null;
     }
-    return this.readLocalTemplate(templateId);
   }
 
   async listTemplates(): Promise<GitHubTemplateFile[]> {
@@ -322,6 +323,7 @@ export class GitHubStorageService {
   /**
    * Scrive (crea o aggiorna) il contenuto Markdown di un template su GitHub.
    * Usa PUT con sha se il file esiste già (aggiornamento atomico).
+   * Se GitHub è configurato e fallisce, lancia errore (no fallback locale).
    */
   async writeTemplate(templateId: string, content: string): Promise<void> {
     if (!this.isConfigured()) {
@@ -357,16 +359,15 @@ export class GitHubStorageService {
       this.logger.error(
         `GitHub PUT ${path} → ${response.status}: ${responseBody}`,
       );
-      this.logger.warn(
-        `${this.gitHubFailureMessage(
+      throw makeError(
+        this.gitHubFailureMessage(
           "scrivere",
           path,
           response.status,
           responseBody,
-        )} Uso fallback locale.`,
+        ),
+        502,
       );
-      await this.writeLocalTemplate(templateId, content);
-      return;
     }
 
     this.logger.log(

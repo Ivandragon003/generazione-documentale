@@ -148,9 +148,25 @@ export class TemplatesService {
       data.map((row) => this.hydrateContent(row, false)),
     );
     const githubTemplates = await this.githubStorage.listTemplates();
-    const localTemplates = hydratedData.filter(
-      (row): row is TemplateEntity & { content: string } => Boolean(row),
-    );
+    const localTemplates = hydratedData
+      .filter((row): row is TemplateEntity & { content: string } =>
+        Boolean(row?.content?.trim()),
+      )
+      .map((row) => {
+        // Se è un template locale che punta a GitHub, proviamo a estrarre categoria/sezione dal path
+        if (row.content_path && !row.content_path.includes("-")) {
+          const parts = row.content_path.split("/");
+          if (parts.length >= 3) {
+            return {
+              ...row,
+              category: parts[0],
+              section: parts[1],
+              githubPath: row.content_path,
+            };
+          }
+        }
+        return row;
+      });
 
     // De-duplicazione: escludiamo i template GitHub che sono già stati importati/sincronizzati localmente
     const localPaths = new Set(

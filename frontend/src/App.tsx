@@ -94,7 +94,10 @@ function isGithubTemplate(template: TemplateDto | null): boolean {
 }
 
 function getItemSecondary(item: TemplateDto): string {
-  if (item.githubPath) return item.githubPath.split("/").at(-1) ?? "";
+  if (item.githubPath) {
+    const filename = item.githubPath.split("/").at(-1) ?? "";
+    return isUuid(item.id) ? `${filename} (Locale)` : filename;
+  }
   return item.content ? item.status : "Contenuto mancante";
 }
 
