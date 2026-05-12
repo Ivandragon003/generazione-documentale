@@ -9,38 +9,39 @@ import { TemplatesService } from "../src/service/templates.service";
 // ── helpers ────────────────────────────────────────────────────────────────────
 const uuid = () => randomUUID();
 const VALID_UUID = "550e8400-e29b-41d4-a716-446655440000";
-const SECTION_UUID = "660e8400-e29b-41d4-a716-446655440001";
 
 const makeTemplate = (
   overrides: Partial<TemplateEntity & { content: string }> = {},
-): TemplateEntity & { content: string } => ({
-  id: VALID_UUID,
-  name: "Template di Test",
-  description: "Descrizione di test",
-  content: "# {{titolo}}\n\nTesto con {{nome}}.",
-  content_path: `${VALID_UUID}`,
-  status: "draft",
-  created_by: "system",
-  fields: [
-    {
-      name: "titolo",
-      label: "Titolo",
-      type: "text",
-      required: true,
-      defaultValue: "",
-    },
-    {
-      name: "nome",
-      label: "Nome",
-      type: "text",
-      required: true,
-      defaultValue: "",
-    },
-  ],
-  created_at: new Date("2024-01-01"),
-  updated_at: new Date("2024-01-01"),
-  ...overrides,
-});
+): TemplateEntity & { content: string } =>
+  ({
+    id: VALID_UUID,
+    name: "Template di Test",
+    description: "Descrizione di test",
+    content: "# {{titolo}}\n\nTesto con {{nome}}.",
+    content_path: `${VALID_UUID}`,
+    status: "draft",
+    created_by: "system",
+    section_id: null,
+    fields: [
+      {
+        name: "titolo",
+        label: "Titolo",
+        type: "text",
+        required: true,
+        defaultValue: "",
+      },
+      {
+        name: "nome",
+        label: "Nome",
+        type: "text",
+        required: true,
+        defaultValue: "",
+      },
+    ],
+    created_at: new Date("2024-01-01"),
+    updated_at: new Date("2024-01-01"),
+    ...overrides,
+  }) as TemplateEntity & { content: string };
 
 describe("TemplatesService", () => {
   let service: TemplatesService;

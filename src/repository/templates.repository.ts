@@ -3,10 +3,13 @@ import { InjectRepository } from "@nestjs/typeorm";
 import type { EntityManager, Repository, SelectQueryBuilder } from "typeorm";
 import type { FieldDefinition } from "../common/types/field-definition.type";
 import { DocumentEntity } from "../entities/document.entity";
+import { SectionEntity } from "../entities/section.entity";
 import { TemplateEntity } from "../entities/template.entity";
 
 interface FindAllOptions {
   status?: "draft" | "published";
+  sectionId?: string;
+  categoryId?: string;
   limit: number;
   offset: number;
 }
@@ -18,6 +21,7 @@ interface InsertTemplatePayload {
   contentPath: string;
   fields: FieldDefinition[];
   createdBy: string;
+  sectionId?: string | null;
   status?: "draft" | "published";
 }
 
@@ -28,6 +32,7 @@ interface UpdateTemplatePayload {
   contentPath: string;
   fields: FieldDefinition[];
   status: "draft" | "published";
+  sectionId: string | null;
 }
 
 @Injectable()
@@ -37,20 +42,31 @@ export class TemplatesRepository {
     private readonly templateRepository: Repository<TemplateEntity>,
     @InjectRepository(DocumentEntity)
     private readonly documentRepository: Repository<DocumentEntity>,
+    @InjectRepository(SectionEntity)
+    private readonly sectionRepository: Repository<SectionEntity>,
   ) {}
 
   private withFilters(
     qb: SelectQueryBuilder<TemplateEntity>,
-    { status }: Omit<FindAllOptions, "limit" | "offset">,
+    { status, sectionId, categoryId }: Omit<FindAllOptions, "limit" | "offset">,
   ): SelectQueryBuilder<TemplateEntity> {
     if (status) {
       qb.andWhere("template.status = :status", { status });
+    }
+    if (sectionId) {
+      qb.andWhere("template.section_id = :sectionId", { sectionId });
+    }
+    if (categoryId) {
+      qb.innerJoin("template.section", "section");
+      qb.andWhere("section.category_id = :categoryId", { categoryId });
     }
     return qb;
   }
 
   async findAll({
     status,
+    sectionId,
+    categoryId,
     limit,
     offset,
   }: FindAllOptions): Promise<{ data: TemplateEntity[]; total: number }> {
@@ -58,7 +74,7 @@ export class TemplatesRepository {
       .createQueryBuilder("template")
       .orderBy("template.updated_at", "DESC");
 
-    this.withFilters(baseQuery, { status });
+    this.withFilters(baseQuery, { status, sectionId, categoryId });
     const [data, total] = await baseQuery
       .take(limit)
       .skip(offset)
@@ -82,6 +98,7 @@ export class TemplatesRepository {
       fields: payload.fields,
       status: payload.status ?? "draft",
       created_by: payload.createdBy,
+      section_id: payload.sectionId ?? null,
     });
     return manager.save(TemplateEntity, template);
   }
@@ -99,6 +116,7 @@ export class TemplatesRepository {
         content_path: payload.contentPath,
         fields: payload.fields,
         status: payload.status,
+        section_id: payload.sectionId,
       },
     );
     const updated = await manager.findOne(TemplateEntity, {
@@ -116,5 +134,12 @@ export class TemplatesRepository {
 
   async deleteTemplate(id: string): Promise<void> {
     await this.templateRepository.delete({ id });
+  }
+
+  async sectionExists(sectionId: string): Promise<boolean> {
+    const count = await this.sectionRepository.count({
+      where: { id: sectionId },
+    });
+    return count > 0;
   }
 }
