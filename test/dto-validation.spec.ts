@@ -1,8 +1,8 @@
 import { plainToClass } from "class-transformer";
 import { validate } from "class-validator";
 import { CreateTemplateDto } from "../src/dto/create-template.dto";
-import { UpdateTemplateDto } from "../src/dto/update-template.dto";
 import { GeneratePdfDto } from "../src/dto/generate-pdf.dto";
+import { UpdateTemplateDto } from "../src/dto/update-template.dto";
 
 async function validateDto<T extends object>(
   cls: new (...args: unknown[]) => T,
@@ -12,11 +12,13 @@ async function validateDto<T extends object>(
 }
 
 describe("DTO Validation", () => {
-
   describe("CreateTemplateDto", () => {
     it("deve accettare input valido minimo", async () => {
       expect(
-        await validateDto(CreateTemplateDto, { name: "Test", content: "# {{titolo}}" }),
+        await validateDto(CreateTemplateDto, {
+          name: "Test",
+          content: "# {{titolo}}",
+        }),
       ).toEqual([]);
     });
 
@@ -25,19 +27,27 @@ describe("DTO Validation", () => {
         await validateDto(CreateTemplateDto, {
           name: "Test",
           content: "# {{titolo}}",
-          fields: [{ name: "titolo", label: "Titolo", type: "text", required: true }],
+          fields: [
+            { name: "titolo", label: "Titolo", type: "text", required: true },
+          ],
         }),
       ).toEqual([]);
     });
 
     it("deve accettare input con description", async () => {
       expect(
-        await validateDto(CreateTemplateDto, { name: "Test", content: "Content", description: "Desc" }),
+        await validateDto(CreateTemplateDto, {
+          name: "Test",
+          content: "Content",
+          description: "Desc",
+        }),
       ).toEqual([]);
     });
 
     it("deve rifiutare name mancante", async () => {
-      const errors = await validateDto(CreateTemplateDto, { content: "Content" });
+      const errors = await validateDto(CreateTemplateDto, {
+        content: "Content",
+      });
       expect(errors.length).toBeGreaterThan(0);
     });
 
@@ -48,7 +58,10 @@ describe("DTO Validation", () => {
 
     it("deve accettare name molto lungo", async () => {
       expect(
-        await validateDto(CreateTemplateDto, { name: "A".repeat(10000), content: "# test" }),
+        await validateDto(CreateTemplateDto, {
+          name: "A".repeat(10000),
+          content: "# test",
+        }),
       ).toEqual([]);
     });
   });
@@ -59,7 +72,9 @@ describe("DTO Validation", () => {
     });
 
     it("deve accettare section_id null", async () => {
-      expect(await validateDto(UpdateTemplateDto, { section_id: null })).toEqual([]);
+      expect(
+        await validateDto(UpdateTemplateDto, { section_id: null }),
+      ).toEqual([]);
     });
 
     it("deve accettare qualsiasi combinazione di campi", async () => {
@@ -81,24 +96,35 @@ describe("DTO Validation", () => {
 
   describe("GeneratePdfDto", () => {
     it("deve accettare fieldValues vuoto", async () => {
-      expect(await validateDto(GeneratePdfDto, { fieldValues: {} })).toEqual([]);
+      expect(await validateDto(GeneratePdfDto, { fieldValues: {} })).toEqual(
+        [],
+      );
     });
 
     it("deve accettare fieldValues con valori misti", async () => {
       expect(
         await validateDto(GeneratePdfDto, {
-          fieldValues: { titolo: "Test", importo: 1000, attivo: true, note: null },
+          fieldValues: {
+            titolo: "Test",
+            importo: 1000,
+            attivo: true,
+            note: null,
+          },
         }),
       ).toEqual([]);
     });
 
     it("deve rifiutare fieldValues non object", async () => {
-      const errors = await validateDto(GeneratePdfDto, { fieldValues: "stringa" });
+      const errors = await validateDto(GeneratePdfDto, {
+        fieldValues: "stringa",
+      });
       expect(errors.length).toBeGreaterThan(0);
     });
 
     it("deve rifiutare fieldValues come array", async () => {
-      const errors = await validateDto(GeneratePdfDto, { fieldValues: ["a", "b"] });
+      const errors = await validateDto(GeneratePdfDto, {
+        fieldValues: ["a", "b"],
+      });
       expect(errors.length).toBeGreaterThan(0);
     });
 
@@ -110,10 +136,15 @@ describe("DTO Validation", () => {
   describe("Integration - flusso template + PDF", () => {
     it("deve validare creazione template e avvio PDF", async () => {
       expect(
-        await validateDto(CreateTemplateDto, { name: "Offerta", content: "# {{titolo}}" }),
+        await validateDto(CreateTemplateDto, {
+          name: "Offerta",
+          content: "# {{titolo}}",
+        }),
       ).toEqual([]);
       expect(
-        await validateDto(GeneratePdfDto, { fieldValues: { titolo: "Test", cliente: "Mario" } }),
+        await validateDto(GeneratePdfDto, {
+          fieldValues: { titolo: "Test", cliente: "Mario" },
+        }),
       ).toEqual([]);
     });
 
@@ -123,7 +154,10 @@ describe("DTO Validation", () => {
         { name: 123, content: "test" },
       ];
       for (const data of invalids) {
-        const errors = await validateDto(CreateTemplateDto, data as Record<string, unknown>);
+        const errors = await validateDto(
+          CreateTemplateDto,
+          data as Record<string, unknown>,
+        );
         expect(errors.length).toBeGreaterThan(0);
       }
     });

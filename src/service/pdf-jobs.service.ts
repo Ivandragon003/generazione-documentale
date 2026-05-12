@@ -91,10 +91,17 @@ export class PdfJobsService implements OnModuleDestroy {
       fieldValues,
     );
     if (missing.length > 0) {
-      throw makeError(`Campi obbligatori non compilati: ${missing.join(", ")}`, 422);
+      throw makeError(
+        `Campi obbligatori non compilati: ${missing.join(", ")}`,
+        422,
+      );
     }
 
-    const job = await this.pdfJobsRepository.insert(templateId, fieldValues, actor);
+    const job = await this.pdfJobsRepository.insert(
+      templateId,
+      fieldValues,
+      actor,
+    );
     this.triggerQueueProcessor().catch(() => undefined);
     return job;
   }
@@ -118,16 +125,22 @@ export class PdfJobsService implements OnModuleDestroy {
           strict: true,
         });
 
-      await this.pdfJobsRepository.markCompleted(jobId, filename, unresolvedFields ?? []);
+      await this.pdfJobsRepository.markCompleted(
+        jobId,
+        filename,
+        unresolvedFields ?? [],
+      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Errore generazione PDF";
+      const message =
+        error instanceof Error ? error.message : "Errore generazione PDF";
       await this.pdfJobsRepository.markFailed(jobId, message);
     }
   }
 
   async getJob(templateId: string, jobId: string) {
     const job = await this.pdfJobsRepository.findById(jobId);
-    if (!job || job.template_id !== templateId) throw makeError("Job PDF non trovato", 404);
+    if (!job || job.template_id !== templateId)
+      throw makeError("Job PDF non trovato", 404);
     return job;
   }
 
@@ -148,11 +161,18 @@ export class PdfJobsService implements OnModuleDestroy {
     return job;
   }
 
-  async streamDownload(templateId: string, jobId: string, response: Response): Promise<void> {
+  async streamDownload(
+    templateId: string,
+    jobId: string,
+    response: Response,
+  ): Promise<void> {
     const job = await this.getCompletedJob(templateId, jobId);
     const stream = await this.pdfGenerationService.getPdfStream(job.filename!);
     response.setHeader("Content-Type", "application/pdf");
-    response.setHeader("Content-Disposition", `attachment; filename="${job.filename}"`);
+    response.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${job.filename}"`,
+    );
     await pipeToResponse(stream, response);
   }
 
@@ -160,7 +180,10 @@ export class PdfJobsService implements OnModuleDestroy {
     const job = await this.getLatestCompleted(templateId);
     const stream = await this.pdfGenerationService.getPdfStream(job.filename!);
     response.setHeader("Content-Type", "application/pdf");
-    response.setHeader("Content-Disposition", `attachment; filename="${job.filename}"`);
+    response.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${job.filename}"`,
+    );
     await pipeToResponse(stream, response);
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import type { Repository } from "typeorm";
 import { PdfJobEntity } from "../entities/pdf-job.entity";
 
 @Injectable()
@@ -36,7 +36,10 @@ export class PdfJobsRepository {
   }
 
   async findQueued(): Promise<PdfJobEntity[]> {
-    return this.repo.find({ where: { status: "queued" }, order: { created_at: "ASC" } });
+    return this.repo.find({
+      where: { status: "queued" },
+      order: { created_at: "ASC" },
+    });
   }
 
   async findLatestCompleted(templateId: string): Promise<PdfJobEntity | null> {
@@ -56,7 +59,11 @@ export class PdfJobsRepository {
     return (result.affected ?? 0) > 0;
   }
 
-  async markCompleted(jobId: string, filename: string, unresolvedFields: string[]): Promise<void> {
+  async markCompleted(
+    jobId: string,
+    filename: string,
+    unresolvedFields: string[],
+  ): Promise<void> {
     await this.repo.update(jobId, {
       status: "completed",
       filename,

@@ -118,7 +118,10 @@ export class TemplatesController {
     const { limit, offset } = parsePagination(query);
     return this.templatesService
       .findAll({ status: query.status, limit, offset })
-      .then((result) => ({ ...result, data: result.data.map(toTemplateResponse) }));
+      .then((result) => ({
+        ...result,
+        data: result.data.map(toTemplateResponse),
+      }));
   }
 
   @Get(":id")
@@ -181,7 +184,10 @@ export class TemplatesController {
     if (!template) throw makeError("Template non trovato", 404);
     const content = this.templatesService.getExportContent(template);
     response.setHeader("Content-Type", "text/markdown");
-    response.setHeader("Content-Disposition", `attachment; filename="${template.name}.md"`);
+    response.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${template.name}.md"`,
+    );
     response.send(content);
   }
 
@@ -200,7 +206,11 @@ export class TemplatesController {
     if (!file) throw makeError("File non fornito", 400);
     const content = await readAndCleanupUpload(file);
     const name = body.name || file.originalname.replace(/\.md$/i, "");
-    const template = await this.templatesService.importFromMarkdown(content, name, getActor(request));
+    const template = await this.templatesService.importFromMarkdown(
+      content,
+      name,
+      getActor(request),
+    );
     if (!template) throw makeError("Template non trovato", 404);
     return toTemplateResponse(template);
   }

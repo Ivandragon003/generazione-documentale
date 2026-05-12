@@ -80,7 +80,9 @@ function toTemplateField(f: ApiTemplateField): TemplateField {
 
 function isUuid(s: string | null | undefined): s is string {
   if (!s) return false;
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    s,
+  );
 }
 
 function isGithubTemplate(template: TemplateDto | null): boolean {
@@ -126,9 +128,16 @@ function ProjectStructure({
       ) : (
         groupedTemplates.map(([groupName, items]) => (
           <Box key={groupName}>
-            <Stack direction="row" alignItems="center" gap={1} className="structure-group">
+            <Stack
+              direction="row"
+              alignItems="center"
+              gap={1}
+              className="structure-group"
+            >
               <FolderIcon fontSize="small" color="warning" />
-              <Typography variant="subtitle2" noWrap>{groupName}</Typography>
+              <Typography variant="subtitle2" noWrap>
+                {groupName}
+              </Typography>
               <Chip size="small" label={items.length} />
             </Stack>
             <List dense disablePadding>
@@ -143,7 +152,10 @@ function ProjectStructure({
                   <ListItemText
                     primary={item.name}
                     secondary={getItemSecondary(item)}
-                    slotProps={{ primary: { noWrap: true }, secondary: { noWrap: true } }}
+                    slotProps={{
+                      primary: { noWrap: true },
+                      secondary: { noWrap: true },
+                    }}
                   />
                 </ListItemButton>
               ))}
@@ -205,30 +217,45 @@ export default function App() {
       } catch {
         if (!cancelled) {
           setAppStatus("error");
-          setSnack({ open: true, msg: "Impossibile connettersi al backend.", severity: "error" });
+          setSnack({
+            open: true,
+            msg: "Impossibile connettersi al backend.",
+            severity: "error",
+          });
         }
       }
     }
 
     void boot();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const [markdown, setMarkdown] = useState("");
 
   // ── Import template ───────────────────────────────────────────────────
-  const handleTemplateImported = useCallback((importedTemplate: TemplateDto) => {
-    setTemplates((current) => [
-      importedTemplate,
-      ...current.filter((item) => item.id !== importedTemplate.id),
-    ]);
-    setTemplate(importedTemplate);
-    setMarkdown(importedTemplate.content);
-    originalPlaceholders.current = extractPlaceholders(importedTemplate.content);
-    setPdfJobs([]);
-    setFieldValues({});
-    setSnack({ open: true, msg: `Template "${importedTemplate.name}" importato.`, severity: "success" });
-  }, []);
+  const handleTemplateImported = useCallback(
+    (importedTemplate: TemplateDto) => {
+      setTemplates((current) => [
+        importedTemplate,
+        ...current.filter((item) => item.id !== importedTemplate.id),
+      ]);
+      setTemplate(importedTemplate);
+      setMarkdown(importedTemplate.content);
+      originalPlaceholders.current = extractPlaceholders(
+        importedTemplate.content,
+      );
+      setPdfJobs([]);
+      setFieldValues({});
+      setSnack({
+        open: true,
+        msg: `Template "${importedTemplate.name}" importato.`,
+        severity: "success",
+      });
+    },
+    [],
+  );
 
   const handleSelectTemplate = useCallback((selected: TemplateDto) => {
     setTemplate(selected);
@@ -238,21 +265,28 @@ export default function App() {
     setPdfJobs([]);
     // Carica i PDF job del template selezionato
     if (isUuid(selected.id)) {
-      void getPdfJobs(selected.id).then(setPdfJobs).catch(() => {});
+      void getPdfJobs(selected.id)
+        .then(setPdfJobs)
+        .catch(() => {});
     }
   }, []);
 
   const ensureLocalTemplate = useCallback(
     async (currentMarkdown: string): Promise<TemplateDto> => {
-      if (template && isUuid(template.id) && !isGithubTemplate(template)) return template;
+      if (template && isUuid(template.id) && !isGithubTemplate(template))
+        return template;
       const newTmpl = await createTemplate({
         name: template?.name ?? "Nuovo Template",
         content: currentMarkdown,
         fields: extractPlaceholders(currentMarkdown).map(apiFieldFromKey),
       });
-      if (!isUuid(newTmpl.id)) throw new Error(`Template creato senza ID UUID valido: ${newTmpl.id}`);
+      if (!isUuid(newTmpl.id))
+        throw new Error(`Template creato senza ID UUID valido: ${newTmpl.id}`);
       setTemplate(newTmpl);
-      setTemplates((current) => [newTmpl, ...current.filter((item) => item.id !== newTmpl.id)]);
+      setTemplates((current) => [
+        newTmpl,
+        ...current.filter((item) => item.id !== newTmpl.id),
+      ]);
       originalPlaceholders.current = extractPlaceholders(newTmpl.content);
       return newTmpl;
     },
@@ -273,7 +307,10 @@ export default function App() {
     setAppStatus("saving");
     try {
       const currentPlaceholders = extractPlaceholders(markdown);
-      const diff = comparePlaceholderSets(originalPlaceholders.current, currentPlaceholders);
+      const diff = comparePlaceholderSets(
+        originalPlaceholders.current,
+        currentPlaceholders,
+      );
       const structureChanged = diff.added.length > 0 || diff.removed.length > 0;
 
       if (structureChanged) {
@@ -283,13 +320,27 @@ export default function App() {
           content: markdown,
           fields: currentPlaceholders.map(apiFieldFromKey),
         });
-        if (!isUuid(newTmpl.id)) throw new Error(`Template creato senza ID UUID valido: ${newTmpl.id}`);
+        if (!isUuid(newTmpl.id))
+          throw new Error(
+            `Template creato senza ID UUID valido: ${newTmpl.id}`,
+          );
         setTemplate(newTmpl);
-        setTemplates((current) => [newTmpl, ...current.filter((item) => item.id !== newTmpl.id)]);
+        setTemplates((current) => [
+          newTmpl,
+          ...current.filter((item) => item.id !== newTmpl.id),
+        ]);
         originalPlaceholders.current = extractPlaceholders(newTmpl.content);
         setPdfJobs([]);
-        setSnack({ open: true, msg: "Struttura cambiata: nuovo template creato.", severity: "success" });
-      } else if (template && isUuid(template.id) && !isGithubTemplate(template)) {
+        setSnack({
+          open: true,
+          msg: "Struttura cambiata: nuovo template creato.",
+          severity: "success",
+        });
+      } else if (
+        template &&
+        isUuid(template.id) &&
+        !isGithubTemplate(template)
+      ) {
         // Solo contenuto aggiornato
         await updateTemplate(template.id, { content: markdown });
         setSnack({ open: true, msg: "Template salvato.", severity: "success" });
@@ -297,10 +348,18 @@ export default function App() {
         // Template GitHub o senza UUID: crea template locale
         const activeTmpl = await ensureLocalTemplate(markdown);
         await updateTemplate(activeTmpl.id, { content: markdown });
-        setSnack({ open: true, msg: "Template locale creato e salvato.", severity: "success" });
+        setSnack({
+          open: true,
+          msg: "Template locale creato e salvato.",
+          severity: "success",
+        });
       }
     } catch (err) {
-      setSnack({ open: true, msg: `Errore salvataggio template: ${String(err)}`, severity: "error" });
+      setSnack({
+        open: true,
+        msg: `Errore salvataggio template: ${String(err)}`,
+        severity: "error",
+      });
     } finally {
       setAppStatus("ready");
     }
@@ -309,15 +368,27 @@ export default function App() {
   // ── Genera PDF ────────────────────────────────────────────────────────────
   const handleGeneratePdf = useCallback(async () => {
     if (!template || !isUuid(template.id)) {
-      setSnack({ open: true, msg: "Seleziona o salva un template prima di generare il PDF.", severity: "error" });
+      setSnack({
+        open: true,
+        msg: "Seleziona o salva un template prima di generare il PDF.",
+        severity: "error",
+      });
       return;
     }
     try {
       const job = await triggerPdfGeneration(template.id, fieldValues);
       setPdfJobs((prev) => [job, ...prev]);
-      setSnack({ open: true, msg: "Generazione PDF avviata.", severity: "success" });
+      setSnack({
+        open: true,
+        msg: "Generazione PDF avviata.",
+        severity: "success",
+      });
     } catch (err) {
-      setSnack({ open: true, msg: `Errore PDF: ${String(err)}`, severity: "error" });
+      setSnack({
+        open: true,
+        msg: `Errore PDF: ${String(err)}`,
+        severity: "error",
+      });
     }
   }, [template, fieldValues]);
 
@@ -327,10 +398,14 @@ export default function App() {
   }, []);
 
   // ── Derivati ──────────────────────────────────────────────────────────────
-  const currentPlaceholders = useMemo(() => extractPlaceholders(markdown), [markdown]);
+  const currentPlaceholders = useMemo(
+    () => extractPlaceholders(markdown),
+    [markdown],
+  );
 
   const diff = useMemo(
-    () => comparePlaceholderSets(originalPlaceholders.current, currentPlaceholders),
+    () =>
+      comparePlaceholderSets(originalPlaceholders.current, currentPlaceholders),
     [currentPlaceholders],
   );
 
@@ -345,23 +420,42 @@ export default function App() {
     return [...tmplFields, ...extra];
   }, [currentPlaceholders, template]);
 
-  const rendered = useMemo(() => renderMarkdown(markdown, fieldValues), [markdown, fieldValues]);
+  const rendered = useMemo(
+    () => renderMarkdown(markdown, fieldValues),
+    [markdown, fieldValues],
+  );
 
   // canGeneratePdf: basta avere un template con UUID valido — nessun Document necessario
-  const canGeneratePdf = Boolean(template && isUuid(template.id) && !isGithubTemplate(template));
+  const canGeneratePdf = Boolean(
+    template && isUuid(template.id) && !isGithubTemplate(template),
+  );
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (appStatus === "loading") {
     return (
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
+        }}
+      >
         <CircularProgress />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", backgroundColor: "background.default", pb: 6 }}>
-      <AppBar position="static" color="transparent" elevation={0} className="top-appbar">
+    <Box
+      sx={{ minHeight: "100vh", backgroundColor: "background.default", pb: 6 }}
+    >
+      <AppBar
+        position="static"
+        color="transparent"
+        elevation={0}
+        className="top-appbar"
+      >
         <Container maxWidth="xl">
           <HeaderBar
             template={template}
@@ -384,8 +478,13 @@ export default function App() {
           />
 
           <Paper className="workspace-shell">
-            <Tabs value={activeTab} onChange={(_, value: number) => setActiveTab(value)}>
-              {tabLabels.map((label) => (<Tab key={label} label={label} />))}
+            <Tabs
+              value={activeTab}
+              onChange={(_, value: number) => setActiveTab(value)}
+            >
+              {tabLabels.map((label) => (
+                <Tab key={label} label={label} />
+              ))}
             </Tabs>
 
             <Box className="workspace-body">
@@ -422,14 +521,18 @@ export default function App() {
 
         {appStatus === "error" && (
           <Alert severity="warning" sx={{ mt: 2 }}>
-            Backend non raggiungibile — assicurati che il server sia in esecuzione su <strong>localhost:3000</strong>.
+            Backend non raggiungibile — assicurati che il server sia in
+            esecuzione su <strong>localhost:3000</strong>.
           </Alert>
         )}
 
         <Paper className="architecture-note" sx={{ mt: 2 }}>
-          <Typography variant="h6" gutterBottom>MAC Document Editor</Typography>
+          <Typography variant="h6" gutterBottom>
+            MAC Document Editor
+          </Typography>
           <Typography variant="body2" color="text.secondary">
-            Editor collegato al backend NestJS. Template e PDF jobs vengono caricati e salvati via API REST.
+            Editor collegato al backend NestJS. Template e PDF jobs vengono
+            caricati e salvati via API REST.
           </Typography>
         </Paper>
       </Container>
@@ -440,7 +543,10 @@ export default function App() {
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))}>
+        <Alert
+          severity={snack.severity}
+          onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        >
           {snack.msg}
         </Alert>
       </Snackbar>

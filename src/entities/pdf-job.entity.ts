@@ -26,10 +26,7 @@ export class PdfJobEntity {
   @Column({ type: "jsonb", default: () => "'{}'", nullable: false })
   field_values!: Record<string, string | number | boolean | null>;
 
-  @ManyToOne(
-    () => TemplateEntity,
-    { onDelete: "CASCADE" },
-  )
+  @ManyToOne(() => TemplateEntity, { onDelete: "CASCADE" })
   @JoinColumn({ name: "template_id" })
   template?: TemplateEntity;
 

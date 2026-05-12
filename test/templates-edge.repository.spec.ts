@@ -67,10 +67,9 @@ describe("TemplatesRepository — edge cases aggiuntivi", () => {
       const qb = makeQb([], 0);
       tplRepo.createQueryBuilder.mockReturnValue(qb);
       await repo.findAll({ status: "published", limit: 10, offset: 0 });
-      expect(qb.andWhere).toHaveBeenCalledWith(
-        "template.status = :status",
-        { status: "published" },
-      );
+      expect(qb.andWhere).toHaveBeenCalledWith("template.status = :status", {
+        status: "published",
+      });
     });
 
     it("con offset grande restituisce array vuoto e total corretto", async () => {

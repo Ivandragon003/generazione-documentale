@@ -73,7 +73,10 @@ async function api<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
 
 // ─── Templates ───────────────────────────────────────────────────────────────
 
-export function getTemplates(): Promise<{ data: TemplateDto[]; total: number }> {
+export function getTemplates(): Promise<{
+  data: TemplateDto[];
+  total: number;
+}> {
   return api(`${BASE}/templates`);
 }
 
@@ -128,7 +131,10 @@ export function getPdfJobs(templateId: string): Promise<PdfJobDto[]> {
   return api(`${BASE}/templates/${templateId}/pdf/jobs`);
 }
 
-export function getPdfJob(templateId: string, jobId: string): Promise<PdfJobDto> {
+export function getPdfJob(
+  templateId: string,
+  jobId: string,
+): Promise<PdfJobDto> {
   return api(`${BASE}/templates/${templateId}/pdf/jobs/${jobId}`);
 }
 

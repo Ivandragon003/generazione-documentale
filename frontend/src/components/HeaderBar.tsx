@@ -34,11 +34,16 @@ function statusColor(
 
 function statusLabel(s: DocumentDto["status"] | undefined): string {
   switch (s) {
-    case "draft": return "Bozza";
-    case "generated": return "Generato";
-    case "published": return "Pubblicato";
-    case "archived": return "Archiviato";
-    default: return "Non Generato";
+    case "draft":
+      return "Bozza";
+    case "generated":
+      return "Generato";
+    case "published":
+      return "Pubblicato";
+    case "archived":
+      return "Archiviato";
+    default:
+      return "Non Generato";
   }
 }
 
@@ -63,7 +68,12 @@ export function HeaderBar({
 
   return (
     <Box className="header-bar">
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="flex-start"
+        gap={2}
+      >
         <Stack direction="row" gap={2} alignItems="center">
           <Box className="doc-icon">DOC</Box>
           <Box>
@@ -84,7 +94,9 @@ export function HeaderBar({
 
         <Stack direction="row" gap={1} alignItems="center">
           {latestJob && (
-            <Tooltip title={`Ultimo job: ${latestJob.status} — ${latestJob.createdAt}`}>
+            <Tooltip
+              title={`Ultimo job: ${latestJob.status} — ${latestJob.createdAt}`}
+            >
               <Chip
                 icon={<HistoryIcon />}
                 label={`PDF: ${latestJob.status}`}
@@ -111,9 +123,11 @@ export function HeaderBar({
             <Button
               variant="contained"
               startIcon={
-                isSaving
-                  ? <CircularProgress size={16} color="inherit" />
-                  : <SaveIcon />
+                isSaving ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  <SaveIcon />
+                )
               }
               onClick={onSave}
               disabled={isSaving}
