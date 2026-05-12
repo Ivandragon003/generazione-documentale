@@ -47,4 +47,11 @@ export class CreateTemplateDto {
   @IsOptional()
   @IsIn(["draft", "published"])
   status?: "draft" | "published";
+
+  @ApiPropertyOptional({
+    description: "Percorso GitHub opzionale per sovrascrittura",
+  })
+  @IsOptional()
+  @IsString()
+  path?: string;
 }
