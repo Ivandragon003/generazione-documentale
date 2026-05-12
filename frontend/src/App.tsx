@@ -84,12 +84,23 @@ function toTemplateField(f: ApiTemplateField): TemplateField {
   };
 }
 
-/** Controlla se una stringa è un UUID v1-v5 valido */
+/**
+ * Controlla se una stringa è un UUID v1-v5 valido.
+ * Gli id che iniziano con "github:" NON sono UUID e vanno trattati diversamente.
+ */
 function isUuid(s: string | null | undefined): s is string {
   if (!s) return false;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     s,
   );
+}
+
+/**
+ * Un template da GitHub ha id = "github:path/to/file.md" — non è un UUID.
+ * Per usarlo come templateId nel backend occorre prima crearne uno locale.
+ */
+function isGithubTemplate(template: TemplateDto | null): boolean {
+  return Boolean(template?.id && template.id.startsWith("github:"));
 }
 
 /** Ricava il secondary text per un template item */
@@ -202,7 +213,9 @@ export default function App() {
         const tmplRes = await withBootRetry(() => getTemplates());
         if (cancelled) return;
 
-        const firstTemplate = tmplRes.data[0] ?? null;
+        // Preferisci template con UUID valido come primo selezionato
+        const firstTemplate =
+          tmplRes.data.find((t) => isUuid(t.id)) ?? tmplRes.data[0] ?? null;
 
         setTemplates(tmplRes.data);
 
@@ -307,6 +320,35 @@ export default function App() {
     setPdfJobs([]);
   }, []);
 
+  /**
+   * Garantisce che esista un template locale con UUID valido.
+   * Se il template corrente è da GitHub (id = "github:..."), ne crea una copia locale.
+   */
+  const ensureLocalTemplate = useCallback(
+    async (currentMarkdown: string): Promise<TemplateDto> => {
+      if (template && isUuid(template.id) && !isGithubTemplate(template)) {
+        return template;
+      }
+      // Template da GitHub o senza id valido → crea copia locale
+      const newTmpl = await createTemplate({
+        name: template?.name ?? "Nuovo Template",
+        content: currentMarkdown,
+        fields: extractPlaceholders(currentMarkdown).map(apiFieldFromKey),
+      });
+      if (!isUuid(newTmpl.id)) {
+        throw new Error(`Template creato senza ID UUID valido: ${newTmpl.id}`);
+      }
+      setTemplate(newTmpl);
+      setTemplates((current) => [
+        newTmpl,
+        ...current.filter((item) => item.id !== newTmpl.id),
+      ]);
+      originalPlaceholders.current = extractPlaceholders(newTmpl.content);
+      return newTmpl;
+    },
+    [template],
+  );
+
   // ── Salva ─────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     setAppStatus("saving");
@@ -319,11 +361,17 @@ export default function App() {
       const structureChanged = diff.added.length > 0 || diff.removed.length > 0;
 
       if (structureChanged) {
+        // Struttura cambiata: crea nuovo template
         const newTmpl = await createTemplate({
           name: `${template?.name ?? "Template"} (rev)`,
           content: markdown,
           fields: currentPlaceholders.map(apiFieldFromKey),
         });
+        if (!isUuid(newTmpl.id)) {
+          throw new Error(
+            `Template creato senza ID UUID valido: ${newTmpl.id}`,
+          );
+        }
         setTemplate(newTmpl);
         setTemplates((current) => [
           newTmpl,
@@ -339,12 +387,14 @@ export default function App() {
           fieldValues: { ...fieldValues },
         });
         setDocument(saved);
+        setPdfJobs([]);
         setSnack({
           open: true,
           msg: "Struttura cambiata: nuovo template e documento creati.",
           severity: "success",
         });
-      } else if (document) {
+      } else if (document && isUuid(document.id)) {
+        // Documento esistente con UUID: aggiorna solo i valori
         const saved = await updateDocument(document.id, {
           fieldValues: { ...fieldValues },
         });
@@ -355,36 +405,25 @@ export default function App() {
           severity: "success",
         });
       } else {
-        let activeTmpl: TemplateDto;
-        if (template && isUuid(template.id)) {
-          activeTmpl = await updateTemplate(template.id, { content: markdown });
-        } else {
-          activeTmpl = await createTemplate({
-            name: template?.name ?? "Nuovo Template",
-            content: markdown,
-            fields: currentPlaceholders.map(apiFieldFromKey),
-          });
-        }
+        // Nessun documento esistente: assicurati di avere un template con UUID
+        const activeTmpl = await ensureLocalTemplate(markdown);
 
-        // ┃ Verifica che il template creato abbia un UUID valido
-        if (!isUuid(activeTmpl.id)) {
-          throw new Error(
-            `Template creato senza ID valido: ${activeTmpl.id ?? "undefined"}`,
-          );
+        // Se il template è già quello corrente con stesso contenuto, aggiornalo
+        if (
+          template &&
+          isUuid(template.id) &&
+          !isGithubTemplate(template) &&
+          activeTmpl.id === template.id
+        ) {
+          await updateTemplate(activeTmpl.id, { content: markdown });
         }
-
-        setTemplate(activeTmpl);
-        setTemplates((current) => [
-          activeTmpl,
-          ...current.filter((item) => item.id !== activeTmpl.id),
-        ]);
-        originalPlaceholders.current = extractPlaceholders(activeTmpl.content);
 
         const newDoc = await createDocument({
           name: "Nuovo Documento",
           templateId: activeTmpl.id,
         });
         setDocument(newDoc);
+        setPdfJobs([]);
         setSnack({
           open: true,
           msg: "Template e documento creati.",
@@ -400,14 +439,14 @@ export default function App() {
     } finally {
       setAppStatus("ready");
     }
-  }, [markdown, fieldValues, template, document]);
+  }, [markdown, fieldValues, template, document, ensureLocalTemplate]);
 
   // ── Genera PDF ────────────────────────────────────────────────────────────
   const handleGeneratePdf = useCallback(async () => {
-    if (!document) {
+    if (!document || !isUuid(document.id)) {
       setSnack({
         open: true,
-        msg: "Salva prima il documento.",
+        msg: "Salva prima il documento prima di generare il PDF.",
         severity: "error",
       });
       return;
@@ -443,11 +482,9 @@ export default function App() {
 
   const visibleFields = useMemo((): TemplateField[] => {
     const keys = new Set(currentPlaceholders);
-    // Mappa ApiTemplateField → TemplateField per i campi già salvati nel template
     const tmplFields: TemplateField[] = (template?.fields ?? [])
       .filter((f) => keys.has(f.name))
       .map(toTemplateField);
-    // Aggiunge i campi nuovi non ancora nel template
     const extra: TemplateField[] = currentPlaceholders
       .filter((k) => !tmplFields.some((f) => f.key === k))
       .map(fieldFromKey);
@@ -458,6 +495,9 @@ export default function App() {
     () => renderMarkdown(markdown, fieldValues),
     [markdown, fieldValues],
   );
+
+  // Genera PDF è abilitato solo se esiste un documento con UUID valido
+  const canGeneratePdf = Boolean(document && isUuid(document.id));
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (appStatus === "loading") {
@@ -493,6 +533,7 @@ export default function App() {
             onSave={handleSave}
             onGeneratePdf={handleGeneratePdf}
             pdfJobs={pdfJobs}
+            canGeneratePdf={canGeneratePdf}
           />
         </Container>
       </AppBar>
@@ -542,6 +583,7 @@ export default function App() {
                   content={rendered}
                   pdfJobs={pdfJobs}
                   documentId={document?.id}
+                  documentName={document?.name ?? template?.name}
                 />
               )}
             </Box>

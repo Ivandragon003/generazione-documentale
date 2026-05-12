@@ -1,308 +1,477 @@
-/**
- * templates.service.ts
- *
- * Modifiche rispetto alla versione originale:
- * - Rimosso: writeFile, readFile, rename, mkdir, unlink da node:fs/promises
- * - Aggiunto: GitHubStorageService per read/write/delete dei file .md
- * - content_path ora contiene solo il templateId (non un percorso su disco)
- *   Il GitHubStorageService calcola internamente il path GitHub.
- * - Rimosso il pattern tmp+rename (non necessario con GitHub che gestisce
- *   la consistenza lato suo con il campo sha).
- * - La logica di business (validazione, normalizzazione campi, versioning)
- *   rimane invariata.
- * - FIX: hydrateContent non lancia più 503 se il file non esiste su GitHub
- *   (fallback graceful a stringa vuota + warn, così findAll non crasha).
- * - FIX: content_path con estensione .md viene strippato prima dell'uso.
- */
-
 import { randomUUID } from "node:crypto";
-import { Inject, Injectable, Logger } from "@nestjs/common";
-import { InjectDataSource } from "@nestjs/typeorm";
-import type { DataSource } from "typeorm";
-import type { FieldDefinition } from "../common/types/field-definition.type";
-import { makeError } from "../common/utils/errors";
-import { assertUuid } from "../common/utils/http.utils";
-import {
-  normalizeFieldDefinitions,
-  type PartialFieldDefinition,
-  validateMarkdownContent,
-} from "../common/utils/markdown.utils";
-import { appConfig } from "../config/app.config";
+import { Test, type TestingModule } from "@nestjs/testing";
+import { DataSource, type EntityManager } from "typeorm";
 import type { TemplateEntity } from "../entities/template.entity";
 import { TemplatesRepository } from "../repository/templates.repository";
 import { GitHubStorageService } from "./github-storage.service";
+import { TemplatesService } from "./templates.service";
 
-export interface CreateTemplateInput {
-  name: string;
-  description?: string;
-  content: string;
-  fields?: PartialFieldDefinition[];
-  created_by?: string;
-  status?: "draft" | "published";
-}
+// ── helpers ────────────────────────────────────────────────────────────────────
+const uuid = () => randomUUID();
+const VALID_UUID = "550e8400-e29b-41d4-a716-446655440000";
 
-export interface UpdateTemplateInput {
-  name?: string;
-  description?: string;
-  content?: string;
-  fields?: PartialFieldDefinition[];
-  status?: "draft" | "published";
-}
+const makeTemplate = (
+  overrides: Partial<TemplateEntity & { content: string }> = {},
+): TemplateEntity & { content: string } => ({
+  id: VALID_UUID,
+  name: "Template di Test",
+  description: "Descrizione di test",
+  content: "# {{titolo}}\n\nTesto con {{nome}}.",
+  content_path: `${VALID_UUID}`,
+  status: "draft",
+  created_by: "system",
+  fields: [
+    {
+      name: "titolo",
+      label: "Titolo",
+      type: "text",
+      required: true,
+      defaultValue: "",
+    },
+    {
+      name: "nome",
+      label: "Nome",
+      type: "text",
+      required: true,
+      defaultValue: "",
+    },
+  ],
+  created_at: new Date("2024-01-01"),
+  updated_at: new Date("2024-01-01"),
+  ...overrides,
+});
 
-const MAX_TEMPLATE_CONTENT_BYTES = appConfig.maxTemplateContentBytes;
+describe("TemplatesService", () => {
+  let service: TemplatesService;
+  let templatesRepository: jest.Mocked<TemplatesRepository>;
+  let dataSource: jest.Mocked<DataSource>;
+  let githubStorage: jest.Mocked<GitHubStorageService>;
 
-@Injectable()
-export class TemplatesService {
-  private readonly logger = new Logger(TemplatesService.name);
+  const runTransaction = (
+    cbOrIsolation: ((manager: EntityManager) => Promise<unknown>) | string,
+    maybeCb?: (manager: EntityManager) => Promise<unknown>,
+  ): Promise<unknown> => {
+    const cb = typeof cbOrIsolation === "function" ? cbOrIsolation : maybeCb;
+    if (!cb) throw new Error("No callback provided");
+    return cb({} as EntityManager);
+  };
 
-  constructor(
-    @InjectDataSource()
-    private readonly dataSource: DataSource,
-    @Inject(TemplatesRepository)
-    private readonly templatesRepository: TemplatesRepository,
-    @Inject(GitHubStorageService)
-    private readonly githubStorage: GitHubStorageService,
-  ) {}
+  beforeEach(async () => {
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    jest.spyOn(console, "error").mockImplementation(() => {});
 
-  // ── Helpers privati ──────────────────────────────────────────────────────
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TemplatesService,
+        {
+          provide: TemplatesRepository,
+          useValue: {
+            findAll: jest.fn(),
+            findById: jest.fn(),
+            insertTemplate: jest.fn(),
+            updateTemplate: jest.fn(),
+            deleteTemplate: jest.fn(),
+            countActiveDocuments: jest.fn(),
+            sectionExists: jest.fn(),
+          },
+        },
+        {
+          provide: DataSource,
+          useValue: { transaction: jest.fn() },
+        },
+        {
+          provide: GitHubStorageService,
+          useValue: {
+            readTemplate: jest.fn(),
+            writeTemplate: jest.fn(),
+            deleteTemplate: jest.fn(),
+            listTemplates: jest.fn().mockResolvedValue([]),
+          },
+        },
+      ],
+    }).compile();
 
-  private assertValidContent(content: string): void {
-    const result = validateMarkdownContent(content, MAX_TEMPLATE_CONTENT_BYTES);
-    if (!result.valid) throw makeError(result.errors.join("; "), 400);
-  }
+    service = module.get<TemplatesService>(TemplatesService);
+    templatesRepository = module.get(
+      TemplatesRepository,
+    ) as jest.Mocked<TemplatesRepository>;
+    dataSource = module.get(DataSource) as jest.Mocked<DataSource>;
+    githubStorage = module.get(
+      GitHubStorageService,
+    ) as jest.Mocked<GitHubStorageService>;
+  });
 
-  private async findOneOrThrow(
-    id: string,
-  ): Promise<TemplateEntity & { content: string }> {
-    assertUuid(id);
-    const template = await this.findOne(id);
-    if (!template) throw makeError("Template non trovato", 404);
-    return template;
-  }
+  afterEach(() => jest.resetAllMocks());
 
-  /**
-   * Normalizza il templateId rimuovendo l'eventuale estensione .md
-   * (alcuni record legacy in DB hanno content_path = "uuid.md").
-   */
-  private normalizeTemplateId(raw: string): string {
-    return raw.endsWith(".md") ? raw.slice(0, -3) : raw;
-  }
+  // ── create() ────────────────────────────────────────────────────────────────
 
-  /**
-   * Idrata il campo virtuale `content` leggendo da GitHub.
-   * content_path contiene il templateId (usato come chiave su GitHub).
-   *
-   * FIX: se il file non esiste su GitHub (template legacy / seed / migrazione)
-   * NON lancia più 503 — restituisce content vuoto con un WARN,
-   * così findAll non crasha e la lista rimane visibile.
-   * Solo findOne (GET singolo) deve essere strict → parametro `strict`.
-   */
-  private async hydrateContent<
-    T extends { content_path: string | null; id: string },
-  >(row: T | null, strict = false): Promise<(T & { content: string }) | null> {
-    if (!row) return null;
-
-    const rawId = row.content_path ?? row.id;
-    const templateId = this.normalizeTemplateId(rawId);
-
-    const content = await this.githubStorage.readTemplate(templateId);
-
-    if (content === null) {
-      if (strict) {
-        this.logger.error(
-          `Contenuto template non trovato su GitHub per id: ${templateId}`,
-        );
-        throw makeError("Contenuto template non disponibile su GitHub", 503);
-      }
-      this.logger.warn(
-        `Contenuto template mancante su GitHub per id: ${templateId} — restituisco stringa vuota`,
-      );
-      return { ...row, content: "" };
-    }
-
-    return { ...row, content };
-  }
-
-  // ── API pubblica ─────────────────────────────────────────────────────────
-
-  async findAll({
-    status,
-    limit = 20,
-    offset = 0,
-  }: {
-    status?: "draft" | "published";
-    limit?: number;
-    offset?: number;
-  }) {
-    const { data, total } = await this.templatesRepository.findAll({
-      status,
-      limit,
-      offset,
-    });
-
-    // strict=false: template senza file GitHub vengono restituiti con content=""
-    const hydratedData = await Promise.all(
-      data.map((row) => this.hydrateContent(row, false)),
-    );
-    const githubTemplates = await this.githubStorage.listTemplates();
-    const localTemplates = hydratedData.filter(
-      (row): row is TemplateEntity & { content: string } => Boolean(row),
-    );
-
-    return {
-      data: [...githubTemplates, ...localTemplates],
-      total: total + githubTemplates.length,
-      limit,
-      offset,
-    };
-  }
-
-  async findOne(
-    id: string,
-  ): Promise<(TemplateEntity & { content: string }) | null> {
-    assertUuid(id);
-    const row = await this.templatesRepository.findById(id);
-    // strict=true: GET singolo deve segnalare se il content manca
-    return this.hydrateContent(row, true);
-  }
-
-  async create({
-    name,
-    description,
-    content,
-    fields,
-    created_by = "system",
-    status,
-  }: CreateTemplateInput) {
-    if (!name || name.trim().length === 0) {
-      throw makeError("Il nome del template e obbligatorio", 400);
-    }
-
-    this.assertValidContent(content);
-
-    const id = randomUUID();
-    const normalizedFields: FieldDefinition[] = normalizeFieldDefinitions(
-      content,
-      fields,
-    );
-
-    // Fase 1: scrivi il file su GitHub PRIMA della transazione DB.
-    // Se GitHub fallisce, non tocchiamo il DB.
-    await this.githubStorage.writeTemplate(id, content);
-
-    try {
-      // Fase 2: salva i metadati nel DB.
-      // content_path contiene il templateId (UUID puro, senza .md).
-      const template = await this.dataSource.transaction(async (manager) =>
-        this.templatesRepository.insertTemplate(manager, {
-          id,
-          name: name.trim(),
-          description,
-          contentPath: id,
-          fields: normalizedFields,
-          createdBy: created_by,
-          status,
-        }),
+  describe("create() - casi nominali", () => {
+    it("crea un template con contenuto valido", async () => {
+      const template = makeTemplate();
+      templatesRepository.insertTemplate.mockResolvedValue(template);
+      dataSource.transaction.mockImplementation(runTransaction as never);
+      githubStorage.writeTemplate.mockResolvedValue(undefined);
+      githubStorage.readTemplate.mockResolvedValue(
+        "# {{titolo}}\n\nTesto con {{nome}}.",
       );
 
-      return this.hydrateContent(template, true);
-    } catch (error) {
-      this.logger.error(
-        `Transazione DB fallita per template ${id}, tentativo rollback GitHub`,
-      );
-      await this.githubStorage.deleteTemplate(id).catch((deleteError) => {
-        this.logger.error(
-          `Rollback GitHub fallito per template ${id}:`,
-          deleteError instanceof Error
-            ? deleteError.message
-            : String(deleteError),
-        );
+      const result = await service.create({
+        name: "Template di Test",
+        content: "# {{titolo}}\n\nTesto con {{nome}}.",
       });
-      throw error;
-    }
-  }
 
-  async update(
-    id: string,
-    { name, description, content, fields, status }: UpdateTemplateInput,
-  ) {
-    const existing = await this.findOneOrThrow(id);
-
-    const nextContent = content ?? existing.content;
-    this.assertValidContent(nextContent);
-
-    const nextFields = normalizeFieldDefinitions(
-      nextContent,
-      fields ?? existing.fields,
-    );
-
-    const rawId = existing.content_path ?? id;
-    const templateId = this.normalizeTemplateId(rawId);
-
-    // Fase 1: aggiorna il file su GitHub
-    await this.githubStorage.writeTemplate(templateId, nextContent);
-
-    try {
-      const updated = await this.dataSource.transaction(async (manager) =>
-        this.templatesRepository.updateTemplate(manager, {
-          id,
-          name: name?.trim() || existing.name,
-          description: description ?? existing.description,
-          contentPath: templateId, // salva UUID puro, senza .md
-          fields: nextFields,
-          status: status ?? existing.status,
-        }),
-      );
-
-      return this.hydrateContent(updated, true);
-    } catch (error) {
-      this.logger.error(
-        `CRITICO: GitHub aggiornato ma DB fallito per template ${id}. ` +
-          `Potrebbe esserci disallineamento. Verificare manualmente.`,
-      );
-      throw error;
-    }
-  }
-
-  async importFromMarkdown(
-    content: string,
-    name: string,
-    created_by = "system",
-  ) {
-    return this.create({ name, content, created_by });
-  }
-
-  async delete(id: string) {
-    const template = await this.findOneOrThrow(id);
-
-    const activeDocuments =
-      await this.templatesRepository.countActiveDocuments(id);
-    if (activeDocuments > 0) {
-      throw makeError(
-        "Impossibile eliminare: esistono documenti attivi basati su questo template",
-        409,
-      );
-    }
-
-    await this.templatesRepository.deleteTemplate(id);
-
-    const rawId = template.content_path ?? id;
-    const templateId = this.normalizeTemplateId(rawId);
-    await this.githubStorage.deleteTemplate(templateId).catch((error) => {
-      this.logger.error(
-        `Impossibile eliminare template ${id} da GitHub (DB già aggiornato):`,
-        error instanceof Error ? error.message : String(error),
+      expect(result).not.toBeNull();
+      expect(result?.name).toBe("Template di Test");
+      expect(templatesRepository.insertTemplate).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ name: "Template di Test" }),
       );
     });
 
-    return { deleted: true };
-  }
+    it("usa 'system' come creator di default", async () => {
+      const template = makeTemplate();
+      templatesRepository.insertTemplate.mockResolvedValue(template);
+      dataSource.transaction.mockImplementation(runTransaction as never);
+      githubStorage.writeTemplate.mockResolvedValue(undefined);
+      githubStorage.readTemplate.mockResolvedValue("# {{titolo}}");
 
-  getExportContent(template: { content: string }): string {
-    return template.content;
-  }
+      await service.create({ name: "T", content: "# {{titolo}}" });
 
-  validateMarkdown(content: string) {
-    return validateMarkdownContent(content, MAX_TEMPLATE_CONTENT_BYTES);
-  }
-}
+      expect(templatesRepository.insertTemplate).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ createdBy: "system" }),
+      );
+    });
+
+    it("trimma il nome del template", async () => {
+      const template = makeTemplate({ name: "Trimmed" });
+      templatesRepository.insertTemplate.mockResolvedValue(template);
+      dataSource.transaction.mockImplementation(runTransaction as never);
+      githubStorage.writeTemplate.mockResolvedValue(undefined);
+      githubStorage.readTemplate.mockResolvedValue("# {{titolo}}");
+
+      await service.create({ name: "  Trimmed  ", content: "# {{titolo}}" });
+
+      expect(templatesRepository.insertTemplate).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ name: "Trimmed" }),
+      );
+    });
+  });
+
+  describe("create() - casi limite", () => {
+    it("lancia 400 se il nome è vuoto", async () => {
+      await expect(
+        service.create({ name: "", content: "# {{titolo}}" }),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("lancia 400 se il nome contiene solo spazi", async () => {
+      await expect(
+        service.create({ name: "   ", content: "# {{titolo}}" }),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("lancia 400 per contenuto vuoto", async () => {
+      await expect(
+        service.create({ name: "T", content: "" }),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("lancia 400 per contenuto di soli spazi", async () => {
+      await expect(
+        service.create({ name: "T", content: "   " }),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("lancia 400 per placeholder con sintassi non valida", async () => {
+      await expect(
+        service.create({ name: "T", content: "# {{ titolo con spazi }}" }),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("lancia 400 per parentesi non bilanciate", async () => {
+      await expect(
+        service.create({ name: "T", content: "# {{titolo}" }),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("lancia 400 per contenuto con tag <script>", async () => {
+      await expect(
+        service.create({
+          name: "T",
+          content: "# {{titolo}}<script>alert(1)</script>",
+        }),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("lancia 400 per contenuto con tag <iframe>", async () => {
+      await expect(
+        service.create({ name: "T", content: '# {{titolo}}<iframe src="x"/>' }),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("lancia 400 per comandi LaTeX pericolosi", async () => {
+      await expect(
+        service.create({
+          name: "T",
+          content: "# {{titolo}}\\input{/etc/passwd}",
+        }),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("tenta rollback GitHub se la transazione DB fallisce", async () => {
+      githubStorage.writeTemplate.mockResolvedValue(undefined);
+      githubStorage.deleteTemplate.mockResolvedValue(undefined);
+      dataSource.transaction.mockRejectedValue(new Error("DB error"));
+
+      await expect(
+        service.create({ name: "T", content: "# {{titolo}}" }),
+      ).rejects.toThrow("DB error");
+
+      expect(githubStorage.deleteTemplate).toHaveBeenCalled();
+    });
+  });
+
+  // ── findOne() ───────────────────────────────────────────────────────────────
+
+  describe("findOne() - casi nominali e limite", () => {
+    it("ritorna il template idratato se esiste", async () => {
+      templatesRepository.findById.mockResolvedValue(makeTemplate());
+      githubStorage.readTemplate.mockResolvedValue(
+        "# {{titolo}}\n\nTesto con {{nome}}.",
+      );
+
+      const result = await service.findOne(VALID_UUID);
+
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe(VALID_UUID);
+    });
+
+    it("ritorna null se il template non esiste nel DB", async () => {
+      templatesRepository.findById.mockResolvedValue(null);
+
+      const result = await service.findOne(VALID_UUID);
+
+      expect(result).toBeNull();
+    });
+
+    it("lancia 400 per UUID non valido", async () => {
+      await expect(service.findOne("not-a-uuid")).rejects.toMatchObject({
+        status: 400,
+      });
+    });
+
+    it("lancia 503 se il contenuto non è disponibile su GitHub (strict)", async () => {
+      templatesRepository.findById.mockResolvedValue(makeTemplate());
+      githubStorage.readTemplate.mockResolvedValue(null);
+
+      await expect(service.findOne(VALID_UUID)).rejects.toMatchObject({
+        status: 503,
+      });
+    });
+  });
+
+  // ── findAll() ───────────────────────────────────────────────────────────────
+
+  describe("findAll() - casi nominali e limite", () => {
+    it("ritorna lista paginata di template", async () => {
+      const templates = [makeTemplate(), makeTemplate({ id: uuid() })];
+      templatesRepository.findAll.mockResolvedValue({
+        data: templates,
+        total: 2,
+      });
+      githubStorage.readTemplate.mockResolvedValue("# {{titolo}}");
+      githubStorage.listTemplates.mockResolvedValue([]);
+
+      const result = await service.findAll({ limit: 20, offset: 0 });
+
+      expect(result.total).toBe(2);
+    });
+
+    it("gestisce lista vuota", async () => {
+      templatesRepository.findAll.mockResolvedValue({ data: [], total: 0 });
+      githubStorage.listTemplates.mockResolvedValue([]);
+
+      const result = await service.findAll({ limit: 20, offset: 0 });
+
+      expect(result.data).toHaveLength(0);
+      expect(result.total).toBe(0);
+    });
+
+    it("filtra per status", async () => {
+      templatesRepository.findAll.mockResolvedValue({ data: [], total: 0 });
+      githubStorage.listTemplates.mockResolvedValue([]);
+
+      await service.findAll({ status: "published", limit: 10, offset: 0 });
+
+      expect(templatesRepository.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "published" }),
+      );
+    });
+
+    it("applica i default di paginazione (limit=20, offset=0)", async () => {
+      templatesRepository.findAll.mockResolvedValue({ data: [], total: 0 });
+      githubStorage.listTemplates.mockResolvedValue([]);
+
+      await service.findAll({});
+
+      expect(templatesRepository.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 20, offset: 0 }),
+      );
+    });
+
+    it("template con contenuto mancante su GitHub restituisce content='' (non strict)", async () => {
+      const tpl = makeTemplate();
+      templatesRepository.findAll.mockResolvedValue({
+        data: [tpl],
+        total: 1,
+      });
+      githubStorage.readTemplate.mockResolvedValue(null); // mancante
+      githubStorage.listTemplates.mockResolvedValue([]);
+
+      const result = await service.findAll({ limit: 20, offset: 0 });
+
+      expect(result.data[0].content).toBe("");
+    });
+  });
+
+  // ── update() ────────────────────────────────────────────────────────────────
+
+  describe("update() - casi nominali", () => {
+    it("aggiorna nome e contenuto", async () => {
+      const existing = makeTemplate();
+      templatesRepository.findById.mockResolvedValue(existing);
+      githubStorage.readTemplate.mockResolvedValue(existing.content);
+      githubStorage.writeTemplate.mockResolvedValue(undefined);
+      templatesRepository.updateTemplate.mockResolvedValue(existing);
+      dataSource.transaction.mockImplementation(runTransaction as never);
+
+      await service.update(VALID_UUID, {
+        name: "Nuovo Nome",
+        content: "# {{titolo}}\n\nNuovo {{testo}}.",
+      });
+
+      expect(templatesRepository.updateTemplate).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ name: "Nuovo Nome" }),
+      );
+    });
+  });
+
+  describe("update() - casi limite", () => {
+    it("lancia 404 se il template non esiste", async () => {
+      templatesRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.update(VALID_UUID, { name: "X" }),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it("lancia 400 per UUID non valido in id", async () => {
+      await expect(
+        service.update("not-a-uuid", { name: "X" }),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+  });
+
+  // ── delete() ────────────────────────────────────────────────────────────────
+
+  describe("delete() - casi nominali", () => {
+    it("elimina il template se non ha documenti attivi", async () => {
+      templatesRepository.findById.mockResolvedValue(makeTemplate());
+      githubStorage.readTemplate.mockResolvedValue("# {{titolo}}");
+      templatesRepository.countActiveDocuments.mockResolvedValue(0);
+      githubStorage.deleteTemplate.mockResolvedValue(undefined);
+
+      const result = await service.delete(VALID_UUID);
+
+      expect(result).toEqual({ deleted: true });
+      expect(templatesRepository.deleteTemplate).toHaveBeenCalledWith(
+        VALID_UUID,
+      );
+    });
+  });
+
+  describe("delete() - casi limite", () => {
+    it("lancia 404 se il template non esiste", async () => {
+      templatesRepository.findById.mockResolvedValue(null);
+
+      await expect(service.delete(VALID_UUID)).rejects.toMatchObject({
+        status: 404,
+      });
+    });
+
+    it("lancia 409 se esistono documenti attivi", async () => {
+      templatesRepository.findById.mockResolvedValue(makeTemplate());
+      githubStorage.readTemplate.mockResolvedValue("# {{titolo}}");
+      templatesRepository.countActiveDocuments.mockResolvedValue(3);
+
+      await expect(service.delete(VALID_UUID)).rejects.toMatchObject({
+        status: 409,
+      });
+    });
+
+    it("lancia 400 per UUID non valido", async () => {
+      await expect(service.delete("not-a-uuid")).rejects.toMatchObject({
+        status: 400,
+      });
+    });
+  });
+
+  // ── validateMarkdown() ──────────────────────────────────────────────────────
+
+  describe("validateMarkdown() - casi limite", () => {
+    it("valida correttamente un template corretto", () => {
+      const result = service.validateMarkdown(
+        "# {{titolo}}\n\nTesto {{nome}}.",
+      );
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("rileva template vuoto", () => {
+      const result = service.validateMarkdown("");
+      expect(result.valid).toBe(false);
+    });
+
+    it("rileva placeholder non validi", () => {
+      const result = service.validateMarkdown("# {{ titolo con spazi }}");
+      expect(result.valid).toBe(false);
+    });
+
+    it("rileva tag <script>", () => {
+      const result = service.validateMarkdown(
+        "# {{t}}<script>alert(1)</script>",
+      );
+      expect(result.valid).toBe(false);
+    });
+  });
+
+  // ── importFromMarkdown() ────────────────────────────────────────────────────
+
+  describe("importFromMarkdown()", () => {
+    it("delega a create() con i parametri corretti", async () => {
+      const createSpy = jest
+        .spyOn(service, "create")
+        .mockResolvedValue(makeTemplate());
+
+      await service.importFromMarkdown("# {{titolo}}", "Importato", "user1");
+
+      expect(createSpy).toHaveBeenCalledWith({
+        name: "Importato",
+        content: "# {{titolo}}",
+        created_by: "user1",
+      });
+    });
+  });
+
+  // ── getExportContent() ──────────────────────────────────────────────────────
+
+  describe("getExportContent()", () => {
+    it("ritorna il contenuto del template", () => {
+      const content = service.getExportContent({ content: "# ciao" });
+      expect(content).toBe("# ciao");
+    });
+  });
+});

@@ -19,6 +19,7 @@ interface HeaderBarProps {
   onSave: () => void;
   onGeneratePdf: () => void;
   pdfJobs: PdfJobDto[];
+  canGeneratePdf?: boolean;
 }
 
 function statusColor(
@@ -51,13 +52,17 @@ export function HeaderBar({
   onSave,
   onGeneratePdf,
   pdfJobs,
+  canGeneratePdf = false,
 }: HeaderBarProps) {
   const latestJob = pdfJobs[0];
 
-  // updatedAt (camelCase) — allineato a DocumentDto
   const lastGenerated = document?.updatedAt
     ? new Date(document.updatedAt).toLocaleDateString("it-IT")
     : "—";
+
+  const pdfTooltip = canGeneratePdf
+    ? "Genera PDF"
+    : "Salva prima il documento per abilitare la generazione PDF";
 
   return (
     <Box className="header-bar">
@@ -99,13 +104,14 @@ export function HeaderBar({
             </Tooltip>
           )}
 
-          <Tooltip title="Genera PDF">
+          <Tooltip title={pdfTooltip}>
+            {/* span necessario perché Tooltip non funziona su Button disabilitato */}
             <span>
               <Button
                 variant="outlined"
                 startIcon={<PictureAsPdfIcon />}
                 onClick={onGeneratePdf}
-                disabled={!document || isSaving}
+                disabled={!canGeneratePdf || isSaving}
               >
                 Genera PDF
               </Button>
