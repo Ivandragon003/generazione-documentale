@@ -16,6 +16,7 @@ import {
   Stack,
   Tab,
   Tabs,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -25,16 +26,12 @@ import { PdfPreview } from "./components/PdfPreview";
 import { TemplateEditor } from "./components/TemplateEditor";
 import {
   type ApiTemplateField,
-  createDocument,
   createTemplate,
-  type DocumentDto,
-  getDocuments,
   getPdfJobs,
   getTemplates,
   type PdfJobDto,
   type TemplateDto,
   triggerPdfGeneration,
-  updateDocument,
   updateTemplate,
 } from "./data/api";
 import type { TemplateField } from "./data/mock";
@@ -169,25 +166,16 @@ export default function App() {
 
   const [template, setTemplate] = useState<TemplateDto | null>(null);
   const [templates, setTemplates] = useState<TemplateDto[]>([]);
-  const [document, setDocument] = useState<DocumentDto | null>(null);
   const [pdfJobs, setPdfJobs] = useState<PdfJobDto[]>([]);
-
-  const [markdown, setMarkdown] = useState("");
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
 
   const originalPlaceholders = useRef<string[]>([]);
-  // Ref per il debounce dell'auto-save campi
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Ref per accedere al documento corrente dentro il debounce
-  const documentRef = useRef<DocumentDto | null>(null);
-  useEffect(() => { documentRef.current = document; }, [document]);
 
   // ── Boot ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
 
     async function boot() {
-      let bootHadError = false;
       try {
         const tmplRes = await withBootRetry(() => getTemplates());
         if (cancelled) return;
@@ -205,26 +193,15 @@ export default function App() {
           const content = firstTemplate.content?.trim() ?? "";
           setMarkdown(content);
           originalPlaceholders.current = extractPlaceholders(content);
+
+          // Carica i PDF job del template selezionato
+          if (isUuid(firstTemplate.id)) {
+            const jobs = await getPdfJobs(firstTemplate.id).catch(() => []);
+            if (!cancelled) setPdfJobs(jobs);
+          }
         }
-
-        const docRes = await getDocuments().catch(() => {
-          bootHadError = true;
-          return { data: [], total: 0 };
-        });
-        if (cancelled) return;
-
-        await initializeDocument(docRes.data[0], cancelled, (err) => {
-          bootHadError = bootHadError || err;
-        });
 
         setAppStatus("ready");
-        if (bootHadError) {
-          setSnack({
-            open: true,
-            msg: "Template caricati. Alcuni dati documento/PDF non sono disponibili.",
-            severity: "error",
-          });
-        }
       } catch {
         if (!cancelled) {
           setAppStatus("error");
@@ -233,30 +210,11 @@ export default function App() {
       }
     }
 
-    async function initializeDocument(
-      doc: DocumentDto | undefined,
-      cancelled: boolean,
-      onError: (error: boolean) => void,
-    ) {
-      const firstDocument = doc ?? null;
-      if (firstDocument) {
-        setDocument(firstDocument);
-        const fv: Record<string, string> = {};
-        for (const [k, v] of Object.entries(firstDocument.fieldValues ?? {})) {
-          fv[k] = v !== null && v !== undefined ? String(v) : "";
-        }
-        setFieldValues(fv);
-        const jobs = await getPdfJobs(firstDocument.id).catch(() => {
-          onError(true);
-          return [];
-        });
-        if (!cancelled) setPdfJobs(jobs);
-      }
-    }
-
     void boot();
     return () => { cancelled = true; };
   }, []);
+
+  const [markdown, setMarkdown] = useState("");
 
   // ── Import template ───────────────────────────────────────────────────
   const handleTemplateImported = useCallback((importedTemplate: TemplateDto) => {
@@ -267,16 +225,21 @@ export default function App() {
     setTemplate(importedTemplate);
     setMarkdown(importedTemplate.content);
     originalPlaceholders.current = extractPlaceholders(importedTemplate.content);
+    setPdfJobs([]);
+    setFieldValues({});
     setSnack({ open: true, msg: `Template "${importedTemplate.name}" importato.`, severity: "success" });
   }, []);
 
   const handleSelectTemplate = useCallback((selected: TemplateDto) => {
     setTemplate(selected);
     setMarkdown(selected.content);
-    setDocument((current) => current?.templateId === selected.id ? current : null);
     originalPlaceholders.current = extractPlaceholders(selected.content);
     setFieldValues({});
     setPdfJobs([]);
+    // Carica i PDF job del template selezionato
+    if (isUuid(selected.id)) {
+      void getPdfJobs(selected.id).then(setPdfJobs).catch(() => {});
+    }
   }, []);
 
   const ensureLocalTemplate = useCallback(
@@ -296,7 +259,7 @@ export default function App() {
     [template],
   );
 
-  // ── Salva Template (solo markdown / struttura) ────────────────────────────
+  // ── Salva Template ────────────────────────────────────────────────────────
   const handleSaveTemplate = useCallback(async () => {
     if (!markdown.trim()) {
       setSnack({
@@ -314,6 +277,7 @@ export default function App() {
       const structureChanged = diff.added.length > 0 || diff.removed.length > 0;
 
       if (structureChanged) {
+        // Struttura cambiata: crea nuovo template
         const newTmpl = await createTemplate({
           name: `${template?.name ?? "Template"} (rev)`,
           content: markdown,
@@ -323,71 +287,44 @@ export default function App() {
         setTemplate(newTmpl);
         setTemplates((current) => [newTmpl, ...current.filter((item) => item.id !== newTmpl.id)]);
         originalPlaceholders.current = extractPlaceholders(newTmpl.content);
-
-        const newDoc = await createDocument({
-          name: document?.name ?? "Documento",
-          templateId: newTmpl.id,
-        });
-        const saved = await updateDocument(newDoc.id, { fieldValues: { ...fieldValues } });
-        setDocument(saved);
         setPdfJobs([]);
-        setSnack({ open: true, msg: "Struttura cambiata: nuovo template e documento creati.", severity: "success" });
-      } else if (document && isUuid(document.id)) {
-        // Solo contenuto cambiato, struttura invariata: aggiorna il template
-        await updateTemplate(document.templateId ?? (template?.id ?? ""), { content: markdown });
+        setSnack({ open: true, msg: "Struttura cambiata: nuovo template creato.", severity: "success" });
+      } else if (template && isUuid(template.id) && !isGithubTemplate(template)) {
+        // Solo contenuto aggiornato
+        await updateTemplate(template.id, { content: markdown });
         setSnack({ open: true, msg: "Template salvato.", severity: "success" });
       } else {
+        // Template GitHub o senza UUID: crea template locale
         const activeTmpl = await ensureLocalTemplate(markdown);
-        if (template && isUuid(template.id) && !isGithubTemplate(template) && activeTmpl.id === template.id) {
-          await updateTemplate(activeTmpl.id, { content: markdown });
-        }
-        const newDoc = await createDocument({ name: "Nuovo Documento", templateId: activeTmpl.id });
-        setDocument(newDoc);
-        setPdfJobs([]);
-        setSnack({ open: true, msg: "Template e documento creati.", severity: "success" });
+        await updateTemplate(activeTmpl.id, { content: markdown });
+        setSnack({ open: true, msg: "Template locale creato e salvato.", severity: "success" });
       }
     } catch (err) {
       setSnack({ open: true, msg: `Errore salvataggio template: ${String(err)}`, severity: "error" });
     } finally {
       setAppStatus("ready");
     }
-  }, [markdown, fieldValues, template, document, ensureLocalTemplate]);
-
-  // ── Auto-save campi (debounced 800ms) ──────────────────────────────────
-  const handleFieldChange = useCallback((key: string, value: string) => {
-    setFieldValues((cur) => {
-      const next = { ...cur, [key]: value };
-
-      // Annulla il timer precedente e pianifica un nuovo auto-save
-      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-      autoSaveTimer.current = setTimeout(() => {
-        const doc = documentRef.current;
-        if (!doc || !isUuid(doc.id)) return; // nessun documento salvato ancora
-        void updateDocument(doc.id, { fieldValues: next }).then((saved) => {
-          setDocument(saved);
-        }).catch(() => {
-          // silenzioso: non mostrare snack per ogni auto-save fallito
-        });
-      }, 800);
-
-      return next;
-    });
-  }, []);
+  }, [markdown, template, ensureLocalTemplate]);
 
   // ── Genera PDF ────────────────────────────────────────────────────────────
   const handleGeneratePdf = useCallback(async () => {
-    if (!document || !isUuid(document.id)) {
-      setSnack({ open: true, msg: "Salva prima il documento prima di generare il PDF.", severity: "error" });
+    if (!template || !isUuid(template.id)) {
+      setSnack({ open: true, msg: "Seleziona o salva un template prima di generare il PDF.", severity: "error" });
       return;
     }
     try {
-      const job = await triggerPdfGeneration(document.id);
+      const job = await triggerPdfGeneration(template.id, fieldValues);
       setPdfJobs((prev) => [job, ...prev]);
       setSnack({ open: true, msg: "Generazione PDF avviata.", severity: "success" });
     } catch (err) {
       setSnack({ open: true, msg: `Errore PDF: ${String(err)}`, severity: "error" });
     }
-  }, [document]);
+  }, [template, fieldValues]);
+
+  // ── Campi ──────────────────────────────────────────────────────────────────
+  const handleFieldChange = useCallback((key: string, value: string) => {
+    setFieldValues((cur) => ({ ...cur, [key]: value }));
+  }, []);
 
   // ── Derivati ──────────────────────────────────────────────────────────────
   const currentPlaceholders = useMemo(() => extractPlaceholders(markdown), [markdown]);
@@ -410,7 +347,8 @@ export default function App() {
 
   const rendered = useMemo(() => renderMarkdown(markdown, fieldValues), [markdown, fieldValues]);
 
-  const canGeneratePdf = Boolean(document && isUuid(document.id));
+  // canGeneratePdf: basta avere un template con UUID valido — nessun Document necessario
+  const canGeneratePdf = Boolean(template && isUuid(template.id) && !isGithubTemplate(template));
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (appStatus === "loading") {
@@ -426,7 +364,6 @@ export default function App() {
       <AppBar position="static" color="transparent" elevation={0} className="top-appbar">
         <Container maxWidth="xl">
           <HeaderBar
-            document={document}
             template={template}
             isSaving={appStatus === "saving"}
             onSave={handleSaveTemplate}
@@ -475,8 +412,8 @@ export default function App() {
                 <PdfPreview
                   content={rendered}
                   pdfJobs={pdfJobs}
-                  documentId={document?.id}
-                  documentName={document?.name ?? template?.name}
+                  templateId={template?.id}
+                  documentName={template?.name}
                 />
               )}
             </Box>
@@ -492,7 +429,7 @@ export default function App() {
         <Paper className="architecture-note" sx={{ mt: 2 }}>
           <Typography variant="h6" gutterBottom>MAC Document Editor</Typography>
           <Typography variant="body2" color="text.secondary">
-            Editor collegato al backend NestJS. Template e documenti vengono caricati e salvati via API REST.
+            Editor collegato al backend NestJS. Template e PDF jobs vengono caricati e salvati via API REST.
           </Typography>
         </Paper>
       </Container>
