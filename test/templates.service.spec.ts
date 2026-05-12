@@ -19,7 +19,6 @@ const makeTemplate = (
   description: "Descrizione di test",
   content: "# {{titolo}}\n\nTesto con {{nome}}.",
   content_path: `${VALID_UUID}`,
-  section_id: null,
   status: "draft",
   created_by: "system",
   fields: [
