@@ -104,16 +104,16 @@ export class GitHubStorageService {
   }
 
   private localFilePath(templateId: string): string {
-    const filename = `${templateId}.md`;
-    if (basename(filename) !== filename) {
-      throw makeError("Template id non valido", 400);
-    }
-    const target = resolve(this.localTemplatesDir, filename);
-    if (
-      target !== this.localTemplatesDir &&
-      !target.startsWith(`${this.localTemplatesDir}\\`) &&
-      !target.startsWith(`${this.localTemplatesDir}/`)
-    ) {
+    const relativePath = `${templateId}.md`;
+    const target = resolve(this.localTemplatesDir, relativePath);
+
+    // Protezione da path traversal: il target deve essere sottocartella di localTemplatesDir
+    const normalizedDir = this.localTemplatesDir.endsWith("/")
+      ? this.localTemplatesDir
+      : `${this.localTemplatesDir}/`;
+    const normalizedTarget = target.replace(/\\/g, "/");
+
+    if (!normalizedTarget.startsWith(normalizedDir.replace(/\\/g, "/"))) {
       throw makeError("Percorso template locale non valido", 400);
     }
     return target;
@@ -131,10 +131,13 @@ export class GitHubStorageService {
     templateId: string,
     content: string,
   ): Promise<void> {
-    await mkdir(this.localTemplatesDir, { recursive: true });
-    await writeFile(this.localFilePath(templateId), content, "utf8");
+    const target = this.localFilePath(templateId);
+    const parentDir = resolve(target, "..");
+
+    await mkdir(parentDir, { recursive: true });
+    await writeFile(target, content, "utf8");
     this.logger.warn(
-      `Template ${templateId} salvato nello storage locale (${this.localTemplatesDir})`,
+      `Template ${templateId} salvato nello storage locale (${target})`,
     );
   }
 

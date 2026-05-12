@@ -24,7 +24,7 @@ Costruita con **NestJS** su Node.js, database **PostgreSQL**, generazione PDF tr
 
   ```bash
   # Ubuntu/Debian
-  sudo apt install pandoc texlive-latex-base
+  sudo apt install pandoc texlive-xetex texlive-fonts-recommended texlive-latex-recommended texlive-latex-extra
 
   # macOS
   brew install pandoc
