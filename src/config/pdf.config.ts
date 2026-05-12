@@ -207,7 +207,7 @@ const buildPdfConfig = (): PdfConfig => {
   );
 
   const colorLinksRaw = process.env.PDF_COLOR_LINKS;
-  const colorLinks = colorLinksRaw === "false" ? false : true;
+  const colorLinks = colorLinksRaw !== "false";
 
   const linkColor = process.env.PDF_LINK_COLOR?.trim() || "teal";
 

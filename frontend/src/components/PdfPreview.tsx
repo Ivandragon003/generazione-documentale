@@ -17,9 +17,10 @@ type Props = {
   content: string;
   pdfJobs?: PdfJobDto[];
   documentId?: string;
+  documentName?: string;
 };
 
-const BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:3000") + "/api";
+const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/api`;
 
 function jobStatusColor(
   status: PdfJobDto["status"],
@@ -30,7 +31,12 @@ function jobStatusColor(
   return "default";
 }
 
-export function PdfPreview({ content, pdfJobs = [], documentId }: Props) {
+export function PdfPreview({
+  content,
+  pdfJobs = [],
+  documentId,
+  documentName,
+}: Props) {
   const latestCompleted = pdfJobs.find((j) => j.status === "completed");
   const downloadUrl =
     latestCompleted && documentId
@@ -54,9 +60,7 @@ export function PdfPreview({ content, pdfJobs = [], documentId }: Props) {
             {pdfJobs.slice(0, 3).map((job) => (
               <Tooltip
                 key={job.id}
-                title={`${
-                  job.createdAt
-                }${job.errorMessage ? " — " + job.errorMessage : ""}`}
+                title={`${job.createdAt}${job.errorMessage ? ` — ${job.errorMessage}` : ""}`}
               >
                 <Chip
                   label={`PDF ${job.status}`}
@@ -102,7 +106,7 @@ export function PdfPreview({ content, pdfJobs = [], documentId }: Props) {
           </Box>
           <Box textAlign="right">
             <Typography variant="body2">
-              Documento: <strong>Document Editor</strong>
+              Documento: <strong>{documentName ?? "Document Editor"}</strong>
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {latestCompleted
