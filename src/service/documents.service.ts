@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
 import type { DataSource } from "typeorm";
 import { makeError } from "../common/utils/errors";
+import { assertUuid } from "../common/utils/http.utils";
 import { DocumentsRepository } from "../repository/documents.repository";
 import { PdfJobsService } from "./pdf-jobs.service";
 import { TemplatesService } from "./templates.service";
@@ -30,12 +31,6 @@ export class DocumentsService {
     @Inject(PdfJobsService)
     private readonly pdfJobsService: PdfJobsService,
   ) {}
-
-  private isValidUuid(uuid: string): boolean {
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(uuid);
-  }
 
   private async findOneOrThrow(id: string) {
     const document = await this.findOne(id);
@@ -72,17 +67,7 @@ export class DocumentsService {
     if (!name || name.trim().length === 0) {
       throw makeError("Il nome documento e obbligatorio", 400);
     }
-    console.log(
-      "[POST /documents] templateId:",
-      templateId,
-      "isUuid:",
-      this.isValidUuid(templateId),
-      "type:",
-      typeof templateId,
-    );
-    if (!this.isValidUuid(templateId)) {
-      throw makeError("Template ID non è un UUID valido", 400);
-    }
+    assertUuid(templateId, "templateId");
     const template = await this.templatesService.findOne(templateId);
     if (!template) throw makeError("Template non trovato", 404);
     return this.dataSource.transaction(async (manager) =>
