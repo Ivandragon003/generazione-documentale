@@ -1,5 +1,3 @@
-import type { TemplateVersion } from "./mock";
-
 const BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:3000") + "/api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -11,7 +9,7 @@ export type TemplateDto = {
   name: string;
   description: string | null;
   content: string;
-  fields: TemplateVersion["fields"];
+  fields: ApiTemplateField[];
   status: "draft" | "published";
   sectionId: string | null;
   createdAt: string;
@@ -74,7 +72,7 @@ async function api<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
     headers: {
       "Content-Type": "application/json",
       "x-user": "frontend",
-      ...(init?.headers ?? {}),
+      ...init?.headers,
     },
   });
   if (!res.ok) {
