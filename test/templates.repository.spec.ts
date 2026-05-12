@@ -1,6 +1,5 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { DocumentEntity } from "../src/entities/document.entity";
 import { TemplateEntity } from "../src/entities/template.entity";
 import { TemplatesRepository } from "../src/repository/templates.repository";
 
@@ -49,7 +48,6 @@ describe("TemplatesRepository", () => {
       providers: [
         TemplatesRepository,
         { provide: getRepositoryToken(TemplateEntity), useValue: tplRepo },
-        { provide: getRepositoryToken(DocumentEntity), useValue: docRepo },
       ],
     }).compile();
     repo = module.get<TemplatesRepository>(TemplatesRepository);
