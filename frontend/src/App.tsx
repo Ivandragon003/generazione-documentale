@@ -1,3 +1,7 @@
+import { Box, CssBaseline } from "@mui/material";
+import React from "react";
+import { HeaderBar } from "./components/HeaderBar";
+
 const BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:3000") + "/api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -200,4 +204,17 @@ export function getPdfDownloadUrl(documentId: string, jobId: string): string {
 
 export function getLatestPdfUrl(documentId: string): string {
   return `${BASE}/documents/${documentId}/pdf/latest`;
+}
+
+// ─── Root Component ──────────────────────────────────────────────────────────
+// TODO: estrarre in un file dedicato (es. AppShell.tsx) e spostare
+// le funzioni API in src/api.ts per separare le responsabilità.
+
+export default function App(): React.ReactElement {
+  return (
+    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+      <CssBaseline />
+      <HeaderBar />
+    </Box>
+  );
 }
