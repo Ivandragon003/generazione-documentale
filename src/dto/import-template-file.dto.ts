@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString, IsUUID } from "class-validator";
+import { IsOptional, IsString } from "class-validator";
 
 export class ImportTemplateFileDto {
   @ApiPropertyOptional({
@@ -9,12 +9,4 @@ export class ImportTemplateFileDto {
   @IsOptional()
   @IsString()
   name?: string;
-
-  @ApiPropertyOptional({
-    description: "UUID sezione associata al template",
-    format: "uuid",
-  })
-  @IsOptional()
-  @IsUUID()
-  sectionId?: string;
 }

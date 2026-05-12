@@ -6,18 +6,12 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   ValidateNested,
 } from "class-validator";
 import { TemplateFieldDto } from "./template-field.dto";
 
 export class CreateTemplateDto {
-  @ApiPropertyOptional({ description: "UUID della sezione", format: "uuid" })
-  @IsOptional()
-  @IsUUID()
-  sectionId?: string;
-
   @ApiProperty({ description: "Nome del template", maxLength: 255 })
   @IsNotEmpty()
   @IsString()

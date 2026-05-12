@@ -1,11 +1,19 @@
+import DescriptionIcon from "@mui/icons-material/Description";
+import FolderIcon from "@mui/icons-material/Folder";
 import {
   Alert,
   AppBar,
   Box,
+  Chip,
   CircularProgress,
   Container,
+  Divider,
+  List,
+  ListItemButton,
+  ListItemText,
   Paper,
   Snackbar,
+  Stack,
   Tab,
   Tabs,
   Typography,
@@ -16,9 +24,9 @@ import { HeaderBar } from "./components/HeaderBar";
 import { PdfPreview } from "./components/PdfPreview";
 import { TemplateEditor } from "./components/TemplateEditor";
 import {
+  type ApiTemplateField,
   createDocument,
   createTemplate,
-  type ApiTemplateField,
   type DocumentDto,
   getDocuments,
   getPdfJobs,
@@ -39,6 +47,22 @@ import {
 const tabLabels = ["Template", "Campi", "Anteprima PDF"];
 
 type AppStatus = "loading" | "ready" | "saving" | "error";
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+
+async function withBootRetry<T>(load: () => Promise<T>): Promise<T> {
+  const maxAttempts = 10;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await load();
+    } catch (error) {
+      if (attempt === maxAttempts) throw error;
+      await sleep(800);
+    }
+  }
+  throw new Error("Backend non disponibile");
+}
 
 /** Crea un ApiTemplateField (per il backend) da una chiave placeholder */
 function apiFieldFromKey(key: string): ApiTemplateField {
@@ -68,6 +92,73 @@ function isUuid(s: string | null | undefined): s is string {
   );
 }
 
+function ProjectStructure({
+  templates,
+  selectedTemplateId,
+  onSelectTemplate,
+}: {
+  templates: TemplateDto[];
+  selectedTemplateId: string | null;
+  onSelectTemplate: (template: TemplateDto) => void;
+}) {
+  const groupedTemplates = useMemo(() => {
+    return templates.length > 0
+      ? [["Template GitHub", templates] as const]
+      : [];
+  }, [templates]);
+
+  return (
+    <Paper className="project-structure">
+      <Typography className="structure-title" variant="overline">
+        Struttura progetto
+      </Typography>
+      <Divider />
+      {groupedTemplates.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+          Nessun template disponibile
+        </Typography>
+      ) : (
+        groupedTemplates.map(([groupName, items]) => (
+          <Box key={groupName}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              gap={1}
+              className="structure-group"
+            >
+              <FolderIcon fontSize="small" color="warning" />
+              <Typography variant="subtitle2" noWrap>
+                {groupName}
+              </Typography>
+              <Chip size="small" label={items.length} />
+            </Stack>
+            <List dense disablePadding>
+              {items.map((item) => (
+                <ListItemButton
+                  key={item.id}
+                  selected={item.id === selectedTemplateId}
+                  onClick={() => onSelectTemplate(item)}
+                  className="template-list-item"
+                >
+                  <DescriptionIcon fontSize="small" color="disabled" />
+                  <ListItemText
+                    primary={item.name}
+                    secondary={
+                      item.content ? item.status : "Contenuto mancante"
+                    }
+                    primaryTypographyProps={{ noWrap: true }}
+                    secondaryTypographyProps={{ noWrap: true }}
+                  />
+                </ListItemButton>
+              ))}
+            </List>
+          </Box>
+        ))
+      )}
+    </Paper>
+  );
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
   const [appStatus, setAppStatus] = useState<AppStatus>("loading");
@@ -78,6 +169,7 @@ export default function App() {
   }>({ open: false, msg: "", severity: "success" });
 
   const [template, setTemplate] = useState<TemplateDto | null>(null);
+  const [templates, setTemplates] = useState<TemplateDto[]>([]);
   const [document, setDocument] = useState<DocumentDto | null>(null);
   const [pdfJobs, setPdfJobs] = useState<PdfJobDto[]>([]);
 
@@ -91,15 +183,14 @@ export default function App() {
     let cancelled = false;
 
     async function boot() {
+      let bootHadError = false;
       try {
-        const [tmplRes, docRes] = await Promise.all([
-          getTemplates(),
-          getDocuments(),
-        ]);
+        const tmplRes = await withBootRetry(() => getTemplates());
         if (cancelled) return;
 
         const firstTemplate = tmplRes.data[0] ?? null;
-        const firstDocument = docRes.data[0] ?? null;
+
+        setTemplates(tmplRes.data);
 
         if (firstTemplate) {
           setTemplate(firstTemplate);
@@ -108,6 +199,14 @@ export default function App() {
             firstTemplate.content,
           );
         }
+
+        const docRes = await getDocuments().catch(() => {
+          bootHadError = true;
+          return { data: [], total: 0 };
+        });
+        if (cancelled) return;
+
+        const firstDocument = docRes.data[0] ?? null;
 
         if (firstDocument) {
           setDocument(firstDocument);
@@ -119,12 +218,24 @@ export default function App() {
           }
           setFieldValues(fv);
 
-          const jobs = await getPdfJobs(firstDocument.id);
-          if (!cancelled) setPdfJobs(jobs);
+          const jobs = await getPdfJobs(firstDocument.id).catch(() => {
+            bootHadError = true;
+            return [];
+          });
+          if (!cancelled) {
+            setPdfJobs(jobs);
+          }
         }
 
         setAppStatus("ready");
-      } catch (err) {
+        if (bootHadError) {
+          setSnack({
+            open: true,
+            msg: "Template caricati. Alcuni dati documento/PDF non sono disponibili.",
+            severity: "error",
+          });
+        }
+      } catch {
         if (!cancelled) {
           setAppStatus("error");
           setSnack({
@@ -145,6 +256,10 @@ export default function App() {
   // ── Callback da TemplateEditor quando viene importato un template via API ──
   const handleTemplateImported = useCallback(
     (importedTemplate: TemplateDto) => {
+      setTemplates((current) => [
+        importedTemplate,
+        ...current.filter((item) => item.id !== importedTemplate.id),
+      ]);
       setTemplate(importedTemplate);
       setMarkdown(importedTemplate.content);
       originalPlaceholders.current = extractPlaceholders(
@@ -159,6 +274,17 @@ export default function App() {
     [],
   );
 
+  const handleSelectTemplate = useCallback((selected: TemplateDto) => {
+    setTemplate(selected);
+    setMarkdown(selected.content);
+    setDocument((current) =>
+      current?.templateId === selected.id ? current : null,
+    );
+    originalPlaceholders.current = extractPlaceholders(selected.content);
+    setFieldValues({});
+    setPdfJobs([]);
+  }, []);
+
   // ── Salva ─────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     setAppStatus("saving");
@@ -172,11 +298,15 @@ export default function App() {
 
       if (structureChanged) {
         const newTmpl = await createTemplate({
-          name: (template?.name ?? "Template") + " (rev)",
+          name: `${template?.name ?? "Template"} (rev)`,
           content: markdown,
           fields: currentPlaceholders.map(apiFieldFromKey),
         });
         setTemplate(newTmpl);
+        setTemplates((current) => [
+          newTmpl,
+          ...current.filter((item) => item.id !== newTmpl.id),
+        ]);
         originalPlaceholders.current = extractPlaceholders(newTmpl.content);
 
         const newDoc = await createDocument({
@@ -214,6 +344,10 @@ export default function App() {
           });
         }
         setTemplate(activeTmpl);
+        setTemplates((current) => [
+          activeTmpl,
+          ...current.filter((item) => item.id !== activeTmpl.id),
+        ]);
         originalPlaceholders.current = extractPlaceholders(activeTmpl.content);
 
         const newDoc = await createDocument({
@@ -334,47 +468,55 @@ export default function App() {
       </AppBar>
 
       <Container maxWidth="xl" sx={{ mt: 3 }}>
-        <Paper className="workspace-shell">
-          <Tabs
-            value={activeTab}
-            onChange={(_, value: number) => setActiveTab(value)}
-          >
-            {tabLabels.map((label) => (
-              <Tab key={label} label={label} />
-            ))}
-          </Tabs>
+        <Box className="app-layout">
+          <ProjectStructure
+            templates={templates}
+            selectedTemplateId={template?.id ?? null}
+            onSelectTemplate={handleSelectTemplate}
+          />
 
-          <Box className="workspace-body">
-            {activeTab === 0 && (
-              <TemplateEditor
-                markdown={markdown}
-                onChange={setMarkdown}
-                placeholders={currentPlaceholders}
-                added={diff.added}
-                removed={diff.removed}
-                onTemplateImported={handleTemplateImported}
-              />
-            )}
+          <Paper className="workspace-shell">
+            <Tabs
+              value={activeTab}
+              onChange={(_, value: number) => setActiveTab(value)}
+            >
+              {tabLabels.map((label) => (
+                <Tab key={label} label={label} />
+              ))}
+            </Tabs>
 
-            {activeTab === 1 && (
-              <FieldsPanel
-                fields={visibleFields}
-                values={fieldValues}
-                onChange={(key, value) =>
-                  setFieldValues((cur) => ({ ...cur, [key]: value }))
-                }
-              />
-            )}
+            <Box className="workspace-body">
+              {activeTab === 0 && (
+                <TemplateEditor
+                  markdown={markdown}
+                  onChange={setMarkdown}
+                  placeholders={currentPlaceholders}
+                  added={diff.added}
+                  removed={diff.removed}
+                  onTemplateImported={handleTemplateImported}
+                />
+              )}
 
-            {activeTab === 2 && (
-              <PdfPreview
-                content={rendered}
-                pdfJobs={pdfJobs}
-                documentId={document?.id}
-              />
-            )}
-          </Box>
-        </Paper>
+              {activeTab === 1 && (
+                <FieldsPanel
+                  fields={visibleFields}
+                  values={fieldValues}
+                  onChange={(key, value) =>
+                    setFieldValues((cur) => ({ ...cur, [key]: value }))
+                  }
+                />
+              )}
+
+              {activeTab === 2 && (
+                <PdfPreview
+                  content={rendered}
+                  pdfJobs={pdfJobs}
+                  documentId={document?.id}
+                />
+              )}
+            </Box>
+          </Paper>
+        </Box>
 
         {appStatus === "error" && (
           <Alert severity="warning" sx={{ mt: 2 }}>

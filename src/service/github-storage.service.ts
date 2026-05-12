@@ -23,6 +23,8 @@
  * Viene recuperato automaticamente prima di ogni write/delete.
  */
 
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { basename, resolve } from "node:path";
 import { Injectable, Logger } from "@nestjs/common";
 import { makeError } from "../common/utils/errors";
 
@@ -46,11 +48,12 @@ export class GitHubStorageService {
   private readonly logger = new Logger(GitHubStorageService.name);
   private readonly config: GitHubConfig;
   private readonly baseUrl = "https://api.github.com";
+  private readonly localTemplatesDir: string;
 
   constructor() {
-    const token = process.env.GITHUB_TOKEN ?? "";
-    const owner = process.env.GITHUB_OWNER ?? "";
-    const repo = process.env.GITHUB_REPO ?? "";
+    const token = process.env.GITHUB_TOKEN?.trim() ?? "";
+    const owner = process.env.GITHUB_OWNER?.trim() ?? "";
+    const repo = process.env.GITHUB_REPO?.trim() ?? "";
 
     if (!token || !owner || !repo) {
       this.logger.warn(
@@ -63,15 +66,57 @@ export class GitHubStorageService {
       token,
       owner,
       repo,
-      branch: process.env.GITHUB_BRANCH ?? "main",
-      templatesDir: process.env.GITHUB_TEMPLATES_DIR ?? "templates",
+      branch: process.env.GITHUB_BRANCH?.trim() || "main",
+      templatesDir: process.env.GITHUB_TEMPLATES_DIR?.trim() || "templates",
     };
+    this.localTemplatesDir = resolve(
+      process.env.TEMPLATES_STORAGE_PATH?.trim() || "./storage/templates",
+    );
   }
 
   // ── Helpers interni ──────────────────────────────────────────────────────
 
   private filePath(templateId: string): string {
     return `${this.config.templatesDir}/${templateId}.md`;
+  }
+
+  private localFilePath(templateId: string): string {
+    const filename = `${templateId}.md`;
+    if (basename(filename) !== filename) {
+      throw makeError("Template id non valido", 400);
+    }
+    const target = resolve(this.localTemplatesDir, filename);
+    if (
+      target !== this.localTemplatesDir &&
+      !target.startsWith(`${this.localTemplatesDir}\\`) &&
+      !target.startsWith(`${this.localTemplatesDir}/`)
+    ) {
+      throw makeError("Percorso template locale non valido", 400);
+    }
+    return target;
+  }
+
+  private async readLocalTemplate(templateId: string): Promise<string | null> {
+    try {
+      return await readFile(this.localFilePath(templateId), "utf8");
+    } catch {
+      return null;
+    }
+  }
+
+  private async writeLocalTemplate(
+    templateId: string,
+    content: string,
+  ): Promise<void> {
+    await mkdir(this.localTemplatesDir, { recursive: true });
+    await writeFile(this.localFilePath(templateId), content, "utf8");
+    this.logger.warn(
+      `Template ${templateId} salvato nello storage locale (${this.localTemplatesDir})`,
+    );
+  }
+
+  private async deleteLocalTemplate(templateId: string): Promise<void> {
+    await rm(this.localFilePath(templateId), { force: true });
   }
 
   private headers(): Record<string, string> {
@@ -85,7 +130,28 @@ export class GitHubStorageService {
 
   private contentUrl(path: string): string {
     const { owner, repo } = this.config;
-    return `${this.baseUrl}/repos/${owner}/${repo}/contents/${path}`;
+    const encodedPath = path
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    return `${this.baseUrl}/repos/${owner}/${repo}/contents/${encodedPath}`;
+  }
+
+  private gitHubFailureMessage(
+    operation: "leggere" | "scrivere" | "eliminare",
+    path: string,
+    status: number,
+    body: string,
+  ): string {
+    if (status === 404) {
+      return (
+        `GitHub storage: impossibile ${operation} ${path}. ` +
+        `Repository, branch o permessi non validi per ` +
+        `${this.config.owner}/${this.config.repo}@${this.config.branch}. ` +
+        "Verifica GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH e permesso contents:write."
+      );
+    }
+    return `GitHub storage: impossibile ${operation} ${path}: ${body}`;
   }
 
   /**
@@ -96,7 +162,7 @@ export class GitHubStorageService {
   private async getFileMeta(
     path: string,
   ): Promise<{ sha: string; content: string } | null> {
-    const url = `${this.contentUrl(path)}?ref=${this.config.branch}`;
+    const url = `${this.contentUrl(path)}?ref=${encodeURIComponent(this.config.branch)}`;
     const response = await fetch(url, { headers: this.headers() });
 
     if (response.status === 404) return null;
@@ -104,7 +170,10 @@ export class GitHubStorageService {
     if (!response.ok) {
       const body = await response.text();
       this.logger.error(`GitHub GET ${path} → ${response.status}: ${body}`);
-      throw makeError(`GitHub storage: impossibile leggere ${path}`, 502);
+      throw makeError(
+        this.gitHubFailureMessage("leggere", path, response.status, body),
+        502,
+      );
     }
 
     const data = (await response.json()) as GitHubContentResponse;
@@ -123,18 +192,21 @@ export class GitHubStorageService {
    * Ritorna null se il file non esiste.
    */
   async readTemplate(templateId: string): Promise<string | null> {
-    this.assertConfigured();
+    if (!this.isConfigured()) {
+      return this.readLocalTemplate(templateId);
+    }
+
     const path = this.filePath(templateId);
     try {
       const meta = await this.getFileMeta(path);
-      return meta?.content ?? null;
+      if (meta?.content !== undefined) return meta.content;
     } catch (error) {
       this.logger.error(
         `Impossibile leggere template ${templateId} da GitHub`,
         error instanceof Error ? error.stack : undefined,
       );
-      return null;
     }
+    return this.readLocalTemplate(templateId);
   }
 
   /**
@@ -142,7 +214,10 @@ export class GitHubStorageService {
    * Usa PUT con sha se il file esiste già (aggiornamento atomico).
    */
   async writeTemplate(templateId: string, content: string): Promise<void> {
-    this.assertConfigured();
+    if (!this.isConfigured()) {
+      await this.writeLocalTemplate(templateId, content);
+      return;
+    }
     const path = this.filePath(templateId);
     const url = this.contentUrl(path);
 
@@ -172,10 +247,16 @@ export class GitHubStorageService {
       this.logger.error(
         `GitHub PUT ${path} → ${response.status}: ${responseBody}`,
       );
-      throw makeError(
-        `GitHub storage: impossibile scrivere template ${templateId}`,
-        502,
+      this.logger.warn(
+        `${this.gitHubFailureMessage(
+          "scrivere",
+          path,
+          response.status,
+          responseBody,
+        )} Uso fallback locale.`,
       );
+      await this.writeLocalTemplate(templateId, content);
+      return;
     }
 
     this.logger.log(
@@ -188,7 +269,9 @@ export class GitHubStorageService {
    * Non lancia se il file non esiste (idempotente).
    */
   async deleteTemplate(templateId: string): Promise<void> {
-    this.assertConfigured();
+    await this.deleteLocalTemplate(templateId);
+    if (!this.isConfigured()) return;
+
     const path = this.filePath(templateId);
 
     const existing = await this.getFileMeta(path);
@@ -218,7 +301,12 @@ export class GitHubStorageService {
         `GitHub DELETE ${path} → ${response.status}: ${responseBody}`,
       );
       throw makeError(
-        `GitHub storage: impossibile eliminare template ${templateId}`,
+        this.gitHubFailureMessage(
+          "eliminare",
+          path,
+          response.status,
+          responseBody,
+        ),
         502,
       );
     }
@@ -226,16 +314,7 @@ export class GitHubStorageService {
     this.logger.log(`Template ${templateId} eliminato da GitHub`);
   }
 
-  /**
-   * Verifica che le variabili d'ambiente necessarie siano configurate.
-   * Lancia 503 se mancanti, così il frontend riceve un errore chiaro.
-   */
-  private assertConfigured(): void {
-    if (!this.config.token || !this.config.owner || !this.config.repo) {
-      throw makeError(
-        "GitHub storage non configurato: impostare GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO",
-        503,
-      );
-    }
+  private isConfigured(): boolean {
+    return Boolean(this.config.token && this.config.owner && this.config.repo);
   }
 }

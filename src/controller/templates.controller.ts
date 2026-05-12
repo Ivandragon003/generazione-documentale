@@ -82,16 +82,6 @@ export class TemplatesController {
   @Get()
   @ApiOperation({ summary: "Lista template" })
   @ApiQuery({ name: "status", required: false, enum: ["draft", "published"] })
-  @ApiQuery({
-    name: "sectionId",
-    required: false,
-    schema: { type: "string", format: "uuid" },
-  })
-  @ApiQuery({
-    name: "categoryId",
-    required: false,
-    schema: { type: "string", format: "uuid" },
-  })
   @ApiQuery({ name: "limit", required: false, type: Number, example: 20 })
   @ApiQuery({ name: "offset", required: false, type: Number, example: 0 })
   findAll(@Query() query: TemplateQueryDto) {
@@ -99,8 +89,6 @@ export class TemplatesController {
     return this.templatesService
       .findAll({
         status: query.status,
-        sectionId: query.sectionId,
-        categoryId: query.categoryId,
         limit,
         offset,
       })
@@ -133,7 +121,6 @@ export class TemplatesController {
   })
   async create(@Body() body: CreateTemplateDto, @Req() request: Request) {
     const template = await this.templatesService.create({
-      section_id: body.sectionId,
       name: body.name,
       description: body.description,
       content: body.content,
@@ -156,7 +143,6 @@ export class TemplatesController {
   })
   async update(@Param("id") id: string, @Body() body: UpdateTemplateDto) {
     const template = await this.templatesService.update(id, {
-      section_id: body.sectionId,
       name: body.name,
       description: body.description,
       content: body.content,
@@ -224,7 +210,6 @@ export class TemplatesController {
       content,
       name,
       getActor(request),
-      body.sectionId,
     );
     if (!template) throw makeError("Template non trovato", 404);
     return toTemplateResponse(template);

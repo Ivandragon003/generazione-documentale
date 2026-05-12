@@ -37,9 +37,45 @@ body {
 .panel-shell,
 .editor-paper,
 .field-card,
-.preview-sheet {
+.preview-sheet,
+.project-structure {
   border-radius: 18px;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.project-structure {
+  overflow: hidden;
+  background: white;
+}
+
+.structure-title {
+  display: block;
+  padding: 12px 18px 8px;
+  color: #64748b;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.structure-group {
+  padding: 12px 14px 6px;
+  min-width: 0;
+}
+
+.structure-group .MuiTypography-root {
+  flex: 1;
+}
+
+.template-list-item {
+  gap: 10px;
+  padding-left: 22px;
+  min-height: 46px;
 }
 
 .workspace-body {
@@ -118,6 +154,10 @@ body {
 }
 
 @media (max-width: 900px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
   .preview-sheet {
     padding: 24px;
   }

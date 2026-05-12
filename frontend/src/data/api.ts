@@ -1,4 +1,4 @@
-const BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:3000") + "/api";
+const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/api`;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -11,7 +11,6 @@ export type TemplateDto = {
   content: string;
   fields: ApiTemplateField[];
   status: "draft" | "published";
-  sectionId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -104,7 +103,6 @@ export function createTemplate(payload: {
   name: string;
   content: string;
   fields?: ApiTemplateField[];
-  sectionId?: string;
   status?: "draft" | "published";
 }): Promise<TemplateDto> {
   return api(`${BASE}/templates`, {

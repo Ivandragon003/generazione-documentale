@@ -33,7 +33,6 @@ import { TemplatesRepository } from "../repository/templates.repository";
 import { GitHubStorageService } from "./github-storage.service";
 
 export interface CreateTemplateInput {
-  section_id?: string;
   name: string;
   description?: string;
   content: string;
@@ -43,7 +42,6 @@ export interface CreateTemplateInput {
 }
 
 export interface UpdateTemplateInput {
-  section_id?: string | null;
   name?: string;
   description?: string;
   content?: string;
@@ -101,10 +99,7 @@ export class TemplatesService {
    */
   private async hydrateContent<
     T extends { content_path: string | null; id: string },
-  >(
-    row: T | null,
-    strict = false,
-  ): Promise<(T & { content: string }) | null> {
+  >(row: T | null, strict = false): Promise<(T & { content: string }) | null> {
     if (!row) return null;
 
     const rawId = row.content_path ?? row.id;
@@ -132,21 +127,15 @@ export class TemplatesService {
 
   async findAll({
     status,
-    sectionId,
-    categoryId,
     limit = 20,
     offset = 0,
   }: {
     status?: "draft" | "published";
-    sectionId?: string;
-    categoryId?: string;
     limit?: number;
     offset?: number;
   }) {
     const { data, total } = await this.templatesRepository.findAll({
       status,
-      sectionId,
-      categoryId,
       limit,
       offset,
     });
@@ -176,7 +165,6 @@ export class TemplatesService {
   }
 
   async create({
-    section_id,
     name,
     description,
     content,
@@ -186,15 +174,6 @@ export class TemplatesService {
   }: CreateTemplateInput) {
     if (!name || name.trim().length === 0) {
       throw makeError("Il nome del template e obbligatorio", 400);
-    }
-
-    if (section_id) {
-      assertUuid(section_id, "section_id");
-      const sectionExists =
-        await this.templatesRepository.sectionExists(section_id);
-      if (!sectionExists) {
-        throw makeError("section_id non esistente", 400);
-      }
     }
 
     this.assertValidContent(content);
@@ -215,7 +194,6 @@ export class TemplatesService {
       const template = await this.dataSource.transaction(async (manager) =>
         this.templatesRepository.insertTemplate(manager, {
           id,
-          sectionId: section_id,
           name: name.trim(),
           description,
           contentPath: id,
@@ -244,25 +222,9 @@ export class TemplatesService {
 
   async update(
     id: string,
-    {
-      section_id,
-      name,
-      description,
-      content,
-      fields,
-      status,
-    }: UpdateTemplateInput,
+    { name, description, content, fields, status }: UpdateTemplateInput,
   ) {
     const existing = await this.findOneOrThrow(id);
-
-    if (section_id !== undefined && section_id !== null) {
-      assertUuid(section_id, "section_id");
-      const sectionExists =
-        await this.templatesRepository.sectionExists(section_id);
-      if (!sectionExists) {
-        throw makeError("section_id non esistente", 400);
-      }
-    }
 
     const nextContent = content ?? existing.content;
     this.assertValidContent(nextContent);
@@ -282,10 +244,6 @@ export class TemplatesService {
       const updated = await this.dataSource.transaction(async (manager) =>
         this.templatesRepository.updateTemplate(manager, {
           id,
-          sectionId:
-            section_id === undefined
-              ? existing.section_id
-              : (section_id ?? null),
           name: name?.trim() || existing.name,
           description: description ?? existing.description,
           contentPath: templateId, // salva UUID puro, senza .md
@@ -308,9 +266,8 @@ export class TemplatesService {
     content: string,
     name: string,
     created_by = "system",
-    section_id?: string,
   ) {
-    return this.create({ section_id, name, content, created_by });
+    return this.create({ name, content, created_by });
   }
 
   async delete(id: string) {

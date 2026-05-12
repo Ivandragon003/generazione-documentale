@@ -4,7 +4,6 @@ import type { TemplateEntity } from "../../entities/template.entity";
 
 export interface TemplateResponseDto {
   id: string;
-  sectionId: string | null;
   name: string;
   description: string | null;
   content: string;
@@ -38,7 +37,6 @@ export const toTemplateResponse = (
   template: TemplateEntity & { content: string },
 ): TemplateResponseDto => ({
   id: template.id,
-  sectionId: template.section_id,
   name: template.name,
   description: template.description,
   content: template.content,
