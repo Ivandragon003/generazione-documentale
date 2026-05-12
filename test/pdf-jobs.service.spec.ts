@@ -13,36 +13,37 @@ import { TemplatesService } from "../src/service/templates.service";
 const VALID_TPL_UUID = "789e0123-e89b-12d3-a456-426614174002";
 const VALID_JOB_UUID = "456e7890-e89b-12d3-a456-426614174001";
 
-const makeTpl = (overrides: Partial<TemplateEntity> = {}): TemplateEntity => ({
+const makeTpl = (
+  overrides: Partial<TemplateEntity & { content: string }> = {},
+): TemplateEntity & { content: string } => ({
   id: VALID_TPL_UUID,
   name: "Template Test",
-  content: "# {{titolo}}",
   description: "",
-  category: "offerta",
-  tags: [],
+  content_path: "/storage/tpl.md",
+  status: "draft",
   fields: [],
-  is_active: true,
-  version: 1,
   created_by: "system",
   created_at: new Date(),
   updated_at: new Date(),
+  content: "# {{titolo}}",
   ...overrides,
-} as TemplateEntity);
+});
 
-const makeJob = (overrides: Partial<PdfJobEntity> = {}): PdfJobEntity => ({
-  id: VALID_JOB_UUID,
-  template_id: VALID_TPL_UUID,
-  field_values: { titolo: "Ciao" },
-  status: "queued",
-  filename: null,
-  requested_by: "system",
-  error_message: null,
-  unresolved_fields: [],
-  created_at: new Date(),
-  started_at: null,
-  completed_at: null,
-  ...overrides,
-} as PdfJobEntity);
+const makeJob = (overrides: Partial<PdfJobEntity> = {}): PdfJobEntity =>
+  ({
+    id: VALID_JOB_UUID,
+    template_id: VALID_TPL_UUID,
+    field_values: { titolo: "Ciao" },
+    status: "queued",
+    filename: null,
+    requested_by: "system",
+    error_message: null,
+    unresolved_fields: [],
+    created_at: new Date(),
+    started_at: null,
+    completed_at: null,
+    ...overrides,
+  }) as PdfJobEntity;
 
 const makeMockResponse = (): jest.Mocked<Response> => {
   const listeners: Record<string, Array<() => void>> = {};
@@ -119,10 +120,18 @@ describe("PdfJobsService", () => {
     jest.spyOn(console, "warn").mockImplementation(() => {});
     const module = await buildModule();
     service = module.get<PdfJobsService>(PdfJobsService);
-    pdfJobsRepository = module.get(PdfJobsRepository) as jest.Mocked<PdfJobsRepository>;
-    templatesService = module.get(TemplatesService) as jest.Mocked<TemplatesService>;
-    pdfGenerationService = module.get(PdfGenerationService) as jest.Mocked<PdfGenerationService>;
-    documentRenderingService = module.get(DocumentRenderingService) as jest.Mocked<DocumentRenderingService>;
+    pdfJobsRepository = module.get(
+      PdfJobsRepository,
+    ) as jest.Mocked<PdfJobsRepository>;
+    templatesService = module.get(
+      TemplatesService,
+    ) as jest.Mocked<TemplatesService>;
+    pdfGenerationService = module.get(
+      PdfGenerationService,
+    ) as jest.Mocked<PdfGenerationService>;
+    documentRenderingService = module.get(
+      DocumentRenderingService,
+    ) as jest.Mocked<DocumentRenderingService>;
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -137,7 +146,11 @@ describe("PdfJobsService", () => {
       documentRenderingService.getMissingRequiredFields.mockReturnValue([]);
       pdfJobsRepository.insert.mockResolvedValue(job);
 
-      const result = await service.enqueue(VALID_TPL_UUID, { titolo: "Ciao" }, "user1");
+      const result = await service.enqueue(
+        VALID_TPL_UUID,
+        { titolo: "Ciao" },
+        "user1",
+      );
 
       expect(result).toEqual(job);
       expect(pdfJobsRepository.insert).toHaveBeenCalledWith(
@@ -154,7 +167,11 @@ describe("PdfJobsService", () => {
 
       await service.enqueue(VALID_TPL_UUID, {});
 
-      expect(pdfJobsRepository.insert).toHaveBeenCalledWith(VALID_TPL_UUID, {}, "system");
+      expect(pdfJobsRepository.insert).toHaveBeenCalledWith(
+        VALID_TPL_UUID,
+        {},
+        "system",
+      );
     });
   });
 
@@ -162,21 +179,32 @@ describe("PdfJobsService", () => {
     it("lancia 404 se il template non esiste", async () => {
       templatesService.findOne.mockResolvedValue(null);
 
-      await expect(service.enqueue(VALID_TPL_UUID, {})).rejects.toMatchObject({ status: 404 });
+      await expect(service.enqueue(VALID_TPL_UUID, {})).rejects.toMatchObject({
+        status: 404,
+      });
     });
 
     it("lancia 422 se mancano campi obbligatori", async () => {
       templatesService.findOne.mockResolvedValue(makeTpl());
-      documentRenderingService.getMissingRequiredFields.mockReturnValue(["Titolo", "Nome"]);
+      documentRenderingService.getMissingRequiredFields.mockReturnValue([
+        "Titolo",
+        "Nome",
+      ]);
 
-      await expect(service.enqueue(VALID_TPL_UUID, {})).rejects.toMatchObject({ status: 422 });
+      await expect(service.enqueue(VALID_TPL_UUID, {})).rejects.toMatchObject({
+        status: 422,
+      });
     });
 
     it("il messaggio 422 elenca i campi mancanti", async () => {
       templatesService.findOne.mockResolvedValue(makeTpl());
-      documentRenderingService.getMissingRequiredFields.mockReturnValue(["Titolo"]);
+      documentRenderingService.getMissingRequiredFields.mockReturnValue([
+        "Titolo",
+      ]);
 
-      await expect(service.enqueue(VALID_TPL_UUID, {})).rejects.toThrow("Titolo");
+      await expect(service.enqueue(VALID_TPL_UUID, {})).rejects.toThrow(
+        "Titolo",
+      );
     });
   });
 
@@ -195,13 +223,19 @@ describe("PdfJobsService", () => {
     it("lancia 404 se il job non esiste", async () => {
       pdfJobsRepository.findById.mockResolvedValue(null);
 
-      await expect(service.getJob(VALID_TPL_UUID, VALID_JOB_UUID)).rejects.toMatchObject({ status: 404 });
+      await expect(
+        service.getJob(VALID_TPL_UUID, VALID_JOB_UUID),
+      ).rejects.toMatchObject({ status: 404 });
     });
 
     it("lancia 404 se il job appartiene a un altro template", async () => {
-      pdfJobsRepository.findById.mockResolvedValue(makeJob({ template_id: "altro-uuid" }));
+      pdfJobsRepository.findById.mockResolvedValue(
+        makeJob({ template_id: "altro-uuid" }),
+      );
 
-      await expect(service.getJob(VALID_TPL_UUID, VALID_JOB_UUID)).rejects.toMatchObject({ status: 404 });
+      await expect(
+        service.getJob(VALID_TPL_UUID, VALID_JOB_UUID),
+      ).rejects.toMatchObject({ status: 404 });
     });
   });
 
@@ -218,7 +252,9 @@ describe("PdfJobsService", () => {
       const result = await service.getJobs(VALID_TPL_UUID);
 
       expect(result).toEqual(jobs);
-      expect(pdfJobsRepository.findByTemplate).toHaveBeenCalledWith(VALID_TPL_UUID);
+      expect(pdfJobsRepository.findByTemplate).toHaveBeenCalledWith(
+        VALID_TPL_UUID,
+      );
     });
 
     it("ritorna array vuoto se non ci sono job", async () => {
@@ -245,7 +281,9 @@ describe("PdfJobsService", () => {
     it("lancia 404 se non esiste nessun PDF completato", async () => {
       pdfJobsRepository.findLatestCompleted.mockResolvedValue(null);
 
-      await expect(service.getLatestCompleted(VALID_TPL_UUID)).rejects.toMatchObject({ status: 404 });
+      await expect(
+        service.getLatestCompleted(VALID_TPL_UUID),
+      ).rejects.toMatchObject({ status: 404 });
     });
   });
 
@@ -255,14 +293,23 @@ describe("PdfJobsService", () => {
     it("streamma il PDF e imposta gli header corretti", async () => {
       const job = makeJob({ status: "completed", filename: "output.pdf" });
       pdfJobsRepository.findById.mockResolvedValue(job);
-      const readable = new Readable({ read() { this.push(null); } });
+      const readable = new Readable({
+        read() {
+          this.push(null);
+        },
+      });
       pdfGenerationService.getPdfStream.mockResolvedValue(readable as never);
       const res = makeMockResponse();
 
       await service.streamDownload(VALID_TPL_UUID, VALID_JOB_UUID, res);
 
-      expect(pdfGenerationService.getPdfStream).toHaveBeenCalledWith("output.pdf");
-      expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "application/pdf");
+      expect(pdfGenerationService.getPdfStream).toHaveBeenCalledWith(
+        "output.pdf",
+      );
+      expect(res.setHeader).toHaveBeenCalledWith(
+        "Content-Type",
+        "application/pdf",
+      );
       expect(res.setHeader).toHaveBeenCalledWith(
         "Content-Disposition",
         `attachment; filename="output.pdf"`,
@@ -279,7 +326,9 @@ describe("PdfJobsService", () => {
     });
 
     it("lancia 409 se il job non è completato", async () => {
-      pdfJobsRepository.findById.mockResolvedValue(makeJob({ status: "running" }));
+      pdfJobsRepository.findById.mockResolvedValue(
+        makeJob({ status: "running" }),
+      );
       const res = makeMockResponse();
 
       await expect(
@@ -294,14 +343,23 @@ describe("PdfJobsService", () => {
     it("streamma l'ultimo PDF completato", async () => {
       const job = makeJob({ status: "completed", filename: "latest.pdf" });
       pdfJobsRepository.findLatestCompleted.mockResolvedValue(job);
-      const readable = new Readable({ read() { this.push(null); } });
+      const readable = new Readable({
+        read() {
+          this.push(null);
+        },
+      });
       pdfGenerationService.getPdfStream.mockResolvedValue(readable as never);
       const res = makeMockResponse();
 
       await service.streamLatest(VALID_TPL_UUID, res);
 
-      expect(pdfGenerationService.getPdfStream).toHaveBeenCalledWith("latest.pdf");
-      expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "application/pdf");
+      expect(pdfGenerationService.getPdfStream).toHaveBeenCalledWith(
+        "latest.pdf",
+      );
+      expect(res.setHeader).toHaveBeenCalledWith(
+        "Content-Type",
+        "application/pdf",
+      );
     });
 
     it("lancia 404 se non esiste nessun PDF completato", async () => {
@@ -327,7 +385,9 @@ describe("PdfJobsService", () => {
 
     it("non fa nulla se il job non è in stato running dopo claim", async () => {
       pdfJobsRepository.claim.mockResolvedValue(true);
-      pdfJobsRepository.findById.mockResolvedValue(makeJob({ status: "queued" }));
+      pdfJobsRepository.findById.mockResolvedValue(
+        makeJob({ status: "queued" }),
+      );
 
       await service.processJob(VALID_JOB_UUID);
 
@@ -345,7 +405,9 @@ describe("PdfJobsService", () => {
 
     it("marca il job come completato dopo generazione riuscita", async () => {
       pdfJobsRepository.claim.mockResolvedValue(true);
-      pdfJobsRepository.findById.mockResolvedValue(makeJob({ status: "running" }));
+      pdfJobsRepository.findById.mockResolvedValue(
+        makeJob({ status: "running" }),
+      );
       templatesService.findOne.mockResolvedValue(makeTpl());
       pdfGenerationService.generatePdf.mockResolvedValue({
         filename: "out.pdf",
@@ -363,18 +425,27 @@ describe("PdfJobsService", () => {
 
     it("marca il job come fallito se generatePdf lancia", async () => {
       pdfJobsRepository.claim.mockResolvedValue(true);
-      pdfJobsRepository.findById.mockResolvedValue(makeJob({ status: "running" }));
+      pdfJobsRepository.findById.mockResolvedValue(
+        makeJob({ status: "running" }),
+      );
       templatesService.findOne.mockResolvedValue(makeTpl());
-      pdfGenerationService.generatePdf.mockRejectedValue(new Error("Pandoc crashed"));
+      pdfGenerationService.generatePdf.mockRejectedValue(
+        new Error("Pandoc crashed"),
+      );
 
       await service.processJob(VALID_JOB_UUID);
 
-      expect(pdfJobsRepository.markFailed).toHaveBeenCalledWith(VALID_JOB_UUID, "Pandoc crashed");
+      expect(pdfJobsRepository.markFailed).toHaveBeenCalledWith(
+        VALID_JOB_UUID,
+        "Pandoc crashed",
+      );
     });
 
     it("usa messaggio generico se l'errore non è un Error", async () => {
       pdfJobsRepository.claim.mockResolvedValue(true);
-      pdfJobsRepository.findById.mockResolvedValue(makeJob({ status: "running" }));
+      pdfJobsRepository.findById.mockResolvedValue(
+        makeJob({ status: "running" }),
+      );
       templatesService.findOne.mockResolvedValue(makeTpl());
       pdfGenerationService.generatePdf.mockRejectedValue("stringa non Error");
 
@@ -392,7 +463,9 @@ describe("PdfJobsService", () => {
   describe("triggerQueueProcessor() — jobs in coda", () => {
     it("processa i job in coda al bootstrap", async () => {
       const mod = await buildModule({
-        findQueued: jest.fn().mockResolvedValue([makeJob({ id: "queued-job-id" })]),
+        findQueued: jest
+          .fn()
+          .mockResolvedValue([makeJob({ id: "queued-job-id" })]),
         claim: jest.fn().mockResolvedValue(false),
       });
       const repo = mod.get(PdfJobsRepository) as jest.Mocked<PdfJobsRepository>;
@@ -403,7 +476,9 @@ describe("PdfJobsService", () => {
 
     it("non lancia se processJob fallisce durante recovery", async () => {
       const mod = await buildModule({
-        findQueued: jest.fn().mockResolvedValue([makeJob({ id: "bad-job-id" })]),
+        findQueued: jest
+          .fn()
+          .mockResolvedValue([makeJob({ id: "bad-job-id" })]),
         claim: jest.fn().mockRejectedValue(new Error("DB error")),
       });
       await new Promise<void>((resolve) => setImmediate(resolve));
@@ -421,9 +496,12 @@ describe("PdfJobsService", () => {
     });
 
     it("cancella il timer recovery se attivo", () => {
-      (service as unknown as Record<string, unknown>).queueRecoveryTimer = setTimeout(() => {}, 99999);
+      (service as unknown as Record<string, unknown>).queueRecoveryTimer =
+        setTimeout(() => {}, 99999);
       expect(() => service.onModuleDestroy()).not.toThrow();
-      expect((service as unknown as Record<string, unknown>).queueRecoveryTimer).toBeNull();
+      expect(
+        (service as unknown as Record<string, unknown>).queueRecoveryTimer,
+      ).toBeNull();
     });
   });
 });
