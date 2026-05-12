@@ -4,15 +4,12 @@ import {
   CreateDateColumn,
   Entity,
   Index,
-  JoinColumn,
-  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
 import type { FieldDefinition } from "../common/types/field-definition.type";
 import { DocumentEntity } from "./document.entity";
-import { SectionEntity } from "./section.entity";
 
 @Entity({ name: "templates" })
 @Check("ck_templates_status", `"status" IN ('draft', 'published')`)
@@ -39,10 +36,6 @@ export class TemplateEntity {
   @Column({ type: "varchar", length: 255, default: "system" })
   created_by!: string;
 
-  @Index("idx_templates_section_id")
-  @Column({ type: "uuid", nullable: true })
-  section_id!: string | null;
-
   @CreateDateColumn({ type: "timestamptz" })
   created_at!: Date;
 
@@ -54,13 +47,6 @@ export class TemplateEntity {
     (document) => document.template,
   )
   documents?: DocumentEntity[];
-
-  @ManyToOne(() => SectionEntity, (section) => section.templates, {
-    nullable: true,
-    onDelete: "SET NULL",
-  })
-  @JoinColumn({ name: "section_id" })
-  section?: SectionEntity;
 
   // ✅ Campo virtuale — non persistito nel DB, iniettato da hydrateContent()
   content?: string;

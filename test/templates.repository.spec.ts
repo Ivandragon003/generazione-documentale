@@ -1,7 +1,6 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { DocumentEntity } from "../src/entities/document.entity";
-import { SectionEntity } from "../src/entities/section.entity";
 import { TemplateEntity } from "../src/entities/template.entity";
 import { TemplatesRepository } from "../src/repository/templates.repository";
 
@@ -12,13 +11,11 @@ const makeTplRepo = () => ({
 });
 
 const makeDocRepo = () => ({ count: jest.fn() });
-const makeSecRepo = () => ({ count: jest.fn() });
 
 describe("TemplatesRepository", () => {
   let repo: TemplatesRepository;
   let tplRepo: ReturnType<typeof makeTplRepo>;
   let docRepo: ReturnType<typeof makeDocRepo>;
-  let secRepo: ReturnType<typeof makeSecRepo>;
 
   const fakeTpl = (): TemplateEntity =>
     ({
@@ -28,7 +25,6 @@ describe("TemplatesRepository", () => {
       content_path: "/storage/tpl-1.md",
       fields: [],
       status: "draft",
-      section_id: null,
       created_by: "user1",
       created_at: new Date(),
       updated_at: new Date(),
@@ -38,7 +34,6 @@ describe("TemplatesRepository", () => {
     const qb: any = {
       orderBy: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
-      innerJoin: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       getManyAndCount: jest.fn().mockResolvedValue([data, total]),
@@ -50,13 +45,11 @@ describe("TemplatesRepository", () => {
   beforeEach(async () => {
     tplRepo = makeTplRepo();
     docRepo = makeDocRepo();
-    secRepo = makeSecRepo();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TemplatesRepository,
         { provide: getRepositoryToken(TemplateEntity), useValue: tplRepo },
         { provide: getRepositoryToken(DocumentEntity), useValue: docRepo },
-        { provide: getRepositoryToken(SectionEntity), useValue: secRepo },
       ],
     }).compile();
     repo = module.get<TemplatesRepository>(TemplatesRepository);
@@ -79,42 +72,11 @@ describe("TemplatesRepository", () => {
       });
     });
 
-    it("deve applicare il filtro sectionId", async () => {
-      const qb = makeQb([], 0);
-      await repo.findAll({ sectionId: "sec-1", limit: 10, offset: 0 });
-      expect(qb.andWhere).toHaveBeenCalledWith(
-        "template.section_id = :sectionId",
-        { sectionId: "sec-1" },
-      );
-    });
-
-    it("deve applicare il filtro categoryId con innerJoin", async () => {
-      const qb = makeQb([], 0);
-      await repo.findAll({ categoryId: "cat-1", limit: 10, offset: 0 });
-      expect(qb.innerJoin).toHaveBeenCalledWith("template.section", "section");
-      expect(qb.andWhere).toHaveBeenCalledWith(
-        "section.category_id = :categoryId",
-        { categoryId: "cat-1" },
-      );
-    });
-
     it("deve applicare paginazione", async () => {
       const qb = makeQb([], 0);
       await repo.findAll({ limit: 5, offset: 15 });
       expect(qb.take).toHaveBeenCalledWith(5);
       expect(qb.skip).toHaveBeenCalledWith(15);
-    });
-
-    it("deve applicare tutti i filtri contemporaneamente", async () => {
-      const qb = makeQb([], 0);
-      await repo.findAll({
-        status: "published",
-        sectionId: "sec-2",
-        categoryId: "cat-2",
-        limit: 10,
-        offset: 0,
-      });
-      expect(qb.andWhere).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -148,15 +110,11 @@ describe("TemplatesRepository", () => {
       expect(result).toEqual(tpl);
       expect(manager.create).toHaveBeenCalledWith(
         TemplateEntity,
-        expect.objectContaining({
-          id: "tpl-1",
-          status: "draft",
-          section_id: null,
-        }),
+        expect.objectContaining({ id: "tpl-1", status: "draft" }),
       );
     });
 
-    it("deve usare sectionId e status forniti", async () => {
+    it("deve usare status fornito", async () => {
       const tpl = fakeTpl();
       const manager: any = {
         create: jest.fn().mockReturnValue(tpl),
@@ -164,7 +122,6 @@ describe("TemplatesRepository", () => {
       };
       await repo.insertTemplate(manager, {
         id: "tpl-1",
-        sectionId: "sec-1",
         name: "T",
         contentPath: "/x",
         fields: [],
@@ -173,7 +130,7 @@ describe("TemplatesRepository", () => {
       });
       expect(manager.create).toHaveBeenCalledWith(
         TemplateEntity,
-        expect.objectContaining({ section_id: "sec-1", status: "published" }),
+        expect.objectContaining({ status: "published" }),
       );
     });
   });
@@ -187,7 +144,6 @@ describe("TemplatesRepository", () => {
       };
       const result = await repo.updateTemplate(manager, {
         id: "tpl-1",
-        sectionId: null,
         name: "Updated",
         description: null,
         contentPath: "/x",
@@ -205,7 +161,6 @@ describe("TemplatesRepository", () => {
       await expect(
         repo.updateTemplate(manager, {
           id: "x",
-          sectionId: null,
           name: "T",
           description: null,
           contentPath: "/x",
@@ -236,18 +191,6 @@ describe("TemplatesRepository", () => {
       tplRepo.delete.mockResolvedValue(undefined);
       await expect(repo.deleteTemplate("tpl-1")).resolves.not.toThrow();
       expect(tplRepo.delete).toHaveBeenCalledWith({ id: "tpl-1" });
-    });
-  });
-
-  describe("sectionExists()", () => {
-    it("deve restituire true se la sezione esiste", async () => {
-      secRepo.count.mockResolvedValue(1);
-      expect(await repo.sectionExists("sec-1")).toBe(true);
-    });
-
-    it("deve restituire false se la sezione non esiste", async () => {
-      secRepo.count.mockResolvedValue(0);
-      expect(await repo.sectionExists("sec-x")).toBe(false);
     });
   });
 });
