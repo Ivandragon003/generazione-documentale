@@ -20,6 +20,8 @@ interface HeaderBarProps {
   onGeneratePdf: () => void;
   pdfJobs: PdfJobDto[];
   canGeneratePdf?: boolean;
+  /** Mostra il pulsante "Salva Template" solo quando si è nella tab Template */
+  showSaveTemplate?: boolean;
 }
 
 function statusColor(
@@ -27,21 +29,16 @@ function statusColor(
 ): "default" | "warning" | "success" | "secondary" {
   if (s === "generated" || s === "published") return "success";
   if (s === "archived") return "default";
-  return "secondary"; // draft
+  return "secondary";
 }
 
 function statusLabel(s: DocumentDto["status"] | undefined): string {
   switch (s) {
-    case "draft":
-      return "Bozza";
-    case "generated":
-      return "Generato";
-    case "published":
-      return "Pubblicato";
-    case "archived":
-      return "Archiviato";
-    default:
-      return "Non Generato";
+    case "draft": return "Bozza";
+    case "generated": return "Generato";
+    case "published": return "Pubblicato";
+    case "archived": return "Archiviato";
+    default: return "Non Generato";
   }
 }
 
@@ -53,25 +50,20 @@ export function HeaderBar({
   onGeneratePdf,
   pdfJobs,
   canGeneratePdf = false,
+  showSaveTemplate = true,
 }: HeaderBarProps) {
   const latestJob = pdfJobs[0];
-
   const lastGenerated = document?.updatedAt
     ? new Date(document.updatedAt).toLocaleDateString("it-IT")
     : "—";
 
   const pdfTooltip = canGeneratePdf
     ? "Genera PDF"
-    : "Salva prima il documento per abilitare la generazione PDF";
+    : "Salva prima il template per abilitare la generazione PDF";
 
   return (
     <Box className="header-bar">
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="flex-start"
-        gap={2}
-      >
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2}>
         <Stack direction="row" gap={2} alignItems="center">
           <Box className="doc-icon">DOC</Box>
           <Box>
@@ -92,9 +84,7 @@ export function HeaderBar({
 
         <Stack direction="row" gap={1} alignItems="center">
           {latestJob && (
-            <Tooltip
-              title={`Ultimo job: ${latestJob.status} — ${latestJob.createdAt}`}
-            >
+            <Tooltip title={`Ultimo job: ${latestJob.status} — ${latestJob.createdAt}`}>
               <Chip
                 icon={<HistoryIcon />}
                 label={`PDF: ${latestJob.status}`}
@@ -105,7 +95,6 @@ export function HeaderBar({
           )}
 
           <Tooltip title={pdfTooltip}>
-            {/* span necessario perché Tooltip non funziona su Button disabilitato */}
             <span>
               <Button
                 variant="outlined"
@@ -118,20 +107,20 @@ export function HeaderBar({
             </span>
           </Tooltip>
 
-          <Button
-            variant="contained"
-            startIcon={
-              isSaving ? (
-                <CircularProgress size={16} color="inherit" />
-              ) : (
-                <SaveIcon />
-              )
-            }
-            onClick={onSave}
-            disabled={isSaving}
-          >
-            {isSaving ? "Salvataggio…" : "Salva"}
-          </Button>
+          {showSaveTemplate && (
+            <Button
+              variant="contained"
+              startIcon={
+                isSaving
+                  ? <CircularProgress size={16} color="inherit" />
+                  : <SaveIcon />
+              }
+              onClick={onSave}
+              disabled={isSaving}
+            >
+              {isSaving ? "Salvataggio…" : "Salva Template"}
+            </Button>
+          )}
         </Stack>
       </Stack>
     </Box>
