@@ -9,6 +9,7 @@ import { TemplatesService } from "../src/service/templates.service";
 // ── helpers ────────────────────────────────────────────────────────────────────
 const uuid = () => randomUUID();
 const VALID_UUID = "550e8400-e29b-41d4-a716-446655440000";
+const SECTION_UUID = "660e8400-e29b-41d4-a716-446655440001";
 
 const makeTemplate = (
   overrides: Partial<TemplateEntity & { content: string }> = {},
@@ -18,6 +19,7 @@ const makeTemplate = (
   description: "Descrizione di test",
   content: "# {{titolo}}\n\nTesto con {{nome}}.",
   content_path: `${VALID_UUID}`,
+  section_id: null,
   status: "draft",
   created_by: "system",
   fields: [
@@ -102,6 +104,8 @@ describe("TemplatesService", () => {
   });
 
   afterEach(() => jest.resetAllMocks());
+
+  // ── create() ────────────────────────────────────────────────────────────────
 
   describe("create() - casi nominali", () => {
     it("crea un template con contenuto valido", async () => {
@@ -231,6 +235,8 @@ describe("TemplatesService", () => {
     });
   });
 
+  // ── findOne() ───────────────────────────────────────────────────────────────
+
   describe("findOne() - casi nominali e limite", () => {
     it("ritorna il template idratato se esiste", async () => {
       templatesRepository.findById.mockResolvedValue(makeTemplate());
@@ -267,6 +273,8 @@ describe("TemplatesService", () => {
       });
     });
   });
+
+  // ── findAll() ───────────────────────────────────────────────────────────────
 
   describe("findAll() - casi nominali e limite", () => {
     it("ritorna lista paginata di template", async () => {
@@ -321,7 +329,7 @@ describe("TemplatesService", () => {
         data: [tpl],
         total: 1,
       });
-      githubStorage.readTemplate.mockResolvedValue(null);
+      githubStorage.readTemplate.mockResolvedValue(null); // mancante
       githubStorage.listTemplates.mockResolvedValue([]);
 
       const result = await service.findAll({ limit: 20, offset: 0 });
@@ -329,6 +337,8 @@ describe("TemplatesService", () => {
       expect(result.data[0].content).toBe("");
     });
   });
+
+  // ── update() ────────────────────────────────────────────────────────────────
 
   describe("update() - casi nominali", () => {
     it("aggiorna nome e contenuto", async () => {
@@ -366,6 +376,8 @@ describe("TemplatesService", () => {
       ).rejects.toMatchObject({ status: 400 });
     });
   });
+
+  // ── delete() ────────────────────────────────────────────────────────────────
 
   describe("delete() - casi nominali", () => {
     it("elimina il template se non ha documenti attivi", async () => {
@@ -409,6 +421,8 @@ describe("TemplatesService", () => {
     });
   });
 
+  // ── validateMarkdown() ──────────────────────────────────────────────────────
+
   describe("validateMarkdown() - casi limite", () => {
     it("valida correttamente un template corretto", () => {
       const result = service.validateMarkdown(
@@ -436,6 +450,8 @@ describe("TemplatesService", () => {
     });
   });
 
+  // ── importFromMarkdown() ────────────────────────────────────────────────────
+
   describe("importFromMarkdown()", () => {
     it("delega a create() con i parametri corretti", async () => {
       const createSpy = jest
@@ -451,6 +467,8 @@ describe("TemplatesService", () => {
       });
     });
   });
+
+  // ── getExportContent() ──────────────────────────────────────────────────────
 
   describe("getExportContent()", () => {
     it("ritorna il contenuto del template", () => {
