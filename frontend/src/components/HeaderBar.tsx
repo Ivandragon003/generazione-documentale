@@ -10,10 +10,9 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import type { DocumentDto, PdfJobDto, TemplateDto } from "../data/api";
+import type { PdfJobDto, TemplateDto } from "../data/api";
 
 interface HeaderBarProps {
-  document: DocumentDto | null;
   template: TemplateDto | null;
   isSaving: boolean;
   onSave: () => void;
@@ -24,31 +23,7 @@ interface HeaderBarProps {
   showSaveTemplate?: boolean;
 }
 
-function statusColor(
-  s: DocumentDto["status"],
-): "default" | "warning" | "success" | "secondary" {
-  if (s === "generated" || s === "published") return "success";
-  if (s === "archived") return "default";
-  return "secondary";
-}
-
-function statusLabel(s: DocumentDto["status"] | undefined): string {
-  switch (s) {
-    case "draft":
-      return "Bozza";
-    case "generated":
-      return "Generato";
-    case "published":
-      return "Pubblicato";
-    case "archived":
-      return "Archiviato";
-    default:
-      return "Non Generato";
-  }
-}
-
 export function HeaderBar({
-  document,
   template,
   isSaving,
   onSave,
@@ -58,9 +33,6 @@ export function HeaderBar({
   showSaveTemplate = true,
 }: HeaderBarProps) {
   const latestJob = pdfJobs[0];
-  const lastGenerated = document?.updatedAt
-    ? new Date(document.updatedAt).toLocaleDateString("it-IT")
-    : "—";
 
   const pdfTooltip = canGeneratePdf
     ? "Genera PDF"
@@ -78,14 +50,16 @@ export function HeaderBar({
           <Box className="doc-icon">DOC</Box>
           <Box>
             <Typography variant="h5">
-              {document?.name ?? template?.name ?? "Nessun documento"}
+              {template?.name ?? "Nessun documento"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {template?.name ?? "—"} · {lastGenerated}
+              {template?.updatedAt
+                ? new Date(template.updatedAt).toLocaleDateString("it-IT")
+                : "—"}
             </Typography>
             <Chip
-              label={statusLabel(document?.status)}
-              color={statusColor(document?.status ?? "draft")}
+              label={template?.status === "published" ? "Pubblicato" : "Bozza"}
+              color={template?.status === "published" ? "success" : "secondary"}
               size="small"
               sx={{ mt: 1 }}
             />
@@ -132,7 +106,7 @@ export function HeaderBar({
               onClick={onSave}
               disabled={isSaving}
             >
-              {isSaving ? "Salvataggio…" : "Salva Template"}
+              {isSaving ? "Salvataggio\u2026" : "Salva Template"}
             </Button>
           )}
         </Stack>

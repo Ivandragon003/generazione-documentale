@@ -80,10 +80,6 @@ export function getTemplates(): Promise<{
   return api(`${BASE}/templates`);
 }
 
-export function getTemplateById(id: string): Promise<TemplateDto> {
-  return api(`${BASE}/templates/${id}`);
-}
-
 export function createTemplate(payload: {
   name: string;
   content: string;
@@ -109,10 +105,6 @@ export function updateTemplate(
     method: "PUT",
     body: JSON.stringify(payload),
   });
-}
-
-export function deleteTemplate(id: string): Promise<void> {
-  return api(`${BASE}/templates/${id}`, { method: "DELETE" });
 }
 
 // ─── PDF (direttamente su template, senza Document) ──────────────────────────
