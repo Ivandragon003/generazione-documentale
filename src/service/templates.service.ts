@@ -10,6 +10,9 @@
  *   la consistenza lato suo con il campo sha).
  * - La logica di business (validazione, normalizzazione campi, versioning)
  *   rimane invariata.
+ * - FIX: hydrateContent non lancia più 503 se il file non esiste su GitHub
+ *   (fallback graceful a stringa vuota + warn, così findAll non crasha).
+ * - FIX: content_path con estensione .md viene strippato prima dell'uso.
  */
 
 import { randomUUID } from "node:crypto";
@@ -80,25 +83,46 @@ export class TemplatesService {
   }
 
   /**
+   * Normalizza il templateId rimuovendo l'eventuale estensione .md
+   * (alcuni record legacy in DB hanno content_path = "uuid.md").
+   */
+  private normalizeTemplateId(raw: string): string {
+    return raw.endsWith(".md") ? raw.slice(0, -3) : raw;
+  }
+
+  /**
    * Idrata il campo virtuale `content` leggendo da GitHub.
    * content_path contiene il templateId (usato come chiave su GitHub).
-   * Se il file non esiste su GitHub, lancia 503.
+   *
+   * FIX: se il file non esiste su GitHub (template legacy / seed / migrazione)
+   * NON lancia più 503 — restituisce content vuoto con un WARN,
+   * così findAll non crasha e la lista rimane visibile.
+   * Solo findOne (GET singolo) deve essere strict → parametro `strict`.
    */
   private async hydrateContent<
     T extends { content_path: string | null; id: string },
-  >(row: T | null): Promise<(T & { content: string }) | null> {
+  >(
+    row: T | null,
+    strict = false,
+  ): Promise<(T & { content: string }) | null> {
     if (!row) return null;
 
-    // content_path contiene il templateId oppure può essere null per template legacy
-    const templateId = row.content_path ?? row.id;
+    const rawId = row.content_path ?? row.id;
+    const templateId = this.normalizeTemplateId(rawId);
 
     const content = await this.githubStorage.readTemplate(templateId);
 
     if (content === null) {
-      this.logger.error(
-        `Contenuto template non trovato su GitHub per id: ${templateId}`,
+      if (strict) {
+        this.logger.error(
+          `Contenuto template non trovato su GitHub per id: ${templateId}`,
+        );
+        throw makeError("Contenuto template non disponibile su GitHub", 503);
+      }
+      this.logger.warn(
+        `Contenuto template mancante su GitHub per id: ${templateId} — restituisco stringa vuota`,
       );
-      throw makeError("Contenuto template non disponibile su GitHub", 503);
+      return { ...row, content: "" };
     }
 
     return { ...row, content };
@@ -127,8 +151,9 @@ export class TemplatesService {
       offset,
     });
 
+    // strict=false: template senza file GitHub vengono restituiti con content=""
     const hydratedData = await Promise.all(
-      data.map((row) => this.hydrateContent(row)),
+      data.map((row) => this.hydrateContent(row, false)),
     );
 
     return {
@@ -146,7 +171,8 @@ export class TemplatesService {
   ): Promise<(TemplateEntity & { content: string }) | null> {
     assertUuid(id);
     const row = await this.templatesRepository.findById(id);
-    return this.hydrateContent(row);
+    // strict=true: GET singolo deve segnalare se il content manca
+    return this.hydrateContent(row, true);
   }
 
   async create({
@@ -185,23 +211,22 @@ export class TemplatesService {
 
     try {
       // Fase 2: salva i metadati nel DB.
-      // content_path contiene il templateId — usato da hydrateContent come chiave GitHub.
+      // content_path contiene il templateId (UUID puro, senza .md).
       const template = await this.dataSource.transaction(async (manager) =>
         this.templatesRepository.insertTemplate(manager, {
           id,
           sectionId: section_id,
           name: name.trim(),
           description,
-          contentPath: id, // il templateId è la chiave GitHub
+          contentPath: id,
           fields: normalizedFields,
           createdBy: created_by,
           status,
         }),
       );
 
-      return this.hydrateContent(template);
+      return this.hydrateContent(template, true);
     } catch (error) {
-      // DB fallito: tentiamo rollback su GitHub (best effort)
       this.logger.error(
         `Transazione DB fallita per template ${id}, tentativo rollback GitHub`,
       );
@@ -247,13 +272,13 @@ export class TemplatesService {
       fields ?? existing.fields,
     );
 
-    const templateId = existing.content_path ?? id;
+    const rawId = existing.content_path ?? id;
+    const templateId = this.normalizeTemplateId(rawId);
 
-    // Fase 1: aggiorna il file su GitHub (PUT con sha recuperato internamente)
+    // Fase 1: aggiorna il file su GitHub
     await this.githubStorage.writeTemplate(templateId, nextContent);
 
     try {
-      // Fase 2: aggiorna i metadati nel DB
       const updated = await this.dataSource.transaction(async (manager) =>
         this.templatesRepository.updateTemplate(manager, {
           id,
@@ -263,17 +288,14 @@ export class TemplatesService {
               : (section_id ?? null),
           name: name?.trim() || existing.name,
           description: description ?? existing.description,
-          contentPath: templateId,
+          contentPath: templateId, // salva UUID puro, senza .md
           fields: nextFields,
           status: status ?? existing.status,
         }),
       );
 
-      return this.hydrateContent(updated);
+      return this.hydrateContent(updated, true);
     } catch (error) {
-      // GitHub è già aggiornato ma DB è fallito.
-      // Non possiamo fare rollback atomico su GitHub facilmente.
-      // Logghiamo come ERRORE CRITICO per intervento manuale.
       this.logger.error(
         `CRITICO: GitHub aggiornato ma DB fallito per template ${id}. ` +
           `Potrebbe esserci disallineamento. Verificare manualmente.`,
@@ -303,11 +325,10 @@ export class TemplatesService {
       );
     }
 
-    // Fase 1: elimina dal DB
     await this.templatesRepository.deleteTemplate(id);
 
-    // Fase 2: elimina da GitHub (best effort — non lancia se fallisce)
-    const templateId = template.content_path ?? id;
+    const rawId = template.content_path ?? id;
+    const templateId = this.normalizeTemplateId(rawId);
     await this.githubStorage.deleteTemplate(templateId).catch((error) => {
       this.logger.error(
         `Impossibile eliminare template ${id} da GitHub (DB già aggiornato):`,
