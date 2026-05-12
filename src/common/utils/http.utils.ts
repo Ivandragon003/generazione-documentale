@@ -3,16 +3,16 @@ import type { Request } from "express";
 import { validate as isUuid } from "uuid";
 import { makeError } from "./errors";
 
-export interface PaginationInput {
+interface PaginationInput {
   limit?: string | number;
   offset?: string | number;
 }
 
-export interface UploadedFileInput {
+interface UploadedFileInput {
   path: string;
 }
 
-export interface PaginationOptions {
+interface PaginationOptions {
   limit: number;
   offset: number;
 }
