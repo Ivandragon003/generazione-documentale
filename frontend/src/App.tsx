@@ -1,557 +1,391 @@
 import {
   Alert,
+  AppBar,
   Box,
-  Button,
   CircularProgress,
-  CssBaseline,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  Drawer,
-  List,
-  ListItemButton,
-  ListItemText,
+  Container,
+  Paper,
   Snackbar,
-  Stack,
   Tab,
   Tabs,
-  TextField,
   Typography,
 } from "@mui/material";
-import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FieldsPanel } from "./components/FieldsPanel";
 import { HeaderBar } from "./components/HeaderBar";
 import { PdfPreview } from "./components/PdfPreview";
 import { TemplateEditor } from "./components/TemplateEditor";
-import type {
-  ApiTemplateField,
-  DocumentDto,
-  PdfJobDto,
-  TemplateDto,
+import {
+  createDocument,
+  createTemplate,
+  type DocumentDto,
+  getDocuments,
+  getPdfJobs,
+  getTemplates,
+  type PdfJobDto,
+  type TemplateDto,
+  triggerPdfGeneration,
+  updateDocument,
+  updateTemplate,
 } from "./data/api";
 import type { TemplateField } from "./data/mock";
+import {
+  comparePlaceholderSets,
+  extractPlaceholders,
+  renderMarkdown,
+} from "./utils/template";
 
-const BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:3000") + "/api";
+const tabLabels = ["Template", "Campi", "Anteprima PDF"];
 
-// ─── API helpers ──────────────────────────────────────────────────────────────
+type AppStatus = "loading" | "ready" | "saving" | "error";
 
-async function apiFetch<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      "x-user": "frontend",
-      ...init?.headers,
-    },
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`[${res.status}] ${text}`);
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+function fieldFromKey(key: string): TemplateField {
+  return { key, label: key, type: "text", placeholder: `Valore per ${key}` };
 }
 
-export function getTemplates() {
-  return apiFetch<{ data: TemplateDto[]; total: number }>(`${BASE}/templates`);
-}
-export function getDocuments() {
-  return apiFetch<{ data: DocumentDto[]; total: number }>(`${BASE}/documents`);
-}
-export function createDocument(payload: { name: string; templateId: string }) {
-  return apiFetch<DocumentDto>(`${BASE}/documents`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-export function updateDocument(
-  id: string,
-  payload: {
-    name?: string;
-    content?: string;
-    fieldValues?: Record<string, string | number | boolean | null>;
-  },
-) {
-  return apiFetch<DocumentDto>(`${BASE}/documents/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  });
-}
-export function triggerPdfGeneration(documentId: string) {
-  return apiFetch<PdfJobDto>(`${BASE}/documents/${documentId}/pdf`, {
-    method: "POST",
-  });
-}
-export function getPdfJobs(documentId: string) {
-  return apiFetch<PdfJobDto[]>(`${BASE}/documents/${documentId}/pdf/jobs`);
-}
-export function getPdfDownloadUrl(documentId: string, jobId: string) {
-  return `${BASE}/documents/${documentId}/pdf/jobs/${jobId}/download`;
-}
-export function getLatestPdfUrl(documentId: string) {
-  return `${BASE}/documents/${documentId}/pdf/latest`;
-}
-export function deleteTemplate(id: string) {
-  return apiFetch<void>(`${BASE}/templates/${id}`, { method: "DELETE" });
-}
-export function deleteDocument(id: string) {
-  return apiFetch<void>(`${BASE}/documents/${id}`, { method: "DELETE" });
-}
-
-// ─── Utility ─────────────────────────────────────────────────────────────────
-
-function extractPlaceholders(md: string): string[] {
-  const matches = md.matchAll(/\{\{([^}]+)\}\}/g);
-  return [...new Set([...matches].map((m) => m[1].trim()))];
-}
-
-function apiFieldsToTemplateFields(
-  fields: ApiTemplateField[],
-): TemplateField[] {
-  return fields.map((f) => ({
-    key: f.name,
-    label: f.label ?? f.name,
-    type: getFieldType(f.type),
-    placeholder: f.defaultValue ?? "",
-  }));
-}
-
-function getFieldType(type: ApiTemplateField["type"]): TemplateField["type"] {
-  switch (type) {
-    case "textarea":
-      return "longText";
-    case "currency":
-      return "currency";
-    case "date":
-      return "date";
-    default:
-      return "text";
-  }
-}
-
-const DRAWER_WIDTH = 260;
-
-// ─── Root Component ───────────────────────────────────────────────────────────
-
-export default function App(): React.ReactElement {
-  // ── stato liste
-  const [documents, setDocuments] = useState<DocumentDto[]>([]);
-  const [templates, setTemplates] = useState<TemplateDto[]>([]);
-  const [loadingList, setLoadingList] = useState(true);
-
-  // ── documento/template selezionato
-  const [activeDocument, setActiveDocument] = useState<DocumentDto | null>(
-    null,
+/** Controlla se una stringa è un UUID v1-v5 valido */
+function isUuid(s: string | null | undefined): s is string {
+  if (!s) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    s,
   );
-  const [activeTemplate, setActiveTemplate] = useState<TemplateDto | null>(
-    null,
-  );
+}
 
-  // ── editor
-  const [markdown, setMarkdown] = useState("");
-  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
-  const [placeholders, setPlaceholders] = useState<string[]>([]);
-  const [added, setAdded] = useState<string[]>([]);
-  const [removed, setRemoved] = useState<string[]>([]);
-
-  // ── pdf
-  const [pdfJobs, setPdfJobs] = useState<PdfJobDto[]>([]);
-
-  // ── UI
-  const [tab, setTab] = useState(0);
-  const [isSaving, setIsSaving] = useState(false);
+export default function App() {
+  const [activeTab, setActiveTab] = useState(0);
+  const [appStatus, setAppStatus] = useState<AppStatus>("loading");
   const [snack, setSnack] = useState<{
+    open: boolean;
     msg: string;
     severity: "success" | "error";
-  } | null>(null);
+  }>({ open: false, msg: "", severity: "success" });
 
-  // ── dialogo nuovo documento
-  const [newDocDialog, setNewDocDialog] = useState(false);
-  const [newDocName, setNewDocName] = useState("");
-  const [newDocTemplateId, setNewDocTemplateId] = useState("");
+  const [template, setTemplate] = useState<TemplateDto | null>(null);
+  const [document, setDocument] = useState<DocumentDto | null>(null);
+  const [pdfJobs, setPdfJobs] = useState<PdfJobDto[]>([]);
 
-  // ── caricamento iniziale liste
+  const [markdown, setMarkdown] = useState("");
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+
+  const originalPlaceholders = useRef<string[]>([]);
+
+  // ── Boot ─────────────────────────────────────────────────────────────────
   useEffect(() => {
-    Promise.all([getDocuments(), getTemplates()])
-      .then(([docs, tpls]) => {
-        setDocuments(docs.data);
-        setTemplates(tpls.data);
-        if (docs.data.length > 0) {
-          const doc = docs.data[0];
-          const tpl = tpls.data.find((t) => t.id === doc.templateId) ?? null;
-          setActiveDocument(doc);
-          setActiveTemplate(tpl);
-          setMarkdown(doc.content ?? "");
-          const ph = extractPlaceholders(doc.content ?? "");
-          setPlaceholders(ph);
-          setAdded([]);
-          setRemoved([]);
-          const saved = doc.fieldValues as Record<string, string>;
-          const init: Record<string, string> = {};
-          for (const p of ph) init[p] = saved[p] ?? "";
-          setFieldValues(init);
-          getPdfJobs(doc.id)
-            .then(setPdfJobs)
-            .catch(() => setPdfJobs([]));
+    let cancelled = false;
+
+    async function boot() {
+      try {
+        const [tmplRes, docRes] = await Promise.all([
+          getTemplates(),
+          getDocuments(),
+        ]);
+        if (cancelled) return;
+
+        const firstTemplate = tmplRes.data[0] ?? null;
+        const firstDocument = docRes.data[0] ?? null;
+
+        if (firstTemplate) {
+          setTemplate(firstTemplate);
+          setMarkdown(firstTemplate.content);
+          originalPlaceholders.current = extractPlaceholders(
+            firstTemplate.content,
+          );
         }
-      })
-      .catch(() =>
-        setSnack({ msg: "Errore caricamento dati", severity: "error" }),
-      )
-      .finally(() => setLoadingList(false));
+
+        if (firstDocument) {
+          setDocument(firstDocument);
+          const fv: Record<string, string> = {};
+          for (const [k, v] of Object.entries(
+            firstDocument.fieldValues ?? {},
+          )) {
+            fv[k] = v != null ? String(v) : "";
+          }
+          setFieldValues(fv);
+
+          const jobs = await getPdfJobs(firstDocument.id);
+          if (!cancelled) setPdfJobs(jobs);
+        }
+
+        setAppStatus("ready");
+      } catch (err) {
+        if (!cancelled) {
+          setAppStatus("error");
+          setSnack({
+            open: true,
+            msg: "Impossibile connettersi al backend.",
+            severity: "error",
+          });
+        }
+      }
+    }
+
+    void boot();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // ── seleziona documento
-  const selectDocument = useCallback(
-    (doc: DocumentDto, tplList: TemplateDto[] = templates) => {
-      setActiveDocument(doc);
-      const tpl = tplList.find((t) => t.id === doc.templateId) ?? null;
-      setActiveTemplate(tpl);
-      setMarkdown(doc.content ?? "");
-      const currentPlaceholders = extractPlaceholders(doc.content ?? "");
-      setPlaceholders(currentPlaceholders);
-      setAdded([]);
-      setRemoved([]);
-      // Inizializza fieldValues dai valori salvati + placeholder esistenti
-      const saved = doc.fieldValues as Record<string, string>;
-      const init: Record<string, string> = {};
-      for (const p of currentPlaceholders) init[p] = saved[p] ?? "";
-      setFieldValues(init);
-      // Carica pdf jobs
-      getPdfJobs(doc.id)
-        .then(setPdfJobs)
-        .catch(() => setPdfJobs([]));
+  // ── Callback da TemplateEditor quando viene importato un template via API ──
+  const handleTemplateImported = useCallback(
+    (importedTemplate: TemplateDto) => {
+      setTemplate(importedTemplate);
+      setMarkdown(importedTemplate.content);
+      originalPlaceholders.current = extractPlaceholders(
+        importedTemplate.content,
+      );
+      setSnack({
+        open: true,
+        msg: `Template "${importedTemplate.name}" importato.`,
+        severity: "success",
+      });
     },
-    [templates],
+    [],
   );
 
-  // ── aggiorna placeholder al cambio markdown
-  const handleMarkdownChange = (value: string) => {
-    setMarkdown(value);
-    const newP = extractPlaceholders(value);
-    const oldP = placeholders;
-    setAdded(newP.filter((p) => !oldP.includes(p)));
-    setRemoved(oldP.filter((p) => !newP.includes(p)));
-    setPlaceholders(newP);
-  };
-
-  // ── salva documento
-  const handleSave = async () => {
-    if (!activeDocument) return;
-    setIsSaving(true);
+  // ── Salva ─────────────────────────────────────────────────────────────────
+  const handleSave = useCallback(async () => {
+    setAppStatus("saving");
     try {
-      const updated = await updateDocument(activeDocument.id, {
-        content: markdown,
-        fieldValues: fieldValues as Record<
-          string,
-          string | number | boolean | null
-        >,
-      });
-      setActiveDocument(updated);
-      setDocuments((prev) =>
-        prev.map((d) => (d.id === updated.id ? updated : d)),
+      const currentPlaceholders = extractPlaceholders(markdown);
+      const diff = comparePlaceholderSets(
+        originalPlaceholders.current,
+        currentPlaceholders,
       );
-      setAdded([]);
-      setRemoved([]);
-      setSnack({ msg: "Documento salvato", severity: "success" });
+      const structureChanged = diff.added.length > 0 || diff.removed.length > 0;
+
+      if (structureChanged) {
+        const newTmpl = await createTemplate({
+          name: (template?.name ?? "Template") + " (rev)",
+          content: markdown,
+          fields: currentPlaceholders.map(fieldFromKey),
+        });
+        setTemplate(newTmpl);
+        originalPlaceholders.current = extractPlaceholders(newTmpl.content);
+
+        const newDoc = await createDocument({
+          name: document?.name ?? "Documento",
+          templateId: newTmpl.id,
+        });
+        const saved = await updateDocument(newDoc.id, {
+          fieldValues: { ...fieldValues },
+        });
+        setDocument(saved);
+        setSnack({
+          open: true,
+          msg: "Struttura cambiata: nuovo template e documento creati.",
+          severity: "success",
+        });
+      } else if (document) {
+        const saved = await updateDocument(document.id, {
+          fieldValues: { ...fieldValues },
+        });
+        setDocument(saved);
+        setSnack({
+          open: true,
+          msg: "Documento salvato.",
+          severity: "success",
+        });
+      } else {
+        let activeTmpl: TemplateDto;
+        if (template && isUuid(template.id)) {
+          activeTmpl = await updateTemplate(template.id, { content: markdown });
+        } else {
+          activeTmpl = await createTemplate({
+            name: template?.name ?? "Nuovo Template",
+            content: markdown,
+            fields: currentPlaceholders.map(fieldFromKey),
+          });
+        }
+        setTemplate(activeTmpl);
+        originalPlaceholders.current = extractPlaceholders(activeTmpl.content);
+
+        const newDoc = await createDocument({
+          name: "Nuovo Documento",
+          templateId: activeTmpl.id,
+        });
+        setDocument(newDoc);
+        setSnack({
+          open: true,
+          msg: "Template e documento creati.",
+          severity: "success",
+        });
+      }
     } catch (err) {
       setSnack({
+        open: true,
         msg: `Errore salvataggio: ${String(err)}`,
         severity: "error",
       });
     } finally {
-      setIsSaving(false);
+      setAppStatus("ready");
     }
-  };
+  }, [markdown, fieldValues, template, document]);
 
-  // ── genera PDF
-  const handleGeneratePdf = async () => {
-    if (!activeDocument) return;
-    try {
-      await triggerPdfGeneration(activeDocument.id);
-      setSnack({ msg: "Generazione PDF avviata", severity: "success" });
-      setTimeout(() => {
-        if (activeDocument)
-          getPdfJobs(activeDocument.id)
-            .then(setPdfJobs)
-            .catch(() => {});
-      }, 2000);
-    } catch (err) {
-      setSnack({ msg: `Errore PDF: ${String(err)}`, severity: "error" });
-    }
-  };
-
-  // ── crea nuovo documento
-  const handleCreateDocument = async () => {
-    if (!newDocName.trim() || !newDocTemplateId) return;
-    try {
-      const doc = await createDocument({
-        name: newDocName.trim(),
-        templateId: newDocTemplateId,
+  // ── Genera PDF ────────────────────────────────────────────────────────────
+  const handleGeneratePdf = useCallback(async () => {
+    if (!document) {
+      setSnack({
+        open: true,
+        msg: "Salva prima il documento.",
+        severity: "error",
       });
-      const updatedDocs = [doc, ...documents];
-      setDocuments(updatedDocs);
-      selectDocument(doc, templates);
-      setNewDocDialog(false);
-      setNewDocName("");
-      setNewDocTemplateId("");
-      setSnack({ msg: "Documento creato", severity: "success" });
-    } catch (err) {
-      setSnack({ msg: `Errore creazione: ${String(err)}`, severity: "error" });
+      return;
     }
-  };
+    try {
+      const job = await triggerPdfGeneration(document.id);
+      setPdfJobs((prev) => [job, ...prev]);
+      setSnack({
+        open: true,
+        msg: "Generazione PDF avviata.",
+        severity: "success",
+      });
+    } catch (err) {
+      setSnack({
+        open: true,
+        msg: `Errore PDF: ${String(err)}`,
+        severity: "error",
+      });
+    }
+  }, [document]);
 
-  // ── fields dal template attivo (per FieldsPanel)
-  const templateFields: TemplateField[] = activeTemplate
-    ? apiFieldsToTemplateFields(activeTemplate.fields)
-    : [];
-
-  // ── contenuto preview con placeholder sostituiti
-  const previewContent = placeholders.reduce(
-    (acc, key) =>
-      acc.replaceAll(`{{${key}}}`, fieldValues[key] ?? `{{${key}}}`),
-    markdown,
+  // ── Derivati ──────────────────────────────────────────────────────────────
+  const currentPlaceholders = useMemo(
+    () => extractPlaceholders(markdown),
+    [markdown],
   );
+
+  const diff = useMemo(
+    () =>
+      comparePlaceholderSets(originalPlaceholders.current, currentPlaceholders),
+    [currentPlaceholders],
+  );
+
+  const visibleFields = useMemo((): TemplateField[] => {
+    const keys = new Set(currentPlaceholders);
+    const tmplFields: TemplateField[] = (
+      (template?.fields as TemplateField[]) ?? []
+    ).filter((f) => keys.has(f.key));
+    const extra: TemplateField[] = currentPlaceholders
+      .filter((k) => !tmplFields.some((f) => f.key === k))
+      .map(fieldFromKey);
+    return [...tmplFields, ...extra];
+  }, [currentPlaceholders, template]);
+
+  const rendered = useMemo(
+    () => renderMarkdown(markdown, fieldValues),
+    [markdown, fieldValues],
+  );
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  if (appStatus === "loading") {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box
-      sx={{
-        display: "flex",
-        minHeight: "100vh",
-        bgcolor: "background.default",
-      }}
+      sx={{ minHeight: "100vh", backgroundColor: "background.default", pb: 6 }}
     >
-      <CssBaseline />
-
-      {/* ── Sidebar documenti ───────────────────────────────────────────── */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: DRAWER_WIDTH,
-          flexShrink: 0,
-          [`& .MuiDrawer-paper`]: {
-            width: DRAWER_WIDTH,
-            boxSizing: "border-box",
-            bgcolor: "background.paper",
-            borderRight: "1px solid",
-            borderColor: "divider",
-          },
-        }}
+      <AppBar
+        position="static"
+        color="transparent"
+        elevation={0}
+        className="top-appbar"
       >
-        <Stack sx={{ p: 2, pt: 3 }} gap={1}>
-          <Typography variant="h6" fontWeight={800}>
-            Documenti
-          </Typography>
-          <Button
-            variant="contained"
-            size="small"
-            fullWidth
-            onClick={() => setNewDocDialog(true)}
-            disabled={templates.length === 0}
+        <Container maxWidth="xl">
+          <HeaderBar
+            document={document}
+            template={template}
+            isSaving={appStatus === "saving"}
+            onSave={handleSave}
+            onGeneratePdf={handleGeneratePdf}
+            pdfJobs={pdfJobs}
+          />
+        </Container>
+      </AppBar>
+
+      <Container maxWidth="xl" sx={{ mt: 3 }}>
+        <Paper className="workspace-shell">
+          <Tabs
+            value={activeTab}
+            onChange={(_, value: number) => setActiveTab(value)}
           >
-            + Nuovo documento
-          </Button>
-        </Stack>
-        <Divider />
-        {loadingList ? (
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-            <CircularProgress size={24} />
-          </Box>
-        ) : (
-          <List dense disablePadding>
-            {documents.length === 0 && (
-              <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-                Nessun documento. Creane uno.
-              </Typography>
-            )}
-            {documents.map((doc) => (
-              <ListItemButton
-                key={doc.id}
-                selected={activeDocument?.id === doc.id}
-                onClick={() => selectDocument(doc)}
-              >
-                <ListItemText
-                  primary={doc.name}
-                  secondary={doc.status}
-                  slotProps={{
-                    primary: {
-                      noWrap: true,
-                      sx: {
-                        fontWeight: activeDocument?.id === doc.id ? 700 : 400,
-                      },
-                    },
-                  }}
-                />
-              </ListItemButton>
+            {tabLabels.map((label) => (
+              <Tab key={label} label={label} />
             ))}
-          </List>
-        )}
-      </Drawer>
+          </Tabs>
 
-      {/* ── Area principale ─────────────────────────────────────────────── */}
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        <HeaderBar
-          document={activeDocument}
-          template={activeTemplate}
-          isSaving={isSaving}
-          onSave={handleSave}
-          onGeneratePdf={handleGeneratePdf}
-          pdfJobs={pdfJobs}
-        />
-
-        {activeDocument === null ? (
-          <Box
-            sx={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Stack alignItems="center" gap={2}>
-              <Typography variant="h5" color="text.secondary">
-                Nessun documento selezionato
-              </Typography>
-              <Button
-                variant="contained"
-                onClick={() => setNewDocDialog(true)}
-                disabled={templates.length === 0}
-              >
-                + Crea il tuo primo documento
-              </Button>
-              {templates.length === 0 && (
-                <Typography variant="body2" color="text.secondary">
-                  Carica prima un template dal backend (Swagger)
-                </Typography>
-              )}
-            </Stack>
-          </Box>
-        ) : (
-          <Box sx={{ flex: 1, overflow: "auto", p: 3 }}>
-            <Tabs
-              value={tab}
-              onChange={(_, v) => setTab(v as number)}
-              sx={{ mb: 3 }}
-            >
-              <Tab label="Editor template" />
-              <Tab label="Compila campi" />
-              <Tab label="Anteprima PDF" />
-            </Tabs>
-
-            {tab === 0 && (
+          <Box className="workspace-body">
+            {activeTab === 0 && (
               <TemplateEditor
                 markdown={markdown}
-                onChange={handleMarkdownChange}
-                placeholders={placeholders}
-                added={added}
-                removed={removed}
-                onTemplateImported={(tpl) => {
-                  setActiveTemplate(tpl);
-                  setMarkdown(tpl.content);
-                  handleMarkdownChange(tpl.content);
-                }}
+                onChange={setMarkdown}
+                placeholders={currentPlaceholders}
+                added={diff.added}
+                removed={diff.removed}
+                onTemplateImported={handleTemplateImported}
               />
             )}
 
-            {tab === 1 && (
+            {activeTab === 1 && (
               <FieldsPanel
-                fields={
-                  templateFields.length > 0
-                    ? templateFields
-                    : placeholders.map((p) => ({
-                        key: p,
-                        label: p,
-                        type: "text" as const,
-                        placeholder: `Valore per {{${p}}}`,
-                      }))
-                }
+                fields={visibleFields}
                 values={fieldValues}
                 onChange={(key, value) =>
-                  setFieldValues((prev) => ({ ...prev, [key]: value }))
+                  setFieldValues((cur) => ({ ...cur, [key]: value }))
                 }
               />
             )}
 
-            {tab === 2 && (
+            {activeTab === 2 && (
               <PdfPreview
-                content={previewContent}
+                content={rendered}
                 pdfJobs={pdfJobs}
-                documentId={activeDocument.id}
+                documentId={document?.id}
               />
             )}
           </Box>
+        </Paper>
+
+        {appStatus === "error" && (
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            Backend non raggiungibile — assicurati che il server sia in
+            esecuzione su <strong>localhost:3000</strong>.
+          </Alert>
         )}
-      </Box>
 
-      {/* ── Dialog nuovo documento ──────────────────────────────────────── */}
-      <Dialog
-        open={newDocDialog}
-        onClose={() => setNewDocDialog(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Nuovo documento</DialogTitle>
-        <DialogContent>
-          <Stack gap={2} sx={{ pt: 1 }}>
-            <TextField
-              label="Nome documento"
-              fullWidth
-              value={newDocName}
-              onChange={(e) => setNewDocName(e.target.value)}
-              autoFocus
-            />
-            <TextField
-              label="Template"
-              fullWidth
-              select
-              value={newDocTemplateId}
-              onChange={(e) => setNewDocTemplateId(e.target.value)}
-            >
-              <option value="">— seleziona —</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </TextField>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setNewDocDialog(false)}>Annulla</Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              void handleCreateDocument();
-            }}
-            disabled={!newDocName.trim() || !newDocTemplateId}
-          >
-            Crea
-          </Button>
-        </DialogActions>
-      </Dialog>
+        <Paper className="architecture-note" sx={{ mt: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            MAC Document Editor
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Editor collegato al backend NestJS. Template e documenti vengono
+            caricati e salvati via API REST.
+          </Typography>
+        </Paper>
+      </Container>
 
-      {/* ── Snackbar feedback ───────────────────────────────────────────── */}
       <Snackbar
-        open={!!snack}
+        open={snack.open}
         autoHideDuration={4000}
-        onClose={() => setSnack(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
         <Alert
-          severity={snack?.severity ?? "success"}
-          onClose={() => setSnack(null)}
+          severity={snack.severity}
+          onClose={() => setSnack((s) => ({ ...s, open: false }))}
         >
-          {snack?.msg}
+          {snack.msg}
         </Alert>
       </Snackbar>
     </Box>
