@@ -13,6 +13,8 @@
  * - FIX: hydrateContent non lancia più 503 se il file non esiste su GitHub
  *   (fallback graceful a stringa vuota + warn, così findAll non crasha).
  * - FIX: content_path con estensione .md viene strippato prima dell'uso.
+ * - FIX: guard esplicito su content undefined/null in create() per diagnosticare
+ *   chiamate POST errate (il client invia POST invece di PUT su update).
  */
 
 import { randomUUID } from "node:crypto";
@@ -176,6 +178,17 @@ export class TemplatesService {
   }: CreateTemplateInput) {
     if (!name || name.trim().length === 0) {
       throw makeError("Il nome del template e obbligatorio", 400);
+    }
+
+    // Guard esplicito: content undefined/null indica che il client ha inviato
+    // una richiesta POST (creazione) invece di PUT (aggiornamento).
+    // Messaggio diagnostico più chiaro rispetto al generico "contenuto vuoto".
+    if (content === undefined || content === null) {
+      throw makeError(
+        "Il campo 'content' manca nel body della richiesta. " +
+          "Per aggiornare un template esistente usa PUT /api/templates/:id",
+        400,
+      );
     }
 
     this.assertValidContent(content);
