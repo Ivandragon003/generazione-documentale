@@ -293,6 +293,19 @@ export default function App() {
   );
 
   // ── Salva Template ────────────────────────────────────────────────────────
+  //
+  // FIX: la logica precedente usava il diff dei placeholder per decidere se
+  // chiamare createTemplate (POST) o updateTemplate (PUT). Questo causava
+  // POST errati su template con content vuoto (seed/legacy) perchè
+  // originalPlaceholders.current era [] e qualsiasi placeholder risultava
+  // "aggiunto" → structureChanged=true → POST invece di PUT.
+  //
+  // Nuova logica:
+  // 1. Se il template corrente ha un UUID valido e non è GitHub → PUT (update)
+  // 2. Se è un template GitHub o non ha UUID → crea un template locale (POST)
+  //    e poi aggiorna il contenuto con PUT
+  // Il diff dei placeholder viene usato SOLO per aggiornare i fields nel payload
+  // della PUT, non per decidere create vs update.
   const handleSaveTemplate = useCallback(async () => {
     if (!markdown.trim()) {
       setSnack({
@@ -306,16 +319,25 @@ export default function App() {
     setAppStatus("saving");
     try {
       const currentPlaceholders = extractPlaceholders(markdown);
-      const diff = comparePlaceholderSets(
-        originalPlaceholders.current,
-        currentPlaceholders,
-      );
-      const structureChanged = diff.added.length > 0 || diff.removed.length > 0;
 
-      if (structureChanged) {
-        // Struttura cambiata: crea nuovo template
+      if (template && isUuid(template.id) && !isGithubTemplate(template)) {
+        // Template locale con UUID valido → aggiorna sempre con PUT
+        const updated = await updateTemplate(template.id, {
+          content: markdown,
+          fields: currentPlaceholders.map(apiFieldFromKey),
+        });
+        // Sincronizza i placeholder originali dopo il salvataggio
+        originalPlaceholders.current = extractPlaceholders(updated.content);
+        setTemplate(updated);
+        setTemplates((current) =>
+          current.map((t) => (t.id === updated.id ? updated : t)),
+        );
+        setSnack({ open: true, msg: "Template salvato.", severity: "success" });
+      } else {
+        // Template GitHub o senza UUID: crea prima un template locale (POST),
+        // poi il contenuto è già incluso nella creazione.
         const newTmpl = await createTemplate({
-          name: `${template?.name ?? "Template"} (rev)`,
+          name: template?.name ?? "Nuovo Template",
           content: markdown,
           fields: currentPlaceholders.map(apiFieldFromKey),
         });
@@ -332,23 +354,6 @@ export default function App() {
         setPdfJobs([]);
         setSnack({
           open: true,
-          msg: "Struttura cambiata: nuovo template creato.",
-          severity: "success",
-        });
-      } else if (
-        template &&
-        isUuid(template.id) &&
-        !isGithubTemplate(template)
-      ) {
-        // Solo contenuto aggiornato
-        await updateTemplate(template.id, { content: markdown });
-        setSnack({ open: true, msg: "Template salvato.", severity: "success" });
-      } else {
-        // Template GitHub o senza UUID: crea template locale
-        const activeTmpl = await ensureLocalTemplate(markdown);
-        await updateTemplate(activeTmpl.id, { content: markdown });
-        setSnack({
-          open: true,
           msg: "Template locale creato e salvato.",
           severity: "success",
         });
@@ -362,7 +367,7 @@ export default function App() {
     } finally {
       setAppStatus("ready");
     }
-  }, [markdown, template, ensureLocalTemplate]);
+  }, [markdown, template]);
 
   // ── Genera PDF ────────────────────────────────────────────────────────────
   const handleGeneratePdf = useCallback(async () => {
