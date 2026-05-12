@@ -49,7 +49,7 @@ const tabLabels = ["Template", "Campi", "Anteprima PDF"];
 type AppStatus = "loading" | "ready" | "saving" | "error";
 
 const sleep = (ms: number) =>
-  new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+  new Promise<void>((resolve) => globalThis.setTimeout(resolve, ms));
 
 async function withBootRetry<T>(load: () => Promise<T>): Promise<T> {
   const maxAttempts = 10;
@@ -92,19 +92,33 @@ function isUuid(s: string | null | undefined): s is string {
   );
 }
 
+/** Ricava il secondary text per un template item */
+function getItemSecondary(item: TemplateDto): string {
+  if (item.githubPath) {
+    return item.githubPath.split("/").at(-1) ?? "";
+  }
+  return item.content ? item.status : "Contenuto mancante";
+}
+
 function ProjectStructure({
   templates,
   selectedTemplateId,
   onSelectTemplate,
 }: {
-  templates: TemplateDto[];
-  selectedTemplateId: string | null;
-  onSelectTemplate: (template: TemplateDto) => void;
+  readonly templates: TemplateDto[];
+  readonly selectedTemplateId: string | null;
+  readonly onSelectTemplate: (template: TemplateDto) => void;
 }) {
   const groupedTemplates = useMemo(() => {
-    return templates.length > 0
-      ? [["Template GitHub", templates] as const]
-      : [];
+    const groups = new Map<string, TemplateDto[]>();
+    for (const item of templates) {
+      const groupName =
+        item.category && item.section
+          ? `${item.category} / ${item.section}`
+          : "Template locali";
+      groups.set(groupName, [...(groups.get(groupName) ?? []), item]);
+    }
+    return Array.from(groups.entries());
   }, [templates]);
 
   return (
@@ -143,11 +157,11 @@ function ProjectStructure({
                   <DescriptionIcon fontSize="small" color="disabled" />
                   <ListItemText
                     primary={item.name}
-                    secondary={
-                      item.content ? item.status : "Contenuto mancante"
-                    }
-                    primaryTypographyProps={{ noWrap: true }}
-                    secondaryTypographyProps={{ noWrap: true }}
+                    secondary={getItemSecondary(item)}
+                    slotProps={{
+                      primary: { noWrap: true },
+                      secondary: { noWrap: true },
+                    }}
                   />
                 </ListItemButton>
               ))}
@@ -206,26 +220,9 @@ export default function App() {
         });
         if (cancelled) return;
 
-        const firstDocument = docRes.data[0] ?? null;
-
-        if (firstDocument) {
-          setDocument(firstDocument);
-          const fv: Record<string, string> = {};
-          for (const [k, v] of Object.entries(
-            firstDocument.fieldValues ?? {},
-          )) {
-            fv[k] = v != null ? String(v) : "";
-          }
-          setFieldValues(fv);
-
-          const jobs = await getPdfJobs(firstDocument.id).catch(() => {
-            bootHadError = true;
-            return [];
-          });
-          if (!cancelled) {
-            setPdfJobs(jobs);
-          }
-        }
+        await initializeDocument(docRes.data[0], cancelled, (err) => {
+          bootHadError = bootHadError || err;
+        });
 
         setAppStatus("ready");
         if (bootHadError) {
@@ -243,6 +240,31 @@ export default function App() {
             msg: "Impossibile connettersi al backend.",
             severity: "error",
           });
+        }
+      }
+    }
+
+    async function initializeDocument(
+      doc: DocumentDto | undefined,
+      cancelled: boolean,
+      onError: (error: boolean) => void,
+    ) {
+      const firstDocument = doc ?? null;
+
+      if (firstDocument) {
+        setDocument(firstDocument);
+        const fv: Record<string, string> = {};
+        for (const [k, v] of Object.entries(firstDocument.fieldValues ?? {})) {
+          fv[k] = v !== null && v !== undefined ? String(v) : "";
+        }
+        setFieldValues(fv);
+
+        const jobs = await getPdfJobs(firstDocument.id).catch(() => {
+          onError(true);
+          return [];
+        });
+        if (!cancelled) {
+          setPdfJobs(jobs);
         }
       }
     }
@@ -343,6 +365,14 @@ export default function App() {
             fields: currentPlaceholders.map(apiFieldFromKey),
           });
         }
+
+        // ┃ Verifica che il template creato abbia un UUID valido
+        if (!isUuid(activeTmpl.id)) {
+          throw new Error(
+            `Template creato senza ID valido: ${activeTmpl.id ?? "undefined"}`,
+          );
+        }
+
         setTemplate(activeTmpl);
         setTemplates((current) => [
           activeTmpl,

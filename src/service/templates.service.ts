@@ -144,12 +144,14 @@ export class TemplatesService {
     const hydratedData = await Promise.all(
       data.map((row) => this.hydrateContent(row, false)),
     );
+    const githubTemplates = await this.githubStorage.listTemplates();
+    const localTemplates = hydratedData.filter(
+      (row): row is TemplateEntity & { content: string } => Boolean(row),
+    );
 
     return {
-      data: hydratedData.filter(
-        (row): row is TemplateEntity & { content: string } => Boolean(row),
-      ),
-      total,
+      data: [...githubTemplates, ...localTemplates],
+      total: total + githubTemplates.length,
       limit,
       offset,
     };

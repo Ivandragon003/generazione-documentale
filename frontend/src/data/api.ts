@@ -9,6 +9,9 @@ export type TemplateDto = {
   name: string;
   description: string | null;
   content: string;
+  githubPath?: string;
+  category?: string | null;
+  section?: string | null;
   fields: ApiTemplateField[];
   status: "draft" | "published";
   createdAt: string;

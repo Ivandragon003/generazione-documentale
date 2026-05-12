@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import { IsString, IsUUID } from "class-validator";
 
 export class CreateDocumentDto {
@@ -11,5 +12,6 @@ export class CreateDocumentDto {
     description: "ID template esistente",
   })
   @IsUUID()
+  @Transform(({ value }) => value)
   templateId!: string;
 }

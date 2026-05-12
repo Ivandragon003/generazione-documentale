@@ -26,6 +26,7 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { Injectable, Logger } from "@nestjs/common";
+import type { FieldDefinition } from "../common/types/field-definition.type";
 import { makeError } from "../common/utils/errors";
 
 export interface GitHubConfig {
@@ -41,6 +42,28 @@ interface GitHubContentResponse {
   content?: string; // base64, presente solo in GET singolo file
   download_url?: string;
   message?: string; // presente in caso di errore
+}
+
+interface GitHubDirectoryEntry {
+  name: string;
+  path: string;
+  type: "file" | "dir";
+}
+
+export interface GitHubTemplateFile {
+  id: string;
+  name: string;
+  content_path: string;
+  githubPath: string;
+  category: string | null;
+  section: string | null;
+  status: "draft" | "published";
+  description: string | null;
+  fields: FieldDefinition[];
+  created_by: string;
+  created_at: Date;
+  updated_at: Date;
+  content: string;
 }
 
 @Injectable()
@@ -185,6 +208,58 @@ export class GitHubStorageService {
     return { sha: data.sha, content: decoded };
   }
 
+  private async listDirectory(path: string): Promise<GitHubDirectoryEntry[]> {
+    const url = `${this.contentUrl(path)}?ref=${encodeURIComponent(this.config.branch)}`;
+    const response = await fetch(url, { headers: this.headers() });
+
+    if (!response.ok) {
+      const body = await response.text();
+      this.logger.warn(
+        this.gitHubFailureMessage("leggere", path, response.status, body),
+      );
+      return [];
+    }
+
+    const data = await response.json();
+    if (!Array.isArray(data)) return [];
+    return data.filter(
+      (entry): entry is GitHubDirectoryEntry =>
+        typeof entry?.name === "string" &&
+        typeof entry?.path === "string" &&
+        (entry?.type === "file" || entry?.type === "dir"),
+    );
+  }
+
+  private async listMarkdownFiles(
+    path: string,
+  ): Promise<GitHubDirectoryEntry[]> {
+    const entries = await this.listDirectory(path);
+    const files = await Promise.all(
+      entries.map(async (entry) => {
+        if (entry.type === "dir") return this.listMarkdownFiles(entry.path);
+        if (entry.name.toLowerCase().endsWith(".md")) return [entry];
+        return [];
+      }),
+    );
+    return files.flat();
+  }
+
+  private templateMetaFromPath(path: string) {
+    const relativePath = path.startsWith(`${this.config.templatesDir}/`)
+      ? path.slice(this.config.templatesDir.length + 1)
+      : path;
+    const parts = relativePath.split("/");
+    const filename = parts.at(-1) ?? relativePath;
+    const name = filename.replace(/\.md$/i, "");
+
+    return {
+      relativePath,
+      name,
+      category: parts.length >= 3 ? parts[0] : null,
+      section: parts.length >= 3 ? parts[1] : null,
+    };
+  }
+
   // ── API pubblica ─────────────────────────────────────────────────────────
 
   /**
@@ -207,6 +282,38 @@ export class GitHubStorageService {
       );
     }
     return this.readLocalTemplate(templateId);
+  }
+
+  async listTemplates(): Promise<GitHubTemplateFile[]> {
+    if (!this.isConfigured()) return [];
+
+    const files = await this.listMarkdownFiles(this.config.templatesDir);
+    const now = new Date();
+    const templates = await Promise.all(
+      files
+        .filter((file) => file.path.split("/").length >= 4)
+        .map(async (file) => {
+          const meta = this.templateMetaFromPath(file.path);
+          const content = (await this.getFileMeta(file.path))?.content ?? "";
+          return {
+            id: `github:${meta.relativePath}`,
+            name: meta.name,
+            content_path: file.path,
+            githubPath: file.path,
+            category: meta.category,
+            section: meta.section,
+            status: "published" as const,
+            description: null,
+            fields: [],
+            created_by: "github",
+            created_at: now,
+            updated_at: now,
+            content,
+          };
+        }),
+    );
+
+    return templates;
   }
 
   /**
