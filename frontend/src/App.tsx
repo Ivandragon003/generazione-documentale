@@ -205,7 +205,6 @@ export default function App() {
           setMarkdown(content);
           originalPlaceholders.current = extractPlaceholders(content);
 
-          // Carica i PDF job del template selezionato
           if (isUuid(firstTemplate.id)) {
             const jobs = await getPdfJobs(firstTemplate.id).catch(() => []);
             if (!cancelled) setPdfJobs(jobs);
@@ -262,7 +261,6 @@ export default function App() {
     originalPlaceholders.current = extractPlaceholders(selected.content);
     setFieldValues({});
     setPdfJobs([]);
-    // Carica i PDF job del template selezionato
     if (isUuid(selected.id)) {
       void getPdfJobs(selected.id)
         .then(setPdfJobs)
@@ -270,42 +268,16 @@ export default function App() {
     }
   }, []);
 
-  const ensureLocalTemplate = useCallback(
-    async (currentMarkdown: string): Promise<TemplateDto> => {
-      if (template && isUuid(template.id) && !isGithubTemplate(template))
-        return template;
-      const newTmpl = await createTemplate({
-        name: template?.name ?? "Nuovo Template",
-        content: currentMarkdown,
-        fields: extractPlaceholders(currentMarkdown).map(apiFieldFromKey),
-      });
-      if (!isUuid(newTmpl.id))
-        throw new Error(`Template creato senza ID UUID valido: ${newTmpl.id}`);
-      setTemplate(newTmpl);
-      setTemplates((current) => [
-        newTmpl,
-        ...current.filter((item) => item.id !== newTmpl.id),
-      ]);
-      originalPlaceholders.current = extractPlaceholders(newTmpl.content);
-      return newTmpl;
-    },
-    [template],
-  );
-
   // ── Salva Template ────────────────────────────────────────────────────────
   //
-  // FIX: la logica precedente usava il diff dei placeholder per decidere se
-  // chiamare createTemplate (POST) o updateTemplate (PUT). Questo causava
-  // POST errati su template con content vuoto (seed/legacy) perchè
-  // originalPlaceholders.current era [] e qualsiasi placeholder risultava
-  // "aggiunto" → structureChanged=true → POST invece di PUT.
+  // FIX: rimossa logica structureChanged che causava POST errati su template
+  // con content vuoto (seed/legacy) — originalPlaceholders.current era []
+  // quindi qualsiasi placeholder risultava "aggiunto" e veniva chiamato
+  // createTemplate (POST) invece di updateTemplate (PUT).
   //
   // Nuova logica:
-  // 1. Se il template corrente ha un UUID valido e non è GitHub → PUT (update)
-  // 2. Se è un template GitHub o non ha UUID → crea un template locale (POST)
-  //    e poi aggiorna il contenuto con PUT
-  // Il diff dei placeholder viene usato SOLO per aggiornare i fields nel payload
-  // della PUT, non per decidere create vs update.
+  // - Template locale con UUID valido → sempre PUT
+  // - Template GitHub o senza UUID → POST per creare locale (content incluso)
   const handleSaveTemplate = useCallback(async () => {
     if (!markdown.trim()) {
       setSnack({
@@ -326,7 +298,6 @@ export default function App() {
           content: markdown,
           fields: currentPlaceholders.map(apiFieldFromKey),
         });
-        // Sincronizza i placeholder originali dopo il salvataggio
         originalPlaceholders.current = extractPlaceholders(updated.content);
         setTemplate(updated);
         setTemplates((current) =>
@@ -334,8 +305,7 @@ export default function App() {
         );
         setSnack({ open: true, msg: "Template salvato.", severity: "success" });
       } else {
-        // Template GitHub o senza UUID: crea prima un template locale (POST),
-        // poi il contenuto è già incluso nella creazione.
+        // Template GitHub o senza UUID: crea template locale (POST con content)
         const newTmpl = await createTemplate({
           name: template?.name ?? "Nuovo Template",
           content: markdown,
@@ -429,7 +399,6 @@ export default function App() {
     [markdown, fieldValues],
   );
 
-  // canGeneratePdf: basta avere un template con UUID valido — nessun Document necessario
   const canGeneratePdf = Boolean(
     template && isUuid(template.id) && !isGithubTemplate(template),
   );
