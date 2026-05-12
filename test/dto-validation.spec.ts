@@ -71,12 +71,6 @@ describe("DTO Validation", () => {
       expect(await validateDto(UpdateTemplateDto, {})).toEqual([]);
     });
 
-    it("deve accettare section_id null", async () => {
-      expect(
-        await validateDto(UpdateTemplateDto, { section_id: null }),
-      ).toEqual([]);
-    });
-
     it("deve accettare qualsiasi combinazione di campi", async () => {
       expect(
         await validateDto(UpdateTemplateDto, {

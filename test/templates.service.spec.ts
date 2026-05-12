@@ -21,7 +21,6 @@ const makeTemplate = (
     content_path: `${VALID_UUID}`,
     status: "draft",
     created_by: "system",
-    section_id: null,
     fields: [
       {
         name: "titolo",
@@ -74,7 +73,6 @@ describe("TemplatesService", () => {
             updateTemplate: jest.fn(),
             deleteTemplate: jest.fn(),
             countActiveDocuments: jest.fn(),
-            sectionExists: jest.fn(),
           },
         },
         {
@@ -105,7 +103,7 @@ describe("TemplatesService", () => {
 
   afterEach(() => jest.resetAllMocks());
 
-  // ── create() ────────────────────────────────────────────────────────────────
+  // ── create() ──────────────────────────────────────────────────────────────
 
   describe("create() - casi nominali", () => {
     it("crea un template con contenuto valido", async () => {
@@ -235,7 +233,7 @@ describe("TemplatesService", () => {
     });
   });
 
-  // ── findOne() ───────────────────────────────────────────────────────────────
+  // ── findOne() ──────────────────────────────────────────────────────────────
 
   describe("findOne() - casi nominali e limite", () => {
     it("ritorna il template idratato se esiste", async () => {
@@ -274,7 +272,7 @@ describe("TemplatesService", () => {
     });
   });
 
-  // ── findAll() ───────────────────────────────────────────────────────────────
+  // ── findAll() ─────────────────────────────────────────────────────────────
 
   describe("findAll() - casi nominali e limite", () => {
     it("ritorna lista paginata di template", async () => {
@@ -329,7 +327,7 @@ describe("TemplatesService", () => {
         data: [tpl],
         total: 1,
       });
-      githubStorage.readTemplate.mockResolvedValue(null); // mancante
+      githubStorage.readTemplate.mockResolvedValue(null);
       githubStorage.listTemplates.mockResolvedValue([]);
 
       const result = await service.findAll({ limit: 20, offset: 0 });
@@ -338,7 +336,7 @@ describe("TemplatesService", () => {
     });
   });
 
-  // ── update() ────────────────────────────────────────────────────────────────
+  // ── update() ──────────────────────────────────────────────────────────────
 
   describe("update() - casi nominali", () => {
     it("aggiorna nome e contenuto", async () => {
@@ -377,7 +375,7 @@ describe("TemplatesService", () => {
     });
   });
 
-  // ── delete() ────────────────────────────────────────────────────────────────
+  // ── delete() ──────────────────────────────────────────────────────────────
 
   describe("delete() - casi nominali", () => {
     it("elimina il template se non ha documenti attivi", async () => {
@@ -421,7 +419,7 @@ describe("TemplatesService", () => {
     });
   });
 
-  // ── validateMarkdown() ──────────────────────────────────────────────────────
+  // ── validateMarkdown() ────────────────────────────────────────────────────
 
   describe("validateMarkdown() - casi limite", () => {
     it("valida correttamente un template corretto", () => {
@@ -450,7 +448,7 @@ describe("TemplatesService", () => {
     });
   });
 
-  // ── importFromMarkdown() ────────────────────────────────────────────────────
+  // ── importFromMarkdown() ─────────────────────────────────────────────────
 
   describe("importFromMarkdown()", () => {
     it("delega a create() con i parametri corretti", async () => {
@@ -468,7 +466,7 @@ describe("TemplatesService", () => {
     });
   });
 
-  // ── getExportContent() ──────────────────────────────────────────────────────
+  // ── getExportContent() ──────────────────────────────────────────────────
 
   describe("getExportContent()", () => {
     it("ritorna il contenuto del template", () => {
