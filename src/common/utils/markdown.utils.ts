@@ -13,7 +13,7 @@ export interface MarkdownValidationResult {
 // La regex e definita DENTRO la funzione per evitare che il lastIndex condiviso
 // del flag 'g' causi bug se qualcuno usasse .exec() o .test() direttamente
 export const extractFieldNames = (content: string): string[] => {
-  const placeholderRegex = /\{\{(\w+)\}\}/g;
+  const placeholderRegex = /\{\{(\w+)(?::\w+)?\}\}/g;
   const fields = new Set<string>();
   for (const match of content.matchAll(placeholderRegex)) {
     const fieldName = match[1];
@@ -22,6 +22,25 @@ export const extractFieldNames = (content: string): string[] => {
     }
   }
   return [...fields];
+};
+
+export const extractFieldsWithTypes = (
+  content: string,
+): Map<string, FieldType> => {
+  const placeholderRegex = /\{\{(\w+)(?::(\w+))?\}\}/g;
+  const fields = new Map<string, FieldType>();
+  for (const match of content.matchAll(placeholderRegex)) {
+    const fieldName = match[1];
+    const fieldType = match[2] as FieldType;
+    if (fieldName) {
+      // Se troviamo più placeholder con lo stesso nome, l'ultimo tipo vince
+      // o preferiamo quello esplicitamente dichiarato se presente.
+      if (fieldType || !fields.has(fieldName)) {
+        fields.set(fieldName, fieldType || "text");
+      }
+    }
+  }
+  return fields;
 };
 
 const labelFromName = (name: string): string => {
@@ -44,17 +63,19 @@ export const normalizeFieldDefinitions = (
   inputFields: PartialFieldDefinition[] = [],
 ): FieldDefinition[] => {
   const placeholders = extractFieldNames(content);
+  const inlineTypes = extractFieldsWithTypes(content);
   const providedByName = new Map(
     inputFields.map((field) => [field.name, field]),
   );
 
   return placeholders.map((placeholder) => {
     const provided = providedByName.get(placeholder);
+    const inlineType = inlineTypes.get(placeholder);
 
     return {
       name: placeholder,
       label: provided?.label ?? labelFromName(placeholder),
-      type: provided?.type ?? "text",
+      type: provided?.type ?? inlineType ?? "text",
       required: provided?.required ?? true,
       defaultValue: provided?.defaultValue ?? "",
     };
@@ -95,7 +116,7 @@ export const validateMarkdownContent = (
   // superano mai 100 caratteri, quindi nessun falso negativo.
   const invalidPlaceholders = (
     content.match(/\{\{[^}\n]{1,100}\}\}/g) ?? []
-  ).filter((placeholder) => !/^\{\{\w+\}\}$/.test(placeholder));
+  ).filter((placeholder) => !/^\{\{\w+(?::\w+)?\}\}$/.test(placeholder));
   if (invalidPlaceholders.length > 0) {
     errors.push(
       `Placeholder non validi: ${[...new Set(invalidPlaceholders)].join(", ")}`,

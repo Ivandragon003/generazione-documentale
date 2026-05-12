@@ -60,8 +60,13 @@ async function withBootRetry<T>(load: () => Promise<T>): Promise<T> {
   throw new Error("Backend non disponibile");
 }
 
-function apiFieldFromKey(key: string): ApiTemplateField {
-  return { name: key, label: key, type: "text" };
+function apiFieldFromKey(key: string, markdown: string): ApiTemplateField {
+  // Cerca se nel markdown il placeholder ha un tipo specificato {{key:tipo}}
+  const regex = new RegExp(`\\{\\{\\s*${key}(?::([a-z]+))?\\s*\\}\\}`, "i");
+  const match = markdown.match(regex);
+  const type = (match?.[1] as ApiTemplateField["type"]) || "text";
+
+  return { name: key, label: key, type };
 }
 
 function fieldFromKey(key: string): TemplateField {
@@ -292,11 +297,16 @@ export default function App() {
     try {
       const currentPlaceholders = extractPlaceholders(markdown);
 
+      // Cerchiamo se esiste già un template locale che punta a questo path GitHub
+      const existingLocal = isGithubTemplate(template)
+        ? templates.find((t) => t.id !== template?.id && t.githubPath === template?.id.slice(7))
+        : null;
+
       if (template && isUuid(template.id) && !isGithubTemplate(template)) {
         // Template locale con UUID valido → aggiorna sempre con PUT
         const updated = await updateTemplate(template.id, {
           content: markdown,
-          fields: currentPlaceholders.map(apiFieldFromKey),
+          fields: currentPlaceholders.map((k) => apiFieldFromKey(k, markdown)),
         });
         originalPlaceholders.current = extractPlaceholders(updated.content);
         setTemplate(updated);
@@ -304,12 +314,24 @@ export default function App() {
           current.map((t) => (t.id === updated.id ? updated : t)),
         );
         setSnack({ open: true, msg: "Template salvato.", severity: "success" });
+      } else if (existingLocal) {
+        // Se stavamo modificando un template GitHub ma esiste già una copia locale, aggiorniamo quella
+        const updated = await updateTemplate(existingLocal.id, {
+          content: markdown,
+          fields: currentPlaceholders.map((k) => apiFieldFromKey(k, markdown)),
+        });
+        originalPlaceholders.current = extractPlaceholders(updated.content);
+        setTemplate(updated);
+        setTemplates((current) =>
+          current.map((t) => (t.id === updated.id ? updated : t)),
+        );
+        setSnack({ open: true, msg: "Template locale aggiornato.", severity: "success" });
       } else {
         // Template GitHub o senza UUID: crea template locale (POST con content)
         const newTmpl = await createTemplate({
           name: template?.name ?? "Nuovo Template",
           content: markdown,
-          fields: currentPlaceholders.map(apiFieldFromKey),
+          fields: currentPlaceholders.map((k) => apiFieldFromKey(k, markdown)),
           path: isGithubTemplate(template) ? template?.id : undefined,
         });
         if (!isUuid(newTmpl.id))
@@ -401,7 +423,7 @@ export default function App() {
   );
 
   const canGeneratePdf = Boolean(
-    template && isUuid(template.id) && !isGithubTemplate(template),
+    template && (isUuid(template.id) || isGithubTemplate(template)),
   );
 
   // ── Render ────────────────────────────────────────────────────────────────

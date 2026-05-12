@@ -73,11 +73,30 @@ export function TemplateEditor({
 
   // ── Crea campo: inserisce {{campo_N}} nel testo ───────────────────────────
   function handleCreateField() {
-    // Usa la lunghezza dei placeholder già presenti per generare un nome unico
-    const fieldName = `campo_${placeholders.length + 1}`;
+    const fieldName = window.prompt("Nome del campo (es: nome_cliente):");
+    if (!fieldName) return;
+
+    // Normalizza il nome (minuscolo, senza spazi)
+    const normalized = fieldName
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .replace(/[^a-z0-9_]/g, "");
+
+    if (!normalized) {
+      alert("Nome campo non valido.");
+      return;
+    }
+
+    const type = window.prompt(
+      "Tipo campo (text, longText, date, number, boolean, select):",
+      "text",
+    );
+
     // Inserisce su nuova riga in fondo (o all'inizio se l'editor è vuoto)
     const separator = markdown.length > 0 ? "\n" : "";
-    onChange(`${markdown}${separator}{{${fieldName}}}`);
+    const placeholder = type && type !== "text" ? `{{${normalized}:${type}}}` : `{{${normalized}}}`;
+    onChange(`${markdown}${separator}${placeholder}`);
   }
 
   return (

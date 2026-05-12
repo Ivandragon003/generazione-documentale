@@ -75,7 +75,17 @@ export function PdfPreview({
             <Button
               variant="outlined"
               startIcon={<PrintIcon />}
-              onClick={() => window.print()}
+              disabled={!downloadUrl}
+              onClick={() => {
+                if (!downloadUrl) return;
+                const iframe = document.createElement("iframe");
+                iframe.style.display = "none";
+                iframe.src = downloadUrl;
+                document.body.appendChild(iframe);
+                iframe.onload = () => {
+                  iframe.contentWindow?.print();
+                };
+              }}
             >
               Stampa
             </Button>

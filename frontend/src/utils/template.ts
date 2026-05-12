@@ -1,4 +1,4 @@
-export const PLACEHOLDER_REGEX = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+export const PLACEHOLDER_REGEX = /\{\{\s*([a-zA-Z0-9_]+)(?::([a-z]+))?\s*\}\}/g;
 
 export function extractPlaceholders(markdown: string): string[] {
   const matches = markdown.matchAll(PLACEHOLDER_REGEX);

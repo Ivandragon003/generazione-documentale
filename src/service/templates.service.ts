@@ -152,9 +152,25 @@ export class TemplatesService {
       (row): row is TemplateEntity & { content: string } => Boolean(row),
     );
 
+    // De-duplicazione: escludiamo i template GitHub che sono già stati importati/sincronizzati localmente
+    const localPaths = new Set(
+      localTemplates
+        .map((t) => t.content_path)
+        .filter((p): p is string => Boolean(p)),
+    );
+
+    const uniqueGithubTemplates = githubTemplates.filter((gt) => {
+      let githubNormalized = gt.id;
+      if (githubNormalized.startsWith("github:")) {
+        githubNormalized = githubNormalized.slice(7);
+      }
+      const githubId = this.normalizeTemplateId(githubNormalized);
+      return !localPaths.has(githubId);
+    });
+
     return {
-      data: [...githubTemplates, ...localTemplates],
-      total: total + githubTemplates.length,
+      data: [...uniqueGithubTemplates, ...localTemplates],
+      total: total + uniqueGithubTemplates.length,
       limit,
       offset,
     };
@@ -163,6 +179,26 @@ export class TemplatesService {
   async findOne(
     id: string,
   ): Promise<(TemplateEntity & { content: string }) | null> {
+    if (id.startsWith("github:")) {
+      let normalized = id.slice(7);
+      normalized = this.normalizeTemplateId(normalized);
+
+      const row = await this.dataSource
+        .getRepository("TemplateEntity")
+        .findOne({ where: { content_path: normalized } });
+
+      if (row) {
+        return this.hydrateContent(row as TemplateEntity, true);
+      }
+
+      // Se non è nel DB, restituiamo un oggetto "virtuale" leggendo da GitHub
+      const githubTemplates = await this.githubStorage.listTemplates();
+      const virtual = githubTemplates.find((t) => t.id === id);
+      if (!virtual) return null;
+
+      return virtual as unknown as TemplateEntity & { content: string };
+    }
+
     assertUuid(id);
     const row = await this.templatesRepository.findById(id);
     // strict=true: GET singolo deve segnalare se il content manca

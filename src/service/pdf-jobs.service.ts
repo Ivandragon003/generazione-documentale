@@ -83,7 +83,19 @@ export class PdfJobsService implements OnModuleDestroy {
   ) {
     await this.ensureQueueRecovery();
 
-    const template = await this.templatesService.findOne(templateId);
+    let template = await this.templatesService.findOne(templateId);
+
+    // Se il template è virtuale (GitHub), lo sincronizziamo nel DB locale
+    if (templateId.startsWith("github:") && template && template.id.startsWith("github:")) {
+      template = await this.templatesService.create({
+        name: template.name,
+        content: template.content,
+        fields: template.fields,
+        created_by: actor,
+        path: templateId,
+      });
+    }
+
     if (!template) throw makeError("Template non trovato", 404);
 
     const missing = this.documentRenderingService.getMissingRequiredFields(
@@ -98,7 +110,7 @@ export class PdfJobsService implements OnModuleDestroy {
     }
 
     const job = await this.pdfJobsRepository.insert(
-      templateId,
+      template.id,
       fieldValues,
       actor,
     );
