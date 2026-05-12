@@ -214,7 +214,14 @@ export default function App(): React.ReactElement {
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <CssBaseline />
-      <HeaderBar />
+      <HeaderBar
+        document={null}
+        template={null}
+        isSaving={false}
+        onSave={() => {}}
+        onGeneratePdf={() => {}}
+        pdfJobs={[]}
+      />
     </Box>
   );
 }
