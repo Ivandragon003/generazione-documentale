@@ -3,8 +3,7 @@ import { Inject, Injectable, type OnModuleDestroy } from "@nestjs/common";
 import type { Response } from "express";
 import { makeError } from "../common/utils/errors";
 import { appConfig } from "../config/app.config";
-import { DocumentsRepository } from "../repository/documents.repository";
-import { DocumentEventsService } from "./document-events.service";
+import { PdfJobsRepository } from "../repository/pdf-jobs.repository";
 import { DocumentRenderingService } from "./document-rendering.service";
 import { PdfGenerationService } from "./pdf-generation.service";
 import { TemplatesService } from "./templates.service";
@@ -27,21 +26,15 @@ export class PdfJobsService implements OnModuleDestroy {
   private processorRunning = false;
 
   constructor(
-    @Inject(DocumentsRepository)
-    private readonly documentsRepository: DocumentsRepository,
+    @Inject(PdfJobsRepository)
+    private readonly pdfJobsRepository: PdfJobsRepository,
     @Inject(TemplatesService)
     private readonly templatesService: TemplatesService,
     @Inject(PdfGenerationService)
     private readonly pdfGenerationService: PdfGenerationService,
     @Inject(DocumentRenderingService)
     private readonly documentRenderingService: DocumentRenderingService,
-    @Inject(DocumentEventsService)
-    private readonly documentEventsService: DocumentEventsService,
   ) {
-    this.documentEventsService.onDocumentFinalized(({ jobId }) => {
-      this.processPdfJob(jobId).catch(() => undefined);
-    });
-
     setImmediate(() => {
       this.ensureQueueRecovery().catch(() => undefined);
     });
@@ -54,36 +47,12 @@ export class PdfJobsService implements OnModuleDestroy {
     }
   }
 
-  private async findDocumentOrThrow(id: string) {
-    const document = await this.documentsRepository.findById(id);
-    if (!document) throw makeError("Documento non trovato", 404);
-    return document;
-  }
-
-  private async getFieldDefinitions(document: { template_id: string | null }) {
-    if (!document.template_id) return [];
-    const template = await this.templatesService.findOne(document.template_id);
-    return template?.fields ?? [];
-  }
-
-  private async getMissingRequiredFields(document: {
-    template_id: string | null;
-    field_values: Record<string, string | number | boolean | null>;
-  }): Promise<string[]> {
-    const fields = await this.getFieldDefinitions(document);
-    return this.documentRenderingService.getMissingRequiredFields(
-      fields,
-      document.field_values ?? {},
-    );
-  }
-
   private async ensureQueueRecovery(): Promise<void> {
     if (this.queueRecoveryStarted) return;
     this.queueRecoveryStarted = true;
     try {
       await this.triggerQueueProcessor();
     } catch (_error) {
-      // Reset flag on retry to allow recovery attempts
       this.queueRecoveryStarted = false;
       if (!this.queueRecoveryTimer) {
         this.queueRecoveryTimer = setTimeout(() => {
@@ -98,135 +67,100 @@ export class PdfJobsService implements OnModuleDestroy {
     if (this.processorRunning) return;
     this.processorRunning = true;
     try {
-      const queuedJobs = await this.documentsRepository.findQueuedPdfJobs();
+      const queuedJobs = await this.pdfJobsRepository.findQueued();
       for (const job of queuedJobs) {
-        await this.processPdfJob(job.id).catch(() => undefined);
+        await this.processJob(job.id).catch(() => undefined);
       }
     } finally {
       this.processorRunning = false;
     }
   }
 
-  async enqueuePdfGeneration(id: string, actor = "system") {
+  async enqueue(
+    templateId: string,
+    fieldValues: Record<string, string | number | boolean | null>,
+    actor = "system",
+  ) {
     await this.ensureQueueRecovery();
-    const document = await this.findDocumentOrThrow(id);
-    const missing = await this.getMissingRequiredFields(document);
+
+    const template = await this.templatesService.findOne(templateId);
+    if (!template) throw makeError("Template non trovato", 404);
+
+    const missing = this.documentRenderingService.getMissingRequiredFields(
+      template.fields ?? [],
+      fieldValues,
+    );
     if (missing.length > 0) {
-      throw makeError(
-        `Campi obbligatori non compilati: ${missing.join(", ")}`,
-        422,
-      );
+      throw makeError(`Campi obbligatori non compilati: ${missing.join(", ")}`, 422);
     }
-    const job = await this.documentsRepository.insertPdfJob(id, actor);
-    this.documentEventsService.emitDocumentFinalized({ jobId: job.id });
+
+    const job = await this.pdfJobsRepository.insert(templateId, fieldValues, actor);
     this.triggerQueueProcessor().catch(() => undefined);
     return job;
   }
 
-  async processPdfJob(jobId: string): Promise<void> {
-    const claimed = await this.documentsRepository.claimQueuedPdfJob(jobId);
+  async processJob(jobId: string): Promise<void> {
+    const claimed = await this.pdfJobsRepository.claim(jobId);
     if (!claimed) return;
 
-    const job = await this.documentsRepository.findPdfJobById(jobId);
+    const job = await this.pdfJobsRepository.findById(jobId);
     if (!job || job.status !== "running") return;
 
     try {
-      const document = await this.findDocumentOrThrow(job.document_id);
+      const template = await this.templatesService.findOne(job.template_id);
+      if (!template) throw new Error("Template non trovato");
+
       const { filename, unresolvedFields } =
         await this.pdfGenerationService.generatePdf({
-          title: document.name,
-          content: document.content,
-          fieldValues: document.field_values ?? {},
+          title: template.name,
+          content: template.content,
+          fieldValues: job.field_values ?? {},
           strict: true,
         });
-      await this.documentsRepository.updatePdfJobCompleted(
-        jobId,
-        filename,
-        unresolvedFields ?? [],
-      );
-      await this.documentsRepository.updateDocumentStatusGenerated(document.id);
+
+      await this.pdfJobsRepository.markCompleted(jobId, filename, unresolvedFields ?? []);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Errore generazione PDF";
-      await this.documentsRepository.updatePdfJobFailed(jobId, message);
+      const message = error instanceof Error ? error.message : "Errore generazione PDF";
+      await this.pdfJobsRepository.markFailed(jobId, message);
     }
   }
 
-  async getPdfJob(documentId: string, jobId: string) {
-    return this.documentsRepository.findPdfJob(documentId, jobId);
+  async getJob(templateId: string, jobId: string) {
+    const job = await this.pdfJobsRepository.findById(jobId);
+    if (!job || job.template_id !== templateId) throw makeError("Job PDF non trovato", 404);
+    return job;
   }
 
-  async getPdfJobs(documentId: string) {
-    return this.documentsRepository.findPdfJobsByDocument(documentId);
+  async getJobs(templateId: string) {
+    return this.pdfJobsRepository.findByTemplate(templateId);
   }
 
-  async getCompletedPdfJob(documentId: string, jobId: string) {
-    const job = await this.getPdfJob(documentId, jobId);
-    if (!job) throw makeError("Job PDF non trovato", 404);
+  private async getCompletedJob(templateId: string, jobId: string) {
+    const job = await this.getJob(templateId, jobId);
     if (job.status !== "completed" || !job.filename)
       throw makeError("PDF non ancora disponibile", 409);
     return job;
   }
 
-  async getLatestCompletedPdfJob(documentId: string) {
-    const job =
-      await this.documentsRepository.findLatestCompletedPdfJob(documentId);
-    if (!job)
-      throw makeError("Nessun PDF completato per questo documento", 404);
+  async getLatestCompleted(templateId: string) {
+    const job = await this.pdfJobsRepository.findLatestCompleted(templateId);
+    if (!job) throw makeError("Nessun PDF completato per questo template", 404);
     return job;
   }
 
-  async streamPdfJobDownload(
-    documentId: string,
-    jobId: string,
-    response: Response,
-  ): Promise<void> {
-    const job = await this.getCompletedPdfJob(documentId, jobId);
-    if (!job.filename) throw makeError("PDF non ancora disponibile", 409);
-    const stream = await this.pdfGenerationService.getPdfStream(job.filename);
+  async streamDownload(templateId: string, jobId: string, response: Response): Promise<void> {
+    const job = await this.getCompletedJob(templateId, jobId);
+    const stream = await this.pdfGenerationService.getPdfStream(job.filename!);
     response.setHeader("Content-Type", "application/pdf");
-    response.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${job.filename}"`,
-    );
+    response.setHeader("Content-Disposition", `attachment; filename="${job.filename}"`);
     await pipeToResponse(stream, response);
   }
 
-  async streamLatestPdfDownload(
-    documentId: string,
-    response: Response,
-  ): Promise<void> {
-    const job = await this.getLatestCompletedPdfJob(documentId);
-    if (!job.filename) throw makeError("PDF non ancora disponibile", 409);
-    const stream = await this.pdfGenerationService.getPdfStream(job.filename);
+  async streamLatest(templateId: string, response: Response): Promise<void> {
+    const job = await this.getLatestCompleted(templateId);
+    const stream = await this.pdfGenerationService.getPdfStream(job.filename!);
     response.setHeader("Content-Type", "application/pdf");
-    response.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${job.filename}"`,
-    );
+    response.setHeader("Content-Disposition", `attachment; filename="${job.filename}"`);
     await pipeToResponse(stream, response);
-  }
-
-  async deleteGeneratedPdf(documentId: string, jobId: string): Promise<void> {
-    const job = await this.getCompletedPdfJob(documentId, jobId);
-    if (!job.filename) throw makeError("PDF non ancora disponibile", 409);
-    await this.pdfGenerationService.deletePdf(job.filename);
-  }
-
-  async deleteGeneratedPdfsForDocument(documentId: string): Promise<void> {
-    const jobs =
-      await this.documentsRepository.findPdfJobsByDocument(documentId);
-    const filenames = Array.from(
-      new Set(
-        jobs
-          .map((job) => job.filename)
-          .filter((filename): filename is string => Boolean(filename)),
-      ),
-    );
-    await Promise.all(
-      filenames.map((filename) =>
-        this.pdfGenerationService.deletePdf(filename),
-      ),
-    );
   }
 }

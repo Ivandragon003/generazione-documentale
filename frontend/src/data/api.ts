@@ -2,8 +2,6 @@ const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/api`;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type DocumentStatus = "draft" | "generated" | "published" | "archived";
-
 export type TemplateDto = {
   id: string;
   name: string;
@@ -18,21 +16,9 @@ export type TemplateDto = {
   updatedAt: string;
 };
 
-// Backend risponde camelCase (response.mapper.ts)
-export type DocumentDto = {
-  id: string;
-  name: string;
-  templateId: string | null;
-  content: string;
-  fieldValues: Record<string, string | number | boolean | null>;
-  status: DocumentStatus;
-  createdAt: string;
-  updatedAt: string;
-};
-
 export type PdfJobDto = {
   id: string;
-  documentId: string;
+  templateId: string;
   status: "queued" | "running" | "completed" | "failed";
   filename: string | null;
   unresolvedFields: string[];
@@ -49,7 +35,7 @@ export type PdfJobDto = {
  * strippava "key" causando body:undefined nel controller.
  */
 export type ApiTemplateField = {
-  name: string; // corrisponde a TemplateFieldDto.name
+  name: string;
   label?: string;
   type?:
     | "text"
@@ -87,10 +73,7 @@ async function api<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
 
 // ─── Templates ───────────────────────────────────────────────────────────────
 
-export function getTemplates(): Promise<{
-  data: TemplateDto[];
-  total: number;
-}> {
+export function getTemplates(): Promise<{ data: TemplateDto[]; total: number }> {
   return api(`${BASE}/templates`);
 }
 
@@ -98,10 +81,6 @@ export function getTemplateById(id: string): Promise<TemplateDto> {
   return api(`${BASE}/templates/${id}`);
 }
 
-/**
- * Crea un nuovo template.
- * Il payload usa ApiTemplateField (con "name") — non TemplateVersion["fields"] (con "key").
- */
 export function createTemplate(payload: {
   name: string;
   content: string;
@@ -114,10 +93,6 @@ export function createTemplate(payload: {
   });
 }
 
-/**
- * Aggiorna un template esistente.
- * Stessa convenzione: fields usa ApiTemplateField.
- */
 export function updateTemplate(
   id: string,
   payload: {
@@ -137,68 +112,30 @@ export function deleteTemplate(id: string): Promise<void> {
   return api(`${BASE}/templates/${id}`, { method: "DELETE" });
 }
 
-// ─── Documents ───────────────────────────────────────────────────────────────
+// ─── PDF (direttamente su template, senza Document) ──────────────────────────
 
-export function getDocuments(): Promise<{
-  data: DocumentDto[];
-  total: number;
-}> {
-  return api(`${BASE}/documents`);
-}
-
-export function getDocumentById(id: string): Promise<DocumentDto> {
-  return api(`${BASE}/documents/${id}`);
-}
-
-export function createDocument(payload: {
-  name: string;
-  templateId: string;
-}): Promise<DocumentDto> {
-  return api(`${BASE}/documents`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export function updateDocument(
-  id: string,
-  payload: {
-    name?: string;
-    content?: string;
-    fieldValues?: Record<string, string | number | boolean | null>;
-  },
-): Promise<DocumentDto> {
-  return api(`${BASE}/documents/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  });
-}
-
-export function deleteDocument(id: string): Promise<void> {
-  return api(`${BASE}/documents/${id}`, { method: "DELETE" });
-}
-
-// ─── PDF Jobs ─────────────────────────────────────────────────────────────────
-
-export function triggerPdfGeneration(documentId: string): Promise<PdfJobDto> {
-  return api(`${BASE}/documents/${documentId}/pdf`, { method: "POST" });
-}
-
-export function getPdfJobs(documentId: string): Promise<PdfJobDto[]> {
-  return api(`${BASE}/documents/${documentId}/pdf/jobs`);
-}
-
-export function getPdfJob(
-  documentId: string,
-  jobId: string,
+export function triggerPdfGeneration(
+  templateId: string,
+  fieldValues: Record<string, string | number | boolean | null> = {},
 ): Promise<PdfJobDto> {
-  return api(`${BASE}/documents/${documentId}/pdf/jobs/${jobId}`);
+  return api(`${BASE}/templates/${templateId}/pdf`, {
+    method: "POST",
+    body: JSON.stringify({ fieldValues }),
+  });
 }
 
-export function getPdfDownloadUrl(documentId: string, jobId: string): string {
-  return `${BASE}/documents/${documentId}/pdf/jobs/${jobId}/download`;
+export function getPdfJobs(templateId: string): Promise<PdfJobDto[]> {
+  return api(`${BASE}/templates/${templateId}/pdf/jobs`);
 }
 
-export function getLatestPdfUrl(documentId: string): string {
-  return `${BASE}/documents/${documentId}/pdf/latest`;
+export function getPdfJob(templateId: string, jobId: string): Promise<PdfJobDto> {
+  return api(`${BASE}/templates/${templateId}/pdf/jobs/${jobId}`);
+}
+
+export function getPdfDownloadUrl(templateId: string, jobId: string): string {
+  return `${BASE}/templates/${templateId}/pdf/jobs/${jobId}/download`;
+}
+
+export function getLatestPdfUrl(templateId: string): string {
+  return `${BASE}/templates/${templateId}/pdf/latest`;
 }
