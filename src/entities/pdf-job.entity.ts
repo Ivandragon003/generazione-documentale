@@ -8,7 +8,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { DocumentEntity } from "./document.entity";
+import { TemplateEntity } from "./template.entity";
 
 @Entity({ name: "pdf_jobs" })
 @Check(
@@ -19,19 +19,19 @@ export class PdfJobEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Index("idx_pdf_jobs_document_id")
+  @Index("idx_pdf_jobs_template_id")
   @Column({ type: "uuid" })
-  document_id!: string;
+  template_id!: string;
+
+  @Column({ type: "jsonb", default: () => "'{}'", nullable: false })
+  field_values!: Record<string, string | number | boolean | null>;
 
   @ManyToOne(
-    () => DocumentEntity,
-    (document) => document.pdf_jobs,
-    {
-      onDelete: "CASCADE",
-    },
+    () => TemplateEntity,
+    { onDelete: "CASCADE" },
   )
-  @JoinColumn({ name: "document_id" })
-  document?: DocumentEntity;
+  @JoinColumn({ name: "template_id" })
+  template?: TemplateEntity;
 
   @Index("idx_pdf_jobs_status")
   @Column({ type: "varchar", length: 50, default: "queued" })
