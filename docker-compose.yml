@@ -68,6 +68,8 @@ services:
       - pdf_storage:/app/storage/pdf
       - upload_storage:/app/storage/uploads
       - ./storage/templates:/app/storage/templates
+      # Sincronizza openapi.json dal container all'host ad ogni avvio
+      - ./openapi.json:/app/openapi.json
 
     ports:
       - "${PORT:-3000}:3000"
