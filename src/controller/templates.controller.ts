@@ -132,7 +132,6 @@ export class TemplatesController {
     example: "ivan",
   })
   async create(@Body() body: CreateTemplateDto, @Req() request: Request) {
-    console.log("[POST /templates] body:", JSON.stringify(body, null, 2));
     const template = await this.templatesService.create({
       section_id: body.sectionId,
       name: body.name,
@@ -143,9 +142,7 @@ export class TemplatesController {
       created_by: getActor(request),
     });
     if (!template) throw makeError("Template non trovato", 404);
-    const response = toTemplateResponse(template);
-    console.log("[POST /templates] response id:", response.id);
-    return response;
+    return toTemplateResponse(template);
   }
 
   @Put(":id")
