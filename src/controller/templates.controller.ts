@@ -35,12 +35,12 @@ import {
   readAndCleanupUpload,
 } from "../common/utils/http.utils";
 import { appConfig } from "../config/app.config";
-import { CreateTemplateDto } from "../dto/create-template.dto";
-import { GeneratePdfDto } from "../dto/generate-pdf.dto";
+import type { CreateTemplateDto } from "../dto/create-template.dto";
+import type { GeneratePdfDto } from "../dto/generate-pdf.dto";
 import { ImportTemplateFileDto } from "../dto/import-template-file.dto";
-import { TemplateQueryDto } from "../dto/template-query.dto";
-import { UpdateTemplateDto } from "../dto/update-template.dto";
-import { ValidateMarkdownDto } from "../dto/validate-markdown.dto";
+import type { TemplateQueryDto } from "../dto/template-query.dto";
+import type { UpdateTemplateDto } from "../dto/update-template.dto";
+import type { ValidateMarkdownDto } from "../dto/validate-markdown.dto";
 import { PdfJobsService } from "../service/pdf-jobs.service";
 import { TemplatesService } from "../service/templates.service";
 

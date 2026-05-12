@@ -9,15 +9,18 @@ export class DocumentRenderingService {
     strict: boolean,
   ): { result: string; unresolved: string[] } {
     const unresolved: string[] = [];
-    const result = content.replace(/\{\{([^}]+)\}\}/g, (match, rawKey: string) => {
-      const key = rawKey.split(":")[0].trim();
-      const value = fieldValues[key];
-      if (value === undefined || value === null || value === "") {
-        unresolved.push(key);
-        return strict ? "" : match;
-      }
-      return String(value);
-    });
+    const result = content.replace(
+      /\{\{([^}]+)\}\}/g,
+      (match, rawKey: string) => {
+        const key = rawKey.split(":")[0].trim();
+        const value = fieldValues[key];
+        if (value === undefined || value === null || value === "") {
+          unresolved.push(key);
+          return strict ? "" : match;
+        }
+        return String(value);
+      },
+    );
     return { result, unresolved };
   }
 

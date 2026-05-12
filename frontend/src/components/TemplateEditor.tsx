@@ -95,7 +95,10 @@ export function TemplateEditor({
 
     // Inserisce su nuova riga in fondo (o all'inizio se l'editor è vuoto)
     const separator = markdown.length > 0 ? "\n" : "";
-    const placeholder = type && type !== "text" ? `{{${normalized}:${type}}}` : `{{${normalized}}}`;
+    const placeholder =
+      type && type !== "text"
+        ? `{{${normalized}:${type}}}`
+        : `{{${normalized}}}`;
     onChange(`${markdown}${separator}${placeholder}`);
   }
 

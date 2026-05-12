@@ -15,6 +15,9 @@
  * - FIX: content_path con estensione .md viene strippato prima dell'uso.
  * - FIX: guard esplicito su content undefined/null in create() per diagnosticare
  *   chiamate POST errate (il client invia POST invece di PUT su update).
+ * - NUOVO: importGitHubTemplateToDb() salva solo i metadati nel DB senza
+ *   riscrivere il file su GitHub (usato da PdfJobsService.enqueue).
+ * - FIX: update() su template GitHub fa sovrascrittura su GitHub (non fallback locale).
  */
 
 import { randomUUID } from "node:crypto";
@@ -32,6 +35,7 @@ import {
 import { appConfig } from "../config/app.config";
 import type { TemplateEntity } from "../entities/template.entity";
 import { TemplatesRepository } from "../repository/templates.repository";
+import type { GitHubTemplateFile } from "./github-storage.service";
 import { GitHubStorageService } from "./github-storage.service";
 
 export interface CreateTemplateInput {
@@ -148,8 +152,12 @@ export class TemplatesService {
       data.map((row) => this.hydrateContent(row, false)),
     );
     const githubTemplates = await this.githubStorage.listTemplates();
+    // Mostra solo i template locali che hanno contenuto reale su GitHub.
+    // I template del seed (UUID nel DB ma file non su GitHub) hanno content=""
+    // e vengono nascosti: l'utente deve vedere solo i template da GitHub.
     const localTemplates = hydratedData.filter(
-      (row): row is TemplateEntity & { content: string } => Boolean(row),
+      (row): row is TemplateEntity & { content: string } =>
+        Boolean(row) && Boolean(row!.content?.trim()),
     );
 
     // De-duplicazione: escludiamo i template GitHub che sono già stati importati/sincronizzati localmente
@@ -220,7 +228,6 @@ export class TemplatesService {
 
     // Guard esplicito: content undefined/null indica che il client ha inviato
     // una richiesta POST (creazione) invece di PUT (aggiornamento).
-    // Messaggio diagnostico più chiaro rispetto al generico "contenuto vuoto".
     if (content === undefined || content === null) {
       throw makeError(
         "Il campo 'content' manca nel body della richiesta. " +
@@ -253,7 +260,6 @@ export class TemplatesService {
 
     try {
       // Fase 2: salva i metadati nel DB.
-      // content_path contiene il templateId (UUID puro o path normalizzato, senza .md).
       const template = await this.dataSource.transaction(async (manager) =>
         this.templatesRepository.insertTemplate(manager, {
           id,
@@ -300,7 +306,8 @@ export class TemplatesService {
     const rawId = existing.content_path ?? id;
     const templateId = this.normalizeTemplateId(rawId);
 
-    // Fase 1: aggiorna il file su GitHub
+    // Fase 1: sovrascrittura su GitHub (non fallback locale)
+    // writeTemplate usa PUT con sha se il file esiste già → aggiornamento atomico
     await this.githubStorage.writeTemplate(templateId, nextContent);
 
     try {
@@ -309,7 +316,7 @@ export class TemplatesService {
           id,
           name: name?.trim() || existing.name,
           description: description ?? existing.description,
-          contentPath: templateId, // salva UUID puro, senza .md
+          contentPath: templateId,
           fields: nextFields,
           status: status ?? existing.status,
         }),
@@ -323,6 +330,53 @@ export class TemplatesService {
       );
       throw error;
     }
+  }
+
+  /**
+   * Importa un template GitHub virtuale nel DB locale salvando solo i metadati.
+   * NON riscrive il file su GitHub (il file esiste già lì).
+   * Usato da PdfJobsService.enqueue() per ottenere un UUID reale per il job.
+   */
+  async importGitHubTemplateToDb(
+    template: GitHubTemplateFile | (TemplateEntity & { content: string }),
+    actor = "system",
+  ): Promise<TemplateEntity> {
+    // Ricerca per content_path: se già importato, restituisce quello esistente
+    const contentPath = this.normalizeTemplateId(
+      (template as GitHubTemplateFile).githubPath ??
+        template.content_path ??
+        template.id,
+    );
+
+    const existing = await this.dataSource
+      .getRepository("TemplateEntity")
+      .findOne({ where: { content_path: contentPath } });
+
+    if (existing) return existing as TemplateEntity;
+
+    const normalizedFields: FieldDefinition[] = normalizeFieldDefinitions(
+      template.content ?? "",
+      (template.fields as PartialFieldDefinition[]) ?? [],
+    );
+
+    const id = randomUUID();
+    const saved = await this.dataSource.transaction(async (manager) =>
+      this.templatesRepository.insertTemplate(manager, {
+        id,
+        name: template.name,
+        description: (template as GitHubTemplateFile).description ?? undefined,
+        contentPath,
+        fields: normalizedFields,
+        createdBy: actor,
+        status: "published",
+      }),
+    );
+
+    this.logger.log(
+      `Template GitHub "${template.name}" importato nel DB con id ${id} (content_path: ${contentPath})`,
+    );
+
+    return saved;
   }
 
   async importFromMarkdown(
