@@ -1,9 +1,12 @@
 [
   {
+    "category": "portfolio",
+    "section": "sezione-commerciale",
     "id": "contratto-servizi",
     "name": "Contratto di Servizi Professionali",
     "description": "Contratto completo per servizi IT/consulenza con SLA, penali e tabelle di costo",
-    "file": "contratto-servizi.md",
+    "file": "portfolio/sezione-commerciale/contratto-servizi.md",
+    "status": "published",
     "fields": [
       "ragione_sociale_cliente",
       "partita_iva_cliente",
@@ -22,26 +25,13 @@
     ]
   },
   {
-    "id": "capitolato-tecnico",
-    "name": "Capitolato Tecnico d'Appalto",
-    "description": "Capitolato per gare d'appalto con requisiti tecnici, tabelle di valutazione e cronoprogramma",
-    "file": "capitolato-tecnico.md",
-    "fields": [
-      "ente_appaltante",
-      "codice_gara",
-      "oggetto_appalto",
-      "importo_base",
-      "data_scadenza",
-      "responsabile_procedimento",
-      "durata_contratto",
-      "luogo_esecuzione"
-    ]
-  },
-  {
+    "category": "portfolio",
+    "section": "sezione-commerciale",
     "id": "offerta-commerciale",
     "name": "Offerta Commerciale Dettagliata",
     "description": "Offerta commerciale con listino prezzi, sconti, condizioni di pagamento e note tecniche",
-    "file": "offerta-commerciale.md",
+    "file": "portfolio/sezione-commerciale/offerta-commerciale.md",
+    "status": "published",
     "fields": [
       "numero_offerta",
       "data_offerta",
@@ -54,10 +44,32 @@
     ]
   },
   {
+    "category": "programma",
+    "section": "gare-appalto",
+    "id": "capitolato-tecnico",
+    "name": "Capitolato Tecnico d'Appalto",
+    "description": "Capitolato per gare d'appalto con requisiti tecnici, tabelle di valutazione e cronoprogramma",
+    "file": "programma/gare-appalto/capitolato-tecnico.md",
+    "status": "published",
+    "fields": [
+      "ente_appaltante",
+      "codice_gara",
+      "oggetto_appalto",
+      "importo_base",
+      "data_scadenza",
+      "responsabile_procedimento",
+      "durata_contratto",
+      "luogo_esecuzione"
+    ]
+  },
+  {
+    "category": "progetto",
+    "section": "riunioni",
     "id": "verbale-riunione",
     "name": "Verbale di Riunione Tecnica",
     "description": "Verbale strutturato con ordine del giorno, decisioni, action items e tabella presenti",
-    "file": "verbale-riunione.md",
+    "file": "progetto/riunioni/verbale-riunione.md",
+    "status": "published",
     "fields": [
       "progetto",
       "data_riunione",
