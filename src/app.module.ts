@@ -17,6 +17,7 @@ import { SectionsModule } from "./sections.module";
 import { DocumentEventsService } from "./service/document-events.service";
 import { DocumentRenderingService } from "./service/document-rendering.service";
 import { DocumentsService } from "./service/documents.service";
+import { GitHubStorageService } from "./service/github-storage.service";
 import { PdfGenerationService } from "./service/pdf-generation.service";
 import { PdfJobsService } from "./service/pdf-jobs.service";
 import { PreviewService } from "./service/preview.service";
@@ -44,11 +45,16 @@ import { TemplatesService } from "./service/templates.service";
   ],
   controllers: [HealthController, TemplatesController, DocumentsController],
   providers: [
+    // Storage
+    GitHubStorageService,
+    // Templates
     TemplatesRepository,
     TemplatesService,
+    // Documents
     DocumentsRepository,
     DocumentsService,
     PreviewService,
+    // PDF
     DocumentEventsService,
     DocumentRenderingService,
     PdfGenerationService,

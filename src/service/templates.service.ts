@@ -1,6 +1,18 @@
+/**
+ * templates.service.ts
+ *
+ * Modifiche rispetto alla versione originale:
+ * - Rimosso: writeFile, readFile, rename, mkdir, unlink da node:fs/promises
+ * - Aggiunto: GitHubStorageService per read/write/delete dei file .md
+ * - content_path ora contiene solo il templateId (non un percorso su disco)
+ *   Il GitHubStorageService calcola internamente il path GitHub.
+ * - Rimosso il pattern tmp+rename (non necessario con GitHub che gestisce
+ *   la consistenza lato suo con il campo sha).
+ * - La logica di business (validazione, normalizzazione campi, versioning)
+ *   rimane invariata.
+ */
+
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
 import type { DataSource } from "typeorm";
@@ -15,6 +27,7 @@ import {
 import { appConfig } from "../config/app.config";
 import type { TemplateEntity } from "../entities/template.entity";
 import { TemplatesRepository } from "../repository/templates.repository";
+import { GitHubStorageService } from "./github-storage.service";
 
 export interface CreateTemplateInput {
   section_id?: string;
@@ -36,7 +49,6 @@ export interface UpdateTemplateInput {
 }
 
 const MAX_TEMPLATE_CONTENT_BYTES = appConfig.maxTemplateContentBytes;
-const TEMPLATES_STORAGE_PATH = resolve(appConfig.templatesStoragePath);
 
 @Injectable()
 export class TemplatesService {
@@ -47,57 +59,15 @@ export class TemplatesService {
     private readonly dataSource: DataSource,
     @Inject(TemplatesRepository)
     private readonly templatesRepository: TemplatesRepository,
+    @Inject(GitHubStorageService)
+    private readonly githubStorage: GitHubStorageService,
   ) {}
+
+  // ── Helpers privati ──────────────────────────────────────────────────────
 
   private assertValidContent(content: string): void {
     const result = validateMarkdownContent(content, MAX_TEMPLATE_CONTENT_BYTES);
     if (!result.valid) throw makeError(result.errors.join("; "), 400);
-  }
-
-  private templateFilePath(contentPath: string): string {
-    return join(TEMPLATES_STORAGE_PATH, contentPath);
-  }
-
-  private toStorageFilename(templateId: string): string {
-    return `${templateId}.md`;
-  }
-
-  private async readTemplateContent(
-    contentPath: string | null,
-  ): Promise<string | null> {
-    if (!contentPath) return null;
-    try {
-      return await readFile(this.templateFilePath(contentPath), "utf8");
-    } catch (error) {
-      this.logger.error(
-        `Impossibile leggere template locale: ${contentPath}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      return null;
-    }
-  }
-
-  private async deleteTemplateContent(
-    contentPath: string | null,
-  ): Promise<void> {
-    if (!contentPath) return;
-    await unlink(this.templateFilePath(contentPath)).catch(() => undefined);
-  }
-
-  private async hydrateContent<T extends { content_path: string | null }>(
-    row: T | null,
-  ): Promise<(T & { content: string }) | null> {
-    if (!row) return null;
-    const content = await this.readTemplateContent(row.content_path);
-    if (content === null) {
-      // Il file su disco non e disponibile: e un problema di infrastruttura, non un bug applicativo
-      this.logger.error(
-        `Template content file not found - missing path: "${row.content_path}"`,
-        "Template hydration failed",
-      );
-      throw makeError("Contenuto template locale non disponibile", 503);
-    }
-    return { ...row, content };
   }
 
   private async findOneOrThrow(
@@ -108,6 +78,33 @@ export class TemplatesService {
     if (!template) throw makeError("Template non trovato", 404);
     return template;
   }
+
+  /**
+   * Idrata il campo virtuale `content` leggendo da GitHub.
+   * content_path contiene il templateId (usato come chiave su GitHub).
+   * Se il file non esiste su GitHub, lancia 503.
+   */
+  private async hydrateContent<
+    T extends { content_path: string | null; id: string },
+  >(row: T | null): Promise<(T & { content: string }) | null> {
+    if (!row) return null;
+
+    // content_path contiene il templateId oppure può essere null per template legacy
+    const templateId = row.content_path ?? row.id;
+
+    const content = await this.githubStorage.readTemplate(templateId);
+
+    if (content === null) {
+      this.logger.error(
+        `Contenuto template non trovato su GitHub per id: ${templateId}`,
+      );
+      throw makeError("Contenuto template non disponibile su GitHub", 503);
+    }
+
+    return { ...row, content };
+  }
+
+  // ── API pubblica ─────────────────────────────────────────────────────────
 
   async findAll({
     status,
@@ -129,9 +126,11 @@ export class TemplatesService {
       limit,
       offset,
     });
+
     const hydratedData = await Promise.all(
       data.map((row) => this.hydrateContent(row)),
     );
+
     return {
       data: hydratedData.filter(
         (row): row is TemplateEntity & { content: string } => Boolean(row),
@@ -162,6 +161,7 @@ export class TemplatesService {
     if (!name || name.trim().length === 0) {
       throw makeError("Il nome del template e obbligatorio", 400);
     }
+
     if (section_id) {
       assertUuid(section_id, "section_id");
       const sectionExists =
@@ -170,40 +170,49 @@ export class TemplatesService {
         throw makeError("section_id non esistente", 400);
       }
     }
+
     this.assertValidContent(content);
+
     const id = randomUUID();
     const normalizedFields: FieldDefinition[] = normalizeFieldDefinitions(
       content,
       fields,
     );
-    const contentPath = this.toStorageFilename(id);
-    // Scrivi prima in un file temporaneo, poi rinomina atomicamente
-    // solo dopo che la transazione DB e andata a buon fine
-    const tmpPath = `${contentPath}.tmp`;
-    await mkdir(TEMPLATES_STORAGE_PATH, { recursive: true });
-    await writeFile(this.templateFilePath(tmpPath), content, "utf8");
+
+    // Fase 1: scrivi il file su GitHub PRIMA della transazione DB.
+    // Se GitHub fallisce, non tocchiamo il DB.
+    await this.githubStorage.writeTemplate(id, content);
+
     try {
+      // Fase 2: salva i metadati nel DB.
+      // content_path contiene il templateId — usato da hydrateContent come chiave GitHub.
       const template = await this.dataSource.transaction(async (manager) =>
         this.templatesRepository.insertTemplate(manager, {
           id,
           sectionId: section_id,
           name: name.trim(),
           description,
-          contentPath,
+          contentPath: id, // il templateId è la chiave GitHub
           fields: normalizedFields,
           createdBy: created_by,
           status,
         }),
       );
-      // DB ok -> promuovi il file temporaneo al percorso definitivo
-      await rename(
-        this.templateFilePath(tmpPath),
-        this.templateFilePath(contentPath),
-      );
+
       return this.hydrateContent(template);
     } catch (error) {
-      // DB fallito o rename fallita -> elimina il file temporaneo
-      await unlink(this.templateFilePath(tmpPath)).catch(() => undefined);
+      // DB fallito: tentiamo rollback su GitHub (best effort)
+      this.logger.error(
+        `Transazione DB fallita per template ${id}, tentativo rollback GitHub`,
+      );
+      await this.githubStorage.deleteTemplate(id).catch((deleteError) => {
+        this.logger.error(
+          `Rollback GitHub fallito per template ${id}:`,
+          deleteError instanceof Error
+            ? deleteError.message
+            : String(deleteError),
+        );
+      });
       throw error;
     }
   }
@@ -220,6 +229,7 @@ export class TemplatesService {
     }: UpdateTemplateInput,
   ) {
     const existing = await this.findOneOrThrow(id);
+
     if (section_id !== undefined && section_id !== null) {
       assertUuid(section_id, "section_id");
       const sectionExists =
@@ -228,20 +238,22 @@ export class TemplatesService {
         throw makeError("section_id non esistente", 400);
       }
     }
+
     const nextContent = content ?? existing.content;
     this.assertValidContent(nextContent);
+
     const nextFields = normalizeFieldDefinitions(
       nextContent,
       fields ?? existing.fields,
     );
-    const contentPath = existing.content_path ?? this.toStorageFilename(id);
 
-    // Usa pattern tmp+rename atomica: scrivi su .tmp, commit DB, poi rename
-    // Cosi se la transaction fallisce il file originale e intatto
-    const tmpPath = `${contentPath}.tmp`;
-    await mkdir(TEMPLATES_STORAGE_PATH, { recursive: true });
-    await writeFile(this.templateFilePath(tmpPath), nextContent, "utf8");
+    const templateId = existing.content_path ?? id;
+
+    // Fase 1: aggiorna il file su GitHub (PUT con sha recuperato internamente)
+    await this.githubStorage.writeTemplate(templateId, nextContent);
+
     try {
+      // Fase 2: aggiorna i metadati nel DB
       const updated = await this.dataSource.transaction(async (manager) =>
         this.templatesRepository.updateTemplate(manager, {
           id,
@@ -251,20 +263,21 @@ export class TemplatesService {
               : (section_id ?? null),
           name: name?.trim() || existing.name,
           description: description ?? existing.description,
-          contentPath,
+          contentPath: templateId,
           fields: nextFields,
           status: status ?? existing.status,
         }),
       );
-      // DB ok -> promuovi il file temporaneo
-      await rename(
-        this.templateFilePath(tmpPath),
-        this.templateFilePath(contentPath),
-      );
+
       return this.hydrateContent(updated);
     } catch (error) {
-      // DB fallito o rename fallita -> elimina il file temporaneo, il file originale e ancora valido
-      await unlink(this.templateFilePath(tmpPath)).catch(() => undefined);
+      // GitHub è già aggiornato ma DB è fallito.
+      // Non possiamo fare rollback atomico su GitHub facilmente.
+      // Logghiamo come ERRORE CRITICO per intervento manuale.
+      this.logger.error(
+        `CRITICO: GitHub aggiornato ma DB fallito per template ${id}. ` +
+          `Potrebbe esserci disallineamento. Verificare manualmente.`,
+      );
       throw error;
     }
   }
@@ -280,6 +293,7 @@ export class TemplatesService {
 
   async delete(id: string) {
     const template = await this.findOneOrThrow(id);
+
     const activeDocuments =
       await this.templatesRepository.countActiveDocuments(id);
     if (activeDocuments > 0) {
@@ -288,8 +302,19 @@ export class TemplatesService {
         409,
       );
     }
+
+    // Fase 1: elimina dal DB
     await this.templatesRepository.deleteTemplate(id);
-    await this.deleteTemplateContent(template.content_path);
+
+    // Fase 2: elimina da GitHub (best effort — non lancia se fallisce)
+    const templateId = template.content_path ?? id;
+    await this.githubStorage.deleteTemplate(templateId).catch((error) => {
+      this.logger.error(
+        `Impossibile eliminare template ${id} da GitHub (DB già aggiornato):`,
+        error instanceof Error ? error.message : String(error),
+      );
+    });
+
     return { deleted: true };
   }
 

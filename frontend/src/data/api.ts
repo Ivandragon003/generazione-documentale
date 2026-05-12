@@ -22,7 +22,7 @@ export type TemplateDto = {
 export type DocumentDto = {
   id: string;
   name: string;
-  templateId: string | null; // camelCase — backend: toDocumentResponse
+  templateId: string | null;
   content: string;
   fieldValues: Record<string, string | number | boolean | null>;
   status: DocumentStatus;
@@ -32,7 +32,7 @@ export type DocumentDto = {
 
 export type PdfJobDto = {
   id: string;
-  documentId: string; // camelCase — backend: toPdfJobResponse
+  documentId: string;
   status: "queued" | "running" | "completed" | "failed";
   filename: string | null;
   unresolvedFields: string[];
@@ -41,6 +41,29 @@ export type PdfJobDto = {
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
+};
+
+/**
+ * Tipo campo allineato a TemplateFieldDto del backend.
+ * IMPORTANTE: usa "name" (non "key") — whitelist:true nel ValidationPipe
+ * strippava "key" causando body:undefined nel controller.
+ */
+export type ApiTemplateField = {
+  name: string; // corrisponde a TemplateFieldDto.name
+  label?: string;
+  type?:
+    | "text"
+    | "textarea"
+    | "number"
+    | "date"
+    | "boolean"
+    | "email"
+    | "url"
+    | "tel"
+    | "select"
+    | "currency";
+  required?: boolean;
+  defaultValue?: string;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -75,10 +98,14 @@ export function getTemplateById(id: string): Promise<TemplateDto> {
   return api(`${BASE}/templates/${id}`);
 }
 
+/**
+ * Crea un nuovo template.
+ * Il payload usa ApiTemplateField (con "name") — non TemplateVersion["fields"] (con "key").
+ */
 export function createTemplate(payload: {
   name: string;
   content: string;
-  fields: TemplateVersion["fields"];
+  fields?: ApiTemplateField[];
   sectionId?: string;
   status?: "draft" | "published";
 }): Promise<TemplateDto> {
@@ -88,12 +115,16 @@ export function createTemplate(payload: {
   });
 }
 
+/**
+ * Aggiorna un template esistente.
+ * Stessa convenzione: fields usa ApiTemplateField.
+ */
 export function updateTemplate(
   id: string,
   payload: {
     name?: string;
     content?: string;
-    fields?: TemplateVersion["fields"];
+    fields?: ApiTemplateField[];
     status?: "draft" | "published";
   },
 ): Promise<TemplateDto> {
@@ -130,10 +161,6 @@ export function createDocument(payload: {
   });
 }
 
-/**
- * Aggiorna nome, content e/o fieldValues di un documento.
- * Usa PUT /api/documents/:id
- */
 export function updateDocument(
   id: string,
   payload: {
@@ -154,17 +181,14 @@ export function deleteDocument(id: string): Promise<void> {
 
 // ─── PDF Jobs ─────────────────────────────────────────────────────────────────
 
-/** Avvia generazione PDF → POST /api/documents/:id/pdf */
 export function triggerPdfGeneration(documentId: string): Promise<PdfJobDto> {
   return api(`${BASE}/documents/${documentId}/pdf`, { method: "POST" });
 }
 
-/** Lista job PDF di un documento → GET /api/documents/:id/pdf/jobs */
 export function getPdfJobs(documentId: string): Promise<PdfJobDto[]> {
   return api(`${BASE}/documents/${documentId}/pdf/jobs`);
 }
 
-/** Stato singolo job → GET /api/documents/:id/pdf/jobs/:jobId */
 export function getPdfJob(
   documentId: string,
   jobId: string,
@@ -172,12 +196,10 @@ export function getPdfJob(
   return api(`${BASE}/documents/${documentId}/pdf/jobs/${jobId}`);
 }
 
-/** URL download PDF completato */
 export function getPdfDownloadUrl(documentId: string, jobId: string): string {
   return `${BASE}/documents/${documentId}/pdf/jobs/${jobId}/download`;
 }
 
-/** URL ultimo PDF completato */
 export function getLatestPdfUrl(documentId: string): string {
   return `${BASE}/documents/${documentId}/pdf/latest`;
 }
