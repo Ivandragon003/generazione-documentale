@@ -53,24 +53,6 @@
             }
           },
           {
-            "name": "categoryId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "sectionId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
             "name": "status",
             "required": false,
             "in": "query",
@@ -90,7 +72,17 @@
       },
       "post": {
         "operationId": "TemplatesController_create",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "x-user",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "ivan"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -143,6 +135,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "x-user",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "ivan"
+            }
           }
         ],
         "requestBody": {
@@ -173,6 +174,15 @@
             "description": "UUID template",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "x-user",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "ivan"
             }
           }
         ],
@@ -211,7 +221,17 @@
     "/api/templates/import": {
       "post": {
         "operationId": "TemplatesController_import",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "x-user",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "ivan"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -254,49 +274,29 @@
         "tags": ["templates"]
       }
     },
-    "/api/documents": {
-      "get": {
-        "operationId": "DocumentsController_findAll",
+    "/api/templates/{id}/pdf": {
+      "post": {
+        "operationId": "TemplatesController_generatePdf",
         "parameters": [
           {
-            "name": "offset",
-            "required": false,
-            "in": "query",
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID template",
             "schema": {
-              "example": 0,
-              "type": "number"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "example": 20,
-              "type": "number"
-            }
-          },
-          {
-            "name": "status",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "enum": ["draft", "generated", "published", "archived"],
               "type": "string"
+            }
+          },
+          {
+            "name": "x-user",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "ivan"
             }
           }
         ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Lista documenti",
-        "tags": ["documents"]
-      },
-      "post": {
-        "operationId": "DocumentsController_create",
-        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -312,121 +312,19 @@
             "description": ""
           }
         },
-        "summary": "Crea documento da template",
-        "tags": ["documents"]
+        "summary": "Avvia generazione PDF da template",
+        "tags": ["templates"]
       }
     },
-    "/api/documents/{id}": {
+    "/api/templates/{id}/pdf/jobs": {
       "get": {
-        "operationId": "DocumentsController_findOne",
+        "operationId": "TemplatesController_getPdfJobs",
         "parameters": [
           {
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "UUID documento",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "404": {
-            "description": "Documento non trovato"
-          }
-        },
-        "summary": "Dettaglio documento",
-        "tags": ["documents"]
-      },
-      "put": {
-        "operationId": "DocumentsController_update",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "UUID documento",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Function"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Aggiorna documento",
-        "tags": ["documents"]
-      },
-      "delete": {
-        "operationId": "DocumentsController_delete",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "UUID documento",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "summary": "Elimina documento",
-        "tags": ["documents"]
-      }
-    },
-    "/api/documents/{id}/pdf": {
-      "post": {
-        "operationId": "DocumentsController_enqueuePdf",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "PDF job creato con successo - processing avviato"
-          },
-          "404": {
-            "description": "Documento o template non trovato"
-          },
-          "422": {
-            "description": "Campi obbligatori non compilati"
-          }
-        },
-        "summary": "Avvia generazione PDF",
-        "tags": ["documents"]
-      }
-    },
-    "/api/documents/{id}/pdf/jobs": {
-      "get": {
-        "operationId": "DocumentsController_getPdfJobs",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
+            "description": "UUID template",
             "schema": {
               "type": "string"
             }
@@ -437,18 +335,19 @@
             "description": ""
           }
         },
-        "summary": "Lista job PDF del documento",
-        "tags": ["documents"]
+        "summary": "Lista job PDF del template",
+        "tags": ["templates"]
       }
     },
-    "/api/documents/{id}/pdf/jobs/{jobId}": {
+    "/api/templates/{id}/pdf/jobs/{jobId}": {
       "get": {
-        "operationId": "DocumentsController_getPdfJob",
+        "operationId": "TemplatesController_getPdfJob",
         "parameters": [
           {
             "name": "id",
             "required": true,
             "in": "path",
+            "description": "UUID template",
             "schema": {
               "type": "string"
             }
@@ -457,6 +356,7 @@
             "name": "jobId",
             "required": true,
             "in": "path",
+            "description": "UUID job",
             "schema": {
               "type": "string"
             }
@@ -467,16 +367,19 @@
             "description": ""
           }
         },
-        "summary": "Stato job PDF",
-        "tags": ["documents"]
-      },
-      "delete": {
-        "operationId": "DocumentsController_deletePdf",
+        "summary": "Dettaglio job PDF",
+        "tags": ["templates"]
+      }
+    },
+    "/api/templates/{id}/pdf/jobs/{jobId}/download": {
+      "get": {
+        "operationId": "TemplatesController_downloadPdfJob",
         "parameters": [
           {
             "name": "id",
             "required": true,
             "in": "path",
+            "description": "UUID template",
             "schema": {
               "type": "string"
             }
@@ -485,36 +388,30 @@
             "name": "jobId",
             "required": true,
             "in": "path",
+            "description": "UUID job",
             "schema": {
               "type": "string"
             }
           }
         ],
         "responses": {
-          "204": {
+          "200": {
             "description": ""
           }
         },
-        "summary": "Elimina PDF generato",
-        "tags": ["documents"]
+        "summary": "Scarica PDF da job specifico",
+        "tags": ["templates"]
       }
     },
-    "/api/documents/{id}/pdf/jobs/{jobId}/download": {
+    "/api/templates/{id}/pdf/latest": {
       "get": {
-        "operationId": "DocumentsController_downloadPdf",
+        "operationId": "TemplatesController_downloadLatestPdf",
         "parameters": [
           {
             "name": "id",
             "required": true,
             "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "jobId",
-            "required": true,
-            "in": "path",
+            "description": "UUID template",
             "schema": {
               "type": "string"
             }
@@ -525,65 +422,8 @@
             "description": ""
           }
         },
-        "summary": "Download PDF completato",
-        "tags": ["documents"]
-      }
-    },
-    "/api/documents/{id}/pdf/latest": {
-      "get": {
-        "operationId": "DocumentsController_downloadLatestPdf",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Download ultimo PDF completato",
-        "tags": ["documents"]
-      }
-    },
-    "/api/documents/{id}/preview": {
-      "get": {
-        "operationId": "DocumentsController_previewDocument",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Anteprima documento renderizzata (no PDF)",
-        "tags": ["documents"]
-      }
-    },
-    "/api/sections": {
-      "get": {
-        "operationId": "SectionsController_findAll",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Lista sezioni con categoria",
-        "tags": ["sections"]
+        "summary": "Scarica l'ultimo PDF completato",
+        "tags": ["templates"]
       }
     }
   },
@@ -629,11 +469,6 @@
             "type": "string",
             "description": "Nome del template (opzionale)",
             "example": "Template importato"
-          },
-          "sectionId": {
-            "type": "string",
-            "description": "UUID sezione associata al template",
-            "format": "uuid"
           }
         }
       }

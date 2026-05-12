@@ -51,9 +51,7 @@ describe("TemplatesRepository", () => {
     return qb;
   }
 
-  async function buildModule(
-    managerStub?: ReturnType<typeof makeManagerStub>,
-  ) {
+  async function buildModule(managerStub?: ReturnType<typeof makeManagerStub>) {
     tplRepo = makeTplRepo(managerStub);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
