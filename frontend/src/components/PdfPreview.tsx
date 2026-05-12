@@ -11,6 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { PdfJobDto } from "../data/api";
 
 type Props = {
@@ -117,7 +118,7 @@ export function PdfPreview({
         </Stack>
         <Divider sx={{ my: 4 }} />
         <Box className="markdown-preview">
-          <ReactMarkdown>{content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
         </Box>
       </Paper>
     </Stack>

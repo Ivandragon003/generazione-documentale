@@ -213,18 +213,20 @@ export default function App() {
         const tmplRes = await withBootRetry(() => getTemplates());
         if (cancelled) return;
 
-        // Preferisci template con UUID valido come primo selezionato
+        // Preferisci template con UUID valido E contenuto non vuoto come primo selezionato
         const firstTemplate =
-          tmplRes.data.find((t) => isUuid(t.id)) ?? tmplRes.data[0] ?? null;
+          tmplRes.data.find((t) => isUuid(t.id) && t.content?.trim()) ??
+          tmplRes.data.find((t) => isUuid(t.id)) ??
+          tmplRes.data[0] ??
+          null;
 
         setTemplates(tmplRes.data);
 
         if (firstTemplate) {
           setTemplate(firstTemplate);
-          setMarkdown(firstTemplate.content);
-          originalPlaceholders.current = extractPlaceholders(
-            firstTemplate.content,
-          );
+          const content = firstTemplate.content?.trim() ?? "";
+          setMarkdown(content);
+          originalPlaceholders.current = extractPlaceholders(content);
         }
 
         const docRes = await getDocuments().catch(() => {
@@ -351,6 +353,16 @@ export default function App() {
 
   // ── Salva ─────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
+    // Guard: impedisce il 400 dal backend se il contenuto è vuoto
+    if (!markdown.trim()) {
+      setSnack({
+        open: true,
+        msg: "Il contenuto del template è vuoto. Aggiungi del testo prima di salvare.",
+        severity: "error",
+      });
+      return;
+    }
+
     setAppStatus("saving");
     try {
       const currentPlaceholders = extractPlaceholders(markdown);
