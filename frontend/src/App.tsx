@@ -18,6 +18,7 @@ import { TemplateEditor } from "./components/TemplateEditor";
 import {
   createDocument,
   createTemplate,
+  type ApiTemplateField,
   type DocumentDto,
   getDocuments,
   getPdfJobs,
@@ -39,8 +40,24 @@ const tabLabels = ["Template", "Campi", "Anteprima PDF"];
 
 type AppStatus = "loading" | "ready" | "saving" | "error";
 
+/** Crea un ApiTemplateField (per il backend) da una chiave placeholder */
+function apiFieldFromKey(key: string): ApiTemplateField {
+  return { name: key, label: key, type: "text" };
+}
+
+/** Crea un TemplateField (per FieldsPanel) da una chiave placeholder */
 function fieldFromKey(key: string): TemplateField {
   return { key, label: key, type: "text", placeholder: `Valore per ${key}` };
+}
+
+/** Converte ApiTemplateField → TemplateField per la UI */
+function toTemplateField(f: ApiTemplateField): TemplateField {
+  return {
+    key: f.name,
+    label: f.label ?? f.name,
+    type: "text",
+    placeholder: `Valore per ${f.name}`,
+  };
 }
 
 /** Controlla se una stringa è un UUID v1-v5 valido */
@@ -157,7 +174,7 @@ export default function App() {
         const newTmpl = await createTemplate({
           name: (template?.name ?? "Template") + " (rev)",
           content: markdown,
-          fields: currentPlaceholders.map(fieldFromKey),
+          fields: currentPlaceholders.map(apiFieldFromKey),
         });
         setTemplate(newTmpl);
         originalPlaceholders.current = extractPlaceholders(newTmpl.content);
@@ -193,7 +210,7 @@ export default function App() {
           activeTmpl = await createTemplate({
             name: template?.name ?? "Nuovo Template",
             content: markdown,
-            fields: currentPlaceholders.map(fieldFromKey),
+            fields: currentPlaceholders.map(apiFieldFromKey),
           });
         }
         setTemplate(activeTmpl);
@@ -262,9 +279,11 @@ export default function App() {
 
   const visibleFields = useMemo((): TemplateField[] => {
     const keys = new Set(currentPlaceholders);
-    const tmplFields: TemplateField[] = (
-      (template?.fields as TemplateField[]) ?? []
-    ).filter((f) => keys.has(f.key));
+    // Mappa ApiTemplateField → TemplateField per i campi già salvati nel template
+    const tmplFields: TemplateField[] = (template?.fields ?? [])
+      .filter((f) => keys.has(f.name))
+      .map(toTemplateField);
+    // Aggiunge i campi nuovi non ancora nel template
     const extra: TemplateField[] = currentPlaceholders
       .filter((k) => !tmplFields.some((f) => f.key === k))
       .map(fieldFromKey);
