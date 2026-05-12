@@ -101,13 +101,22 @@ export class PdfGenerationService {
         rejectRun(new Error(`Pandoc exit ${code}: ${stderr.slice(0, 500)}`));
       });
 
-      process.on("error", (error) => {
+      process.on("error", (error: any) => {
         clearTimeout(timer);
-        rejectRun(
-          new Error(
-            `Pandoc non trovato (${pdfConfig.pandocPath}): ${error.message}`,
-          ),
-        );
+        if (error.code === "ENOENT") {
+          rejectRun(
+            new Error(
+              `Pandoc non trovato al percorso: ${pdfConfig.pandocPath}. ` +
+                "Assicurati che Pandoc sia installato nel sistema o nel container Docker.",
+            ),
+          );
+        } else {
+          rejectRun(
+            new Error(
+              `Errore avvio Pandoc (${pdfConfig.pandocPath}): ${error.message}`,
+            ),
+          );
+        }
       });
 
       process.stdin.end(input, "utf8");

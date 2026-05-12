@@ -139,8 +139,12 @@ describe("PdfGenerationService", () => {
       const proc: MockChildProcess = {
         stdin: { end: jest.fn() },
         stderr: { on: jest.fn() },
-        on: jest.fn((event: string, cb: (err?: Error) => void) => {
-          if (event === "error") setTimeout(() => cb(new Error("ENOENT")), 0);
+        on: jest.fn((event: string, cb: (err?: any) => void) => {
+          if (event === "error") {
+            const err = new Error("ENOENT") as any;
+            err.code = "ENOENT";
+            setTimeout(() => cb(err), 0);
+          }
         }),
         kill: jest.fn(),
       };
