@@ -41,6 +41,7 @@ export interface CreateTemplateInput {
   fields?: PartialFieldDefinition[];
   created_by?: string;
   status?: "draft" | "published";
+  path?: string;
 }
 
 export interface UpdateTemplateInput {
@@ -175,6 +176,7 @@ export class TemplatesService {
     fields,
     created_by = "system",
     status,
+    path,
   }: CreateTemplateInput) {
     if (!name || name.trim().length === 0) {
       throw makeError("Il nome del template e obbligatorio", 400);
@@ -194,6 +196,16 @@ export class TemplatesService {
     this.assertValidContent(content);
 
     const id = randomUUID();
+    let contentPath: string = id;
+
+    if (path) {
+      // Se viene passato path (es. github:category/section/name.md),
+      // lo usiamo come contentPath rimuovendo prefisso ed estensione.
+      let normalized = path;
+      if (normalized.startsWith("github:")) normalized = normalized.slice(7);
+      contentPath = this.normalizeTemplateId(normalized);
+    }
+
     const normalizedFields: FieldDefinition[] = normalizeFieldDefinitions(
       content,
       fields,
@@ -201,17 +213,17 @@ export class TemplatesService {
 
     // Fase 1: scrivi il file su GitHub PRIMA della transazione DB.
     // Se GitHub fallisce, non tocchiamo il DB.
-    await this.githubStorage.writeTemplate(id, content);
+    await this.githubStorage.writeTemplate(contentPath, content);
 
     try {
       // Fase 2: salva i metadati nel DB.
-      // content_path contiene il templateId (UUID puro, senza .md).
+      // content_path contiene il templateId (UUID puro o path normalizzato, senza .md).
       const template = await this.dataSource.transaction(async (manager) =>
         this.templatesRepository.insertTemplate(manager, {
           id,
           name: name.trim(),
           description,
-          contentPath: id,
+          contentPath,
           fields: normalizedFields,
           createdBy: created_by,
           status,

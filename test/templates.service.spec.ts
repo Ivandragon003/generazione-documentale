@@ -157,6 +157,29 @@ describe("TemplatesService", () => {
         expect.objectContaining({ name: "Trimmed" }),
       );
     });
+
+    it("usa il path fornito come contentPath (sovrascrittura GitHub)", async () => {
+      const template = makeTemplate({ content_path: "category/section/name" });
+      templatesRepository.insertTemplate.mockResolvedValue(template);
+      dataSource.transaction.mockImplementation(runTransaction as never);
+      githubStorage.writeTemplate.mockResolvedValue(undefined);
+      githubStorage.readTemplate.mockResolvedValue("# Content");
+
+      await service.create({
+        name: "Overwrite",
+        content: "# Content",
+        path: "github:category/section/name.md",
+      });
+
+      expect(githubStorage.writeTemplate).toHaveBeenCalledWith(
+        "category/section/name",
+        "# Content",
+      );
+      expect(templatesRepository.insertTemplate).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ contentPath: "category/section/name" }),
+      );
+    });
   });
 
   describe("create() - casi limite", () => {

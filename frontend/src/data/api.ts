@@ -85,6 +85,7 @@ export function createTemplate(payload: {
   content: string;
   fields?: ApiTemplateField[];
   status?: "draft" | "published";
+  path?: string;
 }): Promise<TemplateDto> {
   return api(`${BASE}/templates`, {
     method: "POST",

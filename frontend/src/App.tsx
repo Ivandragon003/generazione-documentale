@@ -310,6 +310,7 @@ export default function App() {
           name: template?.name ?? "Nuovo Template",
           content: markdown,
           fields: currentPlaceholders.map(apiFieldFromKey),
+          path: isGithubTemplate(template) ? template?.id : undefined,
         });
         if (!isUuid(newTmpl.id))
           throw new Error(
