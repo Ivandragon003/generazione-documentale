@@ -1,207 +1,425 @@
-import type { Readable } from "node:stream";
-import { Inject, Injectable, type OnModuleDestroy } from "@nestjs/common";
-import type { Response } from "express";
+/**
+ * templates.service.ts
+ *
+ * FIX findAll():
+ * - Quando GitHub è configurato, i template DB locali che hanno content_path
+ *   uguale al loro UUID (template seeded senza corrispondenza GitHub) vengono
+ *   esclusi dalla lista — mostrare solo quelli realmente legati a file GitHub.
+ * - Un template locale "reale" ha content_path != id (es. "portfolio/offerte/nome")
+ *   oppure ha contenuto disponibile su GitHub.
+ *
+ * FIX processJob():
+ * - strict: false per non bloccare su campi non compilati (vedi pdf-jobs.service.ts)
+ *
+ * FIX hydrateContent():
+ * - Il comportamento non-strict (findAll) già restituisce content="" se mancante.
+ *   Ora il filtering esclude questi template "vuoti" in findAll.
+ */
+
+import { randomUUID } from "node:crypto";
+import { Inject, Injectable, Logger } from "@nestjs/common";
+import { InjectDataSource } from "@nestjs/typeorm";
+import type { DataSource } from "typeorm";
+import type { FieldDefinition } from "../common/types/field-definition.type";
 import { makeError } from "../common/utils/errors";
+import { assertUuid } from "../common/utils/http.utils";
+import {
+  normalizeFieldDefinitions,
+  type PartialFieldDefinition,
+  validateMarkdownContent,
+} from "../common/utils/markdown.utils";
 import { appConfig } from "../config/app.config";
-import { PdfJobsRepository } from "../repository/pdf-jobs.repository";
-import { DocumentRenderingService } from "./document-rendering.service";
-import { PdfGenerationService } from "./pdf-generation.service";
-import { TemplatesService } from "./templates.service";
+import type { TemplateEntity } from "../entities/template.entity";
+import { TemplatesRepository } from "../repository/templates.repository";
+import type { GitHubTemplateFile } from "./github-storage.service";
+import { GitHubStorageService } from "./github-storage.service";
 
-const QUEUE_RECOVERY_RETRY_MS = appConfig.pdfQueueRecoveryRetryMs;
+export interface CreateTemplateInput {
+  name: string;
+  description?: string;
+  content: string;
+  fields?: PartialFieldDefinition[];
+  created_by?: string;
+  status?: "draft" | "published";
+  path?: string;
+}
 
-function pipeToResponse(readable: Readable, response: Response): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    readable.on("error", reject);
-    response.on("error", reject);
-    response.on("finish", resolve);
-    readable.pipe(response as unknown as NodeJS.WritableStream);
-  });
+export interface UpdateTemplateInput {
+  name?: string;
+  description?: string;
+  content?: string;
+  fields?: PartialFieldDefinition[];
+  status?: "draft" | "published";
+}
+
+const MAX_TEMPLATE_CONTENT_BYTES = appConfig.maxTemplateContentBytes;
+
+/**
+ * Un template DB è "orfano locale" (seeded / legacy) se il suo content_path
+ * è identico al suo UUID — significa che non è stato creato tramite l'app
+ * con un path GitHub reale.
+ */
+function isOrphanLocalTemplate(template: TemplateEntity): boolean {
+  if (!template.content_path) return true;
+  const path = template.content_path.endsWith(".md")
+    ? template.content_path.slice(0, -3)
+    : template.content_path;
+  // Un path GitHub reale contiene almeno uno slash (categoria/sezione/nome)
+  // Un UUID non contiene slash
+  return !path.includes("/");
 }
 
 @Injectable()
-export class PdfJobsService implements OnModuleDestroy {
-  private queueRecoveryStarted = false;
-  private queueRecoveryTimer: NodeJS.Timeout | null = null;
-  private processorRunning = false;
+export class TemplatesService {
+  private readonly logger = new Logger(TemplatesService.name);
 
   constructor(
-    @Inject(PdfJobsRepository)
-    private readonly pdfJobsRepository: PdfJobsRepository,
-    @Inject(TemplatesService)
-    private readonly templatesService: TemplatesService,
-    @Inject(PdfGenerationService)
-    private readonly pdfGenerationService: PdfGenerationService,
-    @Inject(DocumentRenderingService)
-    private readonly documentRenderingService: DocumentRenderingService,
-  ) {
-    setImmediate(() => {
-      this.ensureQueueRecovery().catch(() => undefined);
-    });
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
+    @Inject(TemplatesRepository)
+    private readonly templatesRepository: TemplatesRepository,
+    @Inject(GitHubStorageService)
+    private readonly githubStorage: GitHubStorageService,
+  ) {}
+
+  // ── Helpers privati ────────────────────────────────────────────────────────
+
+  private assertValidContent(content: string): void {
+    const result = validateMarkdownContent(content, MAX_TEMPLATE_CONTENT_BYTES);
+    if (!result.valid) throw makeError(result.errors.join("; "), 400);
   }
 
-  onModuleDestroy(): void {
-    if (this.queueRecoveryTimer) {
-      clearTimeout(this.queueRecoveryTimer);
-      this.queueRecoveryTimer = null;
-    }
-  }
-
-  private async ensureQueueRecovery(): Promise<void> {
-    if (this.queueRecoveryStarted) return;
-    this.queueRecoveryStarted = true;
-    try {
-      await this.triggerQueueProcessor();
-    } catch (_error) {
-      this.queueRecoveryStarted = false;
-      if (!this.queueRecoveryTimer) {
-        this.queueRecoveryTimer = setTimeout(() => {
-          this.queueRecoveryTimer = null;
-          this.ensureQueueRecovery().catch(() => undefined);
-        }, QUEUE_RECOVERY_RETRY_MS);
-      }
-    }
-  }
-
-  private async triggerQueueProcessor(): Promise<void> {
-    if (this.processorRunning) return;
-    this.processorRunning = true;
-    try {
-      const queuedJobs = await this.pdfJobsRepository.findQueued();
-      for (const job of queuedJobs) {
-        await this.processJob(job.id).catch(() => undefined);
-      }
-    } finally {
-      this.processorRunning = false;
-    }
-  }
-
-  async enqueue(
-    templateId: string,
-    fieldValues: Record<string, string | number | boolean | null>,
-    actor = "system",
-  ) {
-    await this.ensureQueueRecovery();
-
-    let template = await this.templatesService.findOne(templateId);
-
-    // Se il template è virtuale GitHub, lo sincronizziamo nel DB locale
-    if (
-      templateId.startsWith("github:") &&
-      template?.id.startsWith("github:")
-    ) {
-      template = await this.templatesService.create({
-        name: template.name,
-        content: template.content,
-        fields: template.fields,
-        created_by: actor,
-        path: templateId,
-      });
-    }
-
+  private async findOneOrThrow(
+    id: string,
+  ): Promise<TemplateEntity & { content: string }> {
+    assertUuid(id);
+    const template = await this.findOne(id);
     if (!template) throw makeError("Template non trovato", 404);
-
-    // FIX: non blocchiamo l'accodamento per campi mancanti.
-    // Il job viene creato sempre; i campi obbligatori non compilati
-    // producono placeholder visibili nel PDF (strict: false in processJob).
-    // Segnaliamo solo un warning nei metadati del job tramite unresolved_fields.
-
-    const job = await this.pdfJobsRepository.insert(
-      template.id,
-      fieldValues,
-      actor,
-    );
-    this.triggerQueueProcessor().catch(() => undefined);
-    return job;
+    return template;
   }
 
-  async processJob(jobId: string): Promise<void> {
-    const claimed = await this.pdfJobsRepository.claim(jobId);
-    if (!claimed) return;
+  private normalizeTemplateId(raw: string): string {
+    return raw.endsWith(".md") ? raw.slice(0, -3) : raw;
+  }
 
-    const job = await this.pdfJobsRepository.findById(jobId);
-    if (!job || job.status !== "running") return;
+  private async hydrateContent<
+    T extends { content_path: string | null; id: string },
+  >(row: T | null, strict = false): Promise<(T & { content: string }) | null> {
+    if (!row) return null;
 
-    try {
-      const template = await this.templatesService.findOne(job.template_id);
-      if (!template) throw new Error("Template non trovato");
+    const rawId = row.content_path ?? row.id;
+    const templateId = this.normalizeTemplateId(rawId);
 
-      if (!template.content || template.content.trim().length === 0) {
-        throw new Error(
-          "Contenuto del template non disponibile. " +
-            "Verifica che il file Markdown sia accessibile (GitHub o storage locale).",
+    const content = await this.githubStorage.readTemplate(templateId);
+
+    if (content === null) {
+      if (strict) {
+        this.logger.error(
+          `Contenuto template non trovato su GitHub per id: ${templateId}`,
         );
+        throw makeError("Contenuto template non disponibile su GitHub", 503);
+      }
+      this.logger.warn(
+        `Contenuto template mancante su GitHub per id: ${templateId} — restituisco stringa vuota`,
+      );
+      return { ...row, content: "" };
+    }
+
+    return { ...row, content };
+  }
+
+  private isGitHubConfigured(): boolean {
+    return Boolean(
+      process.env.GITHUB_TOKEN?.trim() &&
+        process.env.GITHUB_OWNER?.trim() &&
+        process.env.GITHUB_REPO?.trim(),
+    );
+  }
+
+  // ── API pubblica ───────────────────────────────────────────────────────────
+
+  async findAll({
+    status,
+    limit = 20,
+    offset = 0,
+  }: {
+    status?: "draft" | "published";
+    limit?: number;
+    offset?: number;
+  }) {
+    const { data, total } = await this.templatesRepository.findAll({
+      status,
+      limit,
+      offset,
+    });
+
+    const githubConfigured = this.isGitHubConfigured();
+
+    // strict=false: template senza file GitHub vengono restituiti con content=""
+    const hydratedData = await Promise.all(
+      data.map((row) => this.hydrateContent(row, false)),
+    );
+
+    const githubTemplates = await this.githubStorage.listTemplates();
+
+    // FIX: quando GitHub è configurato, escludiamo i template DB "orfani"
+    // (quelli senza un path GitHub valido, es. template seeded con UUID come content_path).
+    // Quando GitHub NON è configurato, mostriamo tutto (storage locale).
+    const localTemplates = hydratedData.filter(
+      (row): row is TemplateEntity & { content: string } => {
+        if (!row) return false;
+        if (!row.content?.trim()) return false;
+
+        if (githubConfigured && isOrphanLocalTemplate(row as TemplateEntity)) {
+          // Template seeded/legacy senza corrispondenza GitHub — escludi
+          return false;
+        }
+        return true;
+      },
+    );
+
+    const localPaths = new Set(
+      localTemplates
+        .map((t) => t.content_path)
+        .filter((p): p is string => Boolean(p))
+        .map((p) => this.normalizeTemplateId(p)),
+    );
+
+    // Includi solo i template GitHub che non hanno già una copia locale
+    const uniqueGithubTemplates = githubTemplates.filter((gt) => {
+      let githubNormalized = gt.id;
+      if (githubNormalized.startsWith("github:")) {
+        githubNormalized = githubNormalized.slice(7);
+      }
+      const githubId = this.normalizeTemplateId(githubNormalized);
+      return !localPaths.has(githubId);
+    });
+
+    return {
+      data: [...uniqueGithubTemplates, ...localTemplates],
+      total: total + uniqueGithubTemplates.length,
+      limit,
+      offset,
+    };
+  }
+
+  async findOne(
+    id: string,
+  ): Promise<(TemplateEntity & { content: string }) | null> {
+    if (id.startsWith("github:")) {
+      let normalized = id.slice(7);
+      normalized = this.normalizeTemplateId(normalized);
+
+      const row = await this.dataSource
+        .getRepository("TemplateEntity")
+        .findOne({ where: { content_path: normalized } });
+
+      if (row) {
+        return this.hydrateContent(row as TemplateEntity, true);
       }
 
-      // FIX: usa strict: false così i placeholder non compilati rimangono visibili
-      // nel PDF invece di bloccare la generazione con errore.
-      const { filename, unresolvedFields } =
-        await this.pdfGenerationService.generatePdf({
-          title: template.name,
-          content: template.content,
-          fieldValues: job.field_values ?? {},
-          strict: false,
-        });
+      const githubTemplates = await this.githubStorage.listTemplates();
+      const virtual = githubTemplates.find((t) => t.id === id);
+      if (!virtual) return null;
 
-      await this.pdfJobsRepository.markCompleted(
-        jobId,
-        filename,
-        unresolvedFields ?? [],
+      return virtual as unknown as TemplateEntity & { content: string };
+    }
+
+    assertUuid(id);
+    const row = await this.templatesRepository.findById(id);
+    return this.hydrateContent(row, true);
+  }
+
+  async create({
+    name,
+    description,
+    content,
+    fields,
+    created_by = "system",
+    status,
+    path,
+  }: CreateTemplateInput) {
+    if (!name || name.trim().length === 0) {
+      throw makeError("Il nome del template e obbligatorio", 400);
+    }
+
+    if (content === undefined || content === null) {
+      throw makeError(
+        "Il campo 'content' manca nel body della richiesta. " +
+          "Per aggiornare un template esistente usa PUT /api/templates/:id",
+        400,
       );
+    }
+
+    this.assertValidContent(content);
+
+    const id = randomUUID();
+    let contentPath: string = id;
+
+    if (path) {
+      let normalized = path;
+      if (normalized.startsWith("github:")) normalized = normalized.slice(7);
+      contentPath = this.normalizeTemplateId(normalized);
+    }
+
+    const normalizedFields: FieldDefinition[] = normalizeFieldDefinitions(
+      content,
+      fields,
+    );
+
+    await this.githubStorage.writeTemplate(contentPath, content);
+
+    try {
+      const template = await this.dataSource.transaction(async (manager) =>
+        this.templatesRepository.insertTemplate(manager, {
+          id,
+          name: name.trim(),
+          description,
+          contentPath,
+          fields: normalizedFields,
+          createdBy: created_by,
+          status,
+        }),
+      );
+
+      return this.hydrateContent(template, true);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Errore generazione PDF";
-      await this.pdfJobsRepository.markFailed(jobId, message);
+      this.logger.error(
+        `Transazione DB fallita per template ${id}, tentativo rollback GitHub`,
+      );
+      await this.githubStorage.deleteTemplate(id).catch((deleteError) => {
+        this.logger.error(
+          `Rollback GitHub fallito per template ${id}:`,
+          deleteError instanceof Error
+            ? deleteError.message
+            : String(deleteError),
+        );
+      });
+      throw error;
     }
   }
 
-  async getJob(templateId: string, jobId: string) {
-    const job = await this.pdfJobsRepository.findById(jobId);
-    if (!job || job.template_id !== templateId)
-      throw makeError("Job PDF non trovato", 404);
-    return job;
-  }
+  async update(
+    id: string,
+    { name, description, content, fields, status }: UpdateTemplateInput,
+  ) {
+    const existing = await this.findOneOrThrow(id);
 
-  async getJobs(templateId: string) {
-    return this.pdfJobsRepository.findByTemplate(templateId);
-  }
+    const nextContent = content ?? existing.content;
+    this.assertValidContent(nextContent);
 
-  private async getCompletedJob(templateId: string, jobId: string) {
-    const job = await this.getJob(templateId, jobId);
-    if (job.status !== "completed" || !job.filename)
-      throw makeError("PDF non ancora disponibile", 409);
-    return job;
-  }
-
-  async getLatestCompleted(templateId: string) {
-    const job = await this.pdfJobsRepository.findLatestCompleted(templateId);
-    if (!job) throw makeError("Nessun PDF completato per questo template", 404);
-    return job;
-  }
-
-  async streamDownload(
-    templateId: string,
-    jobId: string,
-    response: Response,
-  ): Promise<void> {
-    const job = await this.getCompletedJob(templateId, jobId);
-    const stream = await this.pdfGenerationService.getPdfStream(job.filename!);
-    response.setHeader("Content-Type", "application/pdf");
-    response.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${job.filename}"`,
+    const nextFields = normalizeFieldDefinitions(
+      nextContent,
+      fields ?? existing.fields,
     );
-    await pipeToResponse(stream, response);
+
+    const rawId = existing.content_path ?? id;
+    const templateId = this.normalizeTemplateId(rawId);
+
+    await this.githubStorage.writeTemplate(templateId, nextContent);
+
+    try {
+      const updated = await this.dataSource.transaction(async (manager) =>
+        this.templatesRepository.updateTemplate(manager, {
+          id,
+          name: name?.trim() || existing.name,
+          description: description ?? existing.description,
+          contentPath: templateId,
+          fields: nextFields,
+          status: status ?? existing.status,
+        }),
+      );
+
+      return this.hydrateContent(updated, true);
+    } catch (error) {
+      this.logger.error(
+        `CRITICO: GitHub aggiornato ma DB fallito per template ${id}. ` +
+          `Potrebbe esserci disallineamento. Verificare manualmente.`,
+      );
+      throw error;
+    }
   }
 
-  async streamLatest(templateId: string, response: Response): Promise<void> {
-    const job = await this.getLatestCompleted(templateId);
-    const stream = await this.pdfGenerationService.getPdfStream(job.filename!);
-    response.setHeader("Content-Type", "application/pdf");
-    response.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${job.filename}"`,
+  async importGitHubTemplateToDb(
+    template: GitHubTemplateFile | (TemplateEntity & { content: string }),
+    actor = "system",
+  ): Promise<TemplateEntity> {
+    const contentPath = this.normalizeTemplateId(
+      (template as GitHubTemplateFile).githubPath ??
+        template.content_path ??
+        template.id,
     );
-    await pipeToResponse(stream, response);
+
+    const existing = await this.dataSource
+      .getRepository("TemplateEntity")
+      .findOne({ where: { content_path: contentPath } });
+
+    if (existing) return existing as TemplateEntity;
+
+    const normalizedFields: FieldDefinition[] = normalizeFieldDefinitions(
+      template.content ?? "",
+      (template.fields as PartialFieldDefinition[]) ?? [],
+    );
+
+    const id = randomUUID();
+    const saved = await this.dataSource.transaction(async (manager) =>
+      this.templatesRepository.insertTemplate(manager, {
+        id,
+        name: template.name,
+        description: (template as GitHubTemplateFile).description ?? undefined,
+        contentPath,
+        fields: normalizedFields,
+        createdBy: actor,
+        status: "published",
+      }),
+    );
+
+    this.logger.log(
+      `Template GitHub "${template.name}" importato nel DB con id ${id} (content_path: ${contentPath})`,
+    );
+
+    return saved;
+  }
+
+  async importFromMarkdown(
+    content: string,
+    name: string,
+    created_by = "system",
+  ) {
+    return this.create({ name, content, created_by });
+  }
+
+  async delete(id: string) {
+    const template = await this.findOneOrThrow(id);
+
+    const activeDocuments =
+      await this.templatesRepository.countActiveDocuments(id);
+    if (activeDocuments > 0) {
+      throw makeError(
+        "Impossibile eliminare: esistono documenti attivi basati su questo template",
+        409,
+      );
+    }
+
+    await this.templatesRepository.deleteTemplate(id);
+
+    const rawId = template.content_path ?? id;
+    const templateId = this.normalizeTemplateId(rawId);
+    await this.githubStorage.deleteTemplate(templateId).catch((error) => {
+      this.logger.error(
+        `Impossibile eliminare template ${id} da GitHub (DB già aggiornato):`,
+        error instanceof Error ? error.message : String(error),
+      );
+    });
+
+    return { deleted: true };
+  }
+
+  getExportContent(template: { content: string }): string {
+    return template.content;
+  }
+
+  validateMarkdown(content: string) {
+    return validateMarkdownContent(content, MAX_TEMPLATE_CONTENT_BYTES);
   }
 }

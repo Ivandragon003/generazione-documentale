@@ -30,19 +30,9 @@ RUN npm run build
 # TeX Live: texlive-xetex + pacchetti necessari per SaaS produzione
 # Pandoc: binario ufficiale da GitHub releases (versione pinned)
 #
-# Pacchetti LaTeX inclusi:
-#   fontspec, booktabs, tabularx, longtable, array, xcolor,
-#   geometry, hyperref, fancyhdr, ragged2e, graphicx, polyglossia
-#
-# Lingue supportate:
-#   Europee (IT, EN, FR, DE, ES, PL, …)  via polyglossia + texlive-lang-european
-#   Giapponese                            via fonts-noto-cjk + texlive-lang-cjk
-#   Arabo                                 via fonts-noto + texlive-lang-arabic + bidi
-#
-# Font di sistema disponibili (usabili via fontspec):
-#   Liberation Serif / Sans / Mono  (default)
-#   Noto Serif / Sans / Sans CJK / Naskh Arabic
-#   DejaVu Serif / Sans / Sans Mono
+# FIX: aggiunto pacchetto `lmodern` — richiesto da pandoc/xelatex come
+# dipendenza implicita per il template LaTeX di default.
+# Senza lmodern, xelatex esce con: "File `lmodern.sty' not found"
 # =============================================================================
 FROM debian:bookworm-slim AS runtime
 
@@ -57,7 +47,6 @@ ENV NODE_ENV=production \
     PANDOC_PATH=/usr/local/bin/pandoc \
     TEXMFVAR=/tmp/texmf-var \
     TEXMFCONFIG=/tmp/texmf-config \
-    # Disabilita interazione LaTeX (mai chiedere pacchetti a runtime)
     DEBIAN_FRONTEND=noninteractive \
     TZ=Europe/Rome
 
@@ -73,6 +62,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-latex-extra \
     texlive-fonts-recommended \
     texlive-fonts-extra \
+    # FIX CRITICO: lmodern è richiesto dal template LaTeX di default di pandoc.
+    # Senza questo pacchetto, xelatex fallisce con:
+    # "File `lmodern.sty' not found" → exit code 43
+    lmodern \
     # Lingue europee (polyglossia + babel fallback)
     texlive-lang-european \
     texlive-lang-italian \

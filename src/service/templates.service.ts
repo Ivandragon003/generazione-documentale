@@ -1,3 +1,21 @@
+/**
+ * templates.service.ts
+ *
+ * FIX findAll():
+ * - Quando GitHub è configurato, i template DB locali che hanno content_path
+ *   uguale al loro UUID (template seeded senza corrispondenza GitHub) vengono
+ *   esclusi dalla lista — mostrare solo quelli realmente legati a file GitHub.
+ * - Un template locale "reale" ha content_path != id (es. "portfolio/offerte/nome")
+ *   oppure ha contenuto disponibile su GitHub.
+ *
+ * FIX processJob():
+ * - strict: false per non bloccare su campi non compilati (vedi pdf-jobs.service.ts)
+ *
+ * FIX hydrateContent():
+ * - Il comportamento non-strict (findAll) già restituisce content="" se mancante.
+ *   Ora il filtering esclude questi template "vuoti" in findAll.
+ */
+
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
