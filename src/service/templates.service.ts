@@ -152,15 +152,12 @@ export class TemplatesService {
       data.map((row) => this.hydrateContent(row, false)),
     );
     const githubTemplates = await this.githubStorage.listTemplates();
-    // Mostra solo i template locali che hanno contenuto reale su GitHub.
-    // I template del seed (UUID nel DB ma file non su GitHub) hanno content=""
-    // e vengono nascosti: l'utente deve vedere solo i template da GitHub.
+
     const localTemplates = hydratedData.filter(
       (row): row is TemplateEntity & { content: string } =>
-        Boolean(row) && Boolean(row!.content?.trim()),
+        Boolean(row) && Boolean(row?.content?.trim()),
     );
 
-    // De-duplicazione: escludiamo i template GitHub che sono già stati importati/sincronizzati localmente
     const localPaths = new Set(
       localTemplates
         .map((t) => t.content_path)

@@ -83,22 +83,23 @@ export class PdfJobsService implements OnModuleDestroy {
   ) {
     await this.ensureQueueRecovery();
 
-    // FIX: per template GitHub (id = "github:...") usiamo findOne che ritorna
-    // l'oggetto virtuale con content letto da GitHub. Non tentiamo mai di
-    // sincronizzarli nel DB tramite create() — ciò causava writeTemplate su
-    // GitHub che falliva con 404 se il branch non era raggiungibile.
-    const template = await this.templatesService.findOne(templateId);
+    let template = await this.templatesService.findOne(templateId);
+
+    // Se il template è virtuale (GitHub), lo sincronizziamo nel DB locale
+    if (
+      templateId.startsWith("github:") &&
+      template?.id.startsWith("github:")
+    ) {
+      template = await this.templatesService.create({
+        name: template.name,
+        content: template.content,
+        fields: template.fields,
+        created_by: actor,
+        path: templateId,
+      });
+    }
 
     if (!template) throw makeError("Template non trovato", 404);
-
-    // Per i template GitHub virtuali l'id non è un UUID del DB: usiamo
-    // un placeholder che il processJob gestisce tramite findOne(template.id).
-    // Il job nel DB viene comunque inserito con il templateId originale.
-    // Se il template è GitHub e non ha un UUID nel DB, il job punta all'id
-    // virtuale; processJob chiama findOne che rilegge da GitHub.
-    const dbTemplateId = templateId.startsWith("github:")
-      ? templateId
-      : template.id;
 
     const missing = this.documentRenderingService.getMissingRequiredFields(
       template.fields ?? [],
@@ -111,21 +112,8 @@ export class PdfJobsService implements OnModuleDestroy {
       );
     }
 
-    // PdfJobEntity.template_id è uuid — per i template GitHub virtuali
-    // che non sono nel DB dobbiamo prima salvare il template localmente.
-    // Ma per non forzare una scrittura GitHub, salviamo solo i metadati.
-    let resolvedTemplateId = dbTemplateId;
-    if (templateId.startsWith("github:")) {
-      // Importa il template GitHub nel DB locale senza riscrivere su GitHub
-      const imported = await this.templatesService.importGitHubTemplateToDb(
-        template,
-        actor,
-      );
-      resolvedTemplateId = imported.id;
-    }
-
     const job = await this.pdfJobsRepository.insert(
-      resolvedTemplateId,
+      template.id,
       fieldValues,
       actor,
     );

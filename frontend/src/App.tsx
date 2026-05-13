@@ -61,9 +61,11 @@ async function withBootRetry<T>(load: () => Promise<T>): Promise<T> {
 }
 
 function apiFieldFromKey(key: string, markdown: string): ApiTemplateField {
+  // Cerca se nel markdown il placeholder ha un tipo specificato {{key:tipo}}
   const regex = new RegExp(`\\{\\{\\s*${key}(?::([a-z]+))?\\s*\\}\\}`, "i");
   const match = markdown.match(regex);
   const type = (match?.[1] as ApiTemplateField["type"]) || "text";
+
   return { name: key, label: key, type };
 }
 
@@ -88,11 +90,14 @@ function isUuid(s: string | null | undefined): s is string {
 }
 
 function isGithubTemplate(template: TemplateDto | null): boolean {
-  return Boolean(template?.id && template.id.startsWith("github:"));
+  return Boolean(template?.id?.startsWith("github:"));
 }
 
 function getItemSecondary(item: TemplateDto): string {
-  if (item.githubPath) return item.githubPath.split("/").at(-1) ?? "";
+  if (item.githubPath) {
+    const filename = item.githubPath.split("/").at(-1) ?? "";
+    return isUuid(item.id) ? `${filename} (Locale)` : filename;
+  }
   return item.content ? item.status : "Contenuto mancante";
 }
 
@@ -183,10 +188,6 @@ export default function App() {
   const [pdfJobs, setPdfJobs] = useState<PdfJobDto[]>([]);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
 
-  // Tiene traccia dell'UUID reale dopo che un template GitHub è stato importato nel DB
-  // (necessario per i job PDF che richiedono un UUID nel DB)
-  const resolvedTemplateId = useRef<string | null>(null);
-
   const originalPlaceholders = useRef<string[]>([]);
 
   // ── Boot ─────────────────────────────────────────────────────────────────
@@ -211,9 +212,6 @@ export default function App() {
           const content = firstTemplate.content?.trim() ?? "";
           setMarkdown(content);
           originalPlaceholders.current = extractPlaceholders(content);
-          resolvedTemplateId.current = isUuid(firstTemplate.id)
-            ? firstTemplate.id
-            : null;
 
           if (isUuid(firstTemplate.id)) {
             const jobs = await getPdfJobs(firstTemplate.id).catch(() => []);
@@ -254,9 +252,6 @@ export default function App() {
       originalPlaceholders.current = extractPlaceholders(
         importedTemplate.content,
       );
-      resolvedTemplateId.current = isUuid(importedTemplate.id)
-        ? importedTemplate.id
-        : null;
       setPdfJobs([]);
       setFieldValues({});
       setSnack({
@@ -272,7 +267,6 @@ export default function App() {
     setTemplate(selected);
     setMarkdown(selected.content);
     originalPlaceholders.current = extractPlaceholders(selected.content);
-    resolvedTemplateId.current = isUuid(selected.id) ? selected.id : null;
     setFieldValues({});
     setPdfJobs([]);
     if (isUuid(selected.id)) {
@@ -284,11 +278,14 @@ export default function App() {
 
   // ── Salva Template ────────────────────────────────────────────────────────
   //
-  // LOGICA:
-  // - Template locale con UUID valido → PUT (aggiornamento)
-  // - Template GitHub → PUT con path GitHub (sovrascrittura su GitHub)
-  //   Se il backend ha già importato il template nel DB, usa l'UUID risultante.
-  // - Nessun template selezionato → POST (creazione)
+  // FIX: rimossa logica structureChanged che causava POST errati su template
+  // con content vuoto (seed/legacy) — originalPlaceholders.current era []
+  // quindi qualsiasi placeholder risultava "aggiunto" e veniva chiamato
+  // createTemplate (POST) invece di updateTemplate (PUT).
+  //
+  // Nuova logica:
+  // - Template locale con UUID valido → sempre PUT
+  // - Template GitHub o senza UUID → POST per creare locale (content incluso)
   const handleSaveTemplate = useCallback(async () => {
     if (!markdown.trim()) {
       setSnack({
@@ -303,63 +300,54 @@ export default function App() {
     try {
       const currentPlaceholders = extractPlaceholders(markdown);
 
+      // Cerchiamo se esiste già un template locale che punta a questo path GitHub
+      const existingLocal = isGithubTemplate(template)
+        ? templates.find(
+            (t) =>
+              t.id !== template?.id && t.githubPath === template?.id.slice(7),
+          )
+        : null;
+
       if (template && isUuid(template.id) && !isGithubTemplate(template)) {
-        // Template locale con UUID valido → aggiorna con PUT
+        // Template locale con UUID valido → aggiorna sempre con PUT
         const updated = await updateTemplate(template.id, {
           content: markdown,
           fields: currentPlaceholders.map((k) => apiFieldFromKey(k, markdown)),
         });
         originalPlaceholders.current = extractPlaceholders(updated.content);
-        resolvedTemplateId.current = updated.id;
         setTemplate(updated);
         setTemplates((current) =>
           current.map((t) => (t.id === updated.id ? updated : t)),
         );
         setSnack({ open: true, msg: "Template salvato.", severity: "success" });
-      } else if (template && isGithubTemplate(template)) {
-        // Template GitHub → sovrascrittura su GitHub tramite POST con path
-        // Il backend usa writeTemplate (PUT con sha) senza fallback locale.
-        const newTmpl = await createTemplate({
-          name: template.name,
+      } else if (existingLocal) {
+        // Se stavamo modificando un template GitHub ma esiste già una copia locale, aggiorniamo quella
+        const updated = await updateTemplate(existingLocal.id, {
           content: markdown,
           fields: currentPlaceholders.map((k) => apiFieldFromKey(k, markdown)),
-          // path con prefisso github: → il backend normalizza e sovrascrive su GitHub
-          path: template.id,
         });
-
-        if (!isUuid(newTmpl.id)) {
-          throw new Error(
-            `Template salvato senza ID UUID valido: ${newTmpl.id}`,
-          );
-        }
-
-        resolvedTemplateId.current = newTmpl.id;
-        setTemplate(newTmpl);
-        setTemplates((current) => {
-          // Sostituisce il template GitHub con la versione locale appena creata
-          const withoutGithub = current.filter((t) => t.id !== template.id);
-          return [newTmpl, ...withoutGithub.filter((t) => t.id !== newTmpl.id)];
-        });
-        originalPlaceholders.current = extractPlaceholders(newTmpl.content);
-        setPdfJobs([]);
+        originalPlaceholders.current = extractPlaceholders(updated.content);
+        setTemplate(updated);
+        setTemplates((current) =>
+          current.map((t) => (t.id === updated.id ? updated : t)),
+        );
         setSnack({
           open: true,
-          msg: "Template salvato su GitHub e sincronizzato localmente.",
+          msg: "Template locale aggiornato.",
           severity: "success",
         });
       } else {
-        // Nessun template selezionato → crea nuovo
+        // Template GitHub o senza UUID: crea template locale (POST con content)
         const newTmpl = await createTemplate({
-          name: "Nuovo Template",
+          name: template?.name ?? "Nuovo Template",
           content: markdown,
           fields: currentPlaceholders.map((k) => apiFieldFromKey(k, markdown)),
+          path: isGithubTemplate(template) ? template?.id : undefined,
         });
-        if (!isUuid(newTmpl.id)) {
+        if (!isUuid(newTmpl.id))
           throw new Error(
             `Template creato senza ID UUID valido: ${newTmpl.id}`,
           );
-        }
-        resolvedTemplateId.current = newTmpl.id;
         setTemplate(newTmpl);
         setTemplates((current) => [
           newTmpl,
@@ -382,33 +370,20 @@ export default function App() {
     } finally {
       setAppStatus("ready");
     }
-  }, [markdown, template]);
+  }, [markdown, template, templates.find]);
 
   // ── Genera PDF ────────────────────────────────────────────────────────────
-  //
-  // FIX: per template GitHub usiamo il loro id (github:...) direttamente.
-  // Il backend (PdfJobsService.enqueue) importerà il template nel DB se necessario
-  // e userà l'UUID risultante per il job.
   const handleGeneratePdf = useCallback(async () => {
-    // Determina l'id da usare per la generazione PDF:
-    // - template locale con UUID → usa direttamente
-    // - template GitHub → usa l'id github:... (il backend lo gestisce)
-    // - nessun template → errore
-    const pdfTemplateId =
-      resolvedTemplateId.current ??
-      (isGithubTemplate(template) ? template?.id : null);
-
-    if (!pdfTemplateId || !template) {
+    if (!template || !isUuid(template.id)) {
       setSnack({
         open: true,
-        msg: "Seleziona un template prima di generare il PDF.",
+        msg: "Seleziona o salva un template prima di generare il PDF.",
         severity: "error",
       });
       return;
     }
-
     try {
-      const job = await triggerPdfGeneration(pdfTemplateId, fieldValues);
+      const job = await triggerPdfGeneration(template.id, fieldValues);
       setPdfJobs((prev) => [job, ...prev]);
       setSnack({
         open: true,
@@ -457,9 +432,9 @@ export default function App() {
     [markdown, fieldValues],
   );
 
-  // FIX: canGeneratePdf è true per qualsiasi template selezionato
-  // (UUID locale o GitHub). Il pulsante è disabilitato solo se non c'è nessun template.
-  const canGeneratePdf = Boolean(template);
+  const canGeneratePdf = Boolean(
+    template && (isUuid(template.id) || isGithubTemplate(template)),
+  );
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (appStatus === "loading") {
@@ -542,7 +517,7 @@ export default function App() {
                 <PdfPreview
                   content={rendered}
                   pdfJobs={pdfJobs}
-                  templateId={resolvedTemplateId.current ?? template?.id}
+                  templateId={template?.id}
                   documentName={template?.name}
                 />
               )}

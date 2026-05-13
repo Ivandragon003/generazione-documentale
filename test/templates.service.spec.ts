@@ -344,7 +344,7 @@ describe("TemplatesService", () => {
       );
     });
 
-    it("template con contenuto mancante su GitHub restituisce content='' (non strict)", async () => {
+    it("template con contenuto mancante su GitHub non viene incluso nella lista (non strict)", async () => {
       const tpl = makeTemplate();
       templatesRepository.findAll.mockResolvedValue({
         data: [tpl],
@@ -355,7 +355,7 @@ describe("TemplatesService", () => {
 
       const result = await service.findAll({ limit: 20, offset: 0 });
 
-      expect(result.data[0].content).toBe("");
+      expect(result.data).toHaveLength(0);
     });
   });
 
