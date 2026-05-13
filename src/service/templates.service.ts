@@ -252,7 +252,7 @@ export class TemplatesService {
     await this.githubStorage.writeTemplate(contentPath, content);
 
     try {
-      const template = await this.dataSource.transaction(async (manager) =>
+      const dbRow = await this.dataSource.transaction(async (manager) =>
         this.templatesRepository.insertTemplate(manager, {
           id,
           name: name.trim(),
@@ -264,7 +264,26 @@ export class TemplatesService {
         }),
       );
 
-      return this.hydrateFromGitHub(template);
+      const path = this.githubStorage.filePath(contentPath);
+      const meta = this.githubStorage.templateMetaFromPath(path);
+      return this.mergeGitHubTemplate(
+        {
+          id: `github:${meta.templateId}`,
+          name: meta.name,
+          content_path: meta.templateId,
+          githubPath: path,
+          category: meta.category,
+          section: meta.section,
+          status: dbRow.status,
+          description: dbRow.description,
+          fields: dbRow.fields,
+          created_by: dbRow.created_by,
+          created_at: dbRow.created_at,
+          updated_at: dbRow.updated_at,
+          content,
+        },
+        dbRow,
+      );
     } catch (error) {
       this.logger.error(
         `Transazione DB fallita per template ${id}, tentativo rollback GitHub`,
@@ -307,7 +326,7 @@ export class TemplatesService {
     await this.githubStorage.writeTemplate(templateId, nextContent);
 
     try {
-      const updated = await this.dataSource.transaction(async (manager) =>
+      const dbRow = await this.dataSource.transaction(async (manager) =>
         this.templatesRepository.updateTemplate(manager, {
           id: persistedId,
           name: name?.trim() || existing.name,
@@ -318,7 +337,26 @@ export class TemplatesService {
         }),
       );
 
-      return this.hydrateFromGitHub(updated);
+      const path = this.githubStorage.filePath(templateId);
+      const meta = this.githubStorage.templateMetaFromPath(path);
+      return this.mergeGitHubTemplate(
+        {
+          id: `github:${meta.templateId}`,
+          name: meta.name,
+          content_path: meta.templateId,
+          githubPath: path,
+          category: meta.category,
+          section: meta.section,
+          status: dbRow.status,
+          description: dbRow.description,
+          fields: dbRow.fields,
+          created_by: dbRow.created_by,
+          created_at: dbRow.created_at,
+          updated_at: dbRow.updated_at,
+          content: nextContent,
+        },
+        dbRow,
+      );
     } catch (error) {
       this.logger.error(
         `CRITICO: GitHub aggiornato ma DB fallito per template ${persistedId}. Verificare manualmente.`,

@@ -6,7 +6,7 @@ ARG PANDOC_SHA256_AMD64=68e5516a5464b12354146e9e23bc41a4c05f302f4ba5def9bdc49f1e
 ARG PANDOC_SHA256_ARM64=33c8e3456a2bd2a0b58b88583ba7f0f126c6b7a4cfc1c04206cd538e4bbd4b04
 
 ENV NODE_ENV=production \
-    PANDOC_PATH=/usr/local/bin/pandoc \
+    PANDOC_PATH=/usr/bin/pandoc \
     TEXMFVAR=/tmp/texmf-var \
     TEXMFCONFIG=/tmp/texmf-config \
     DEBIAN_FRONTEND=noninteractive \

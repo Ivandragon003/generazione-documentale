@@ -7,7 +7,7 @@ import { join } from "node:path";
 
 const port = Number.parseInt(process.env.PDF_SERVICE_PORT ?? "3100", 10);
 const workdir = process.env.PDF_SERVICE_WORKDIR ?? "/tmp/pdf-service";
-const pandocPath = process.env.PANDOC_PATH ?? "/usr/local/bin/pandoc";
+const pandocPath = process.env.PANDOC_PATH ?? "/usr/bin/pandoc";
 const timeoutMs = Number.parseInt(
   process.env.PDF_GENERATION_TIMEOUT_MS ?? "120000",
   10,

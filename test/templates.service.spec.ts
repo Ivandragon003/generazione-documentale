@@ -123,6 +123,23 @@ describe("TemplatesService", () => {
               const id = normalizeGitHubId(raw);
               return [id, `${id}.md`, `templates/${id}.md`];
             }),
+            filePath: jest.fn((id: string) => `templates/${id}.md`),
+            templateMetaFromPath: jest.fn((path: string) => {
+              const relativePath = path.startsWith("templates/")
+                ? path.slice(10)
+                : path;
+              const parts = relativePath.split("/");
+              const filename = parts.at(-1) ?? relativePath;
+              const name = filename.replace(/\.md$/i, "");
+              const templateId = normalizeGitHubId(relativePath);
+              return {
+                relativePath,
+                templateId,
+                name,
+                category: parts.length >= 3 ? parts[0] : null,
+                section: parts.length >= 3 ? parts[1] : null,
+              };
+            }),
           },
         },
       ],
