@@ -4,7 +4,7 @@ import type { Response } from "express";
 import { makeError } from "../common/utils/errors";
 import { appConfig } from "../config/app.config";
 import { PdfJobsRepository } from "../repository/pdf-jobs.repository";
-import { DocumentRenderingService } from "./document-rendering.service";
+import type { FieldValueMap } from "./document-rendering.service";
 import { PdfGenerationService } from "./pdf-generation.service";
 import { TemplatesService } from "./templates.service";
 
@@ -32,8 +32,6 @@ export class PdfJobsService implements OnModuleDestroy {
     private readonly templatesService: TemplatesService,
     @Inject(PdfGenerationService)
     private readonly pdfGenerationService: PdfGenerationService,
-    @Inject(DocumentRenderingService)
-    private readonly documentRenderingService: DocumentRenderingService,
   ) {
     setImmediate(() => {
       this.ensureQueueRecovery().catch(() => undefined);
@@ -78,36 +76,24 @@ export class PdfJobsService implements OnModuleDestroy {
 
   async enqueue(
     templateId: string,
-    fieldValues: Record<string, string | number | boolean | null>,
+    fieldValues: FieldValueMap,
     actor = "system",
   ) {
     await this.ensureQueueRecovery();
 
-    let template = await this.templatesService.findOne(templateId);
+    const persistedTemplateId =
+      await this.templatesService.resolveTemplateIdForPdfJob(
+        templateId,
+        actor,
+        true,
+      );
+    if (!persistedTemplateId) throw makeError("Template non trovato", 404);
 
-    // Se il template è virtuale GitHub, lo sincronizziamo nel DB locale
-    if (
-      templateId.startsWith("github:") &&
-      template?.id.startsWith("github:")
-    ) {
-      template = await this.templatesService.create({
-        name: template.name,
-        content: template.content,
-        fields: template.fields,
-        created_by: actor,
-        path: templateId,
-      });
-    }
-
+    const template = await this.templatesService.findOne(persistedTemplateId);
     if (!template) throw makeError("Template non trovato", 404);
 
-    // FIX: non blocchiamo l'accodamento per campi mancanti.
-    // Il job viene creato sempre; i campi obbligatori non compilati
-    // producono placeholder visibili nel PDF (strict: false in processJob).
-    // Segnaliamo solo un warning nei metadati del job tramite unresolved_fields.
-
     const job = await this.pdfJobsRepository.insert(
-      template.id,
+      persistedTemplateId,
       fieldValues,
       actor,
     );
@@ -128,13 +114,10 @@ export class PdfJobsService implements OnModuleDestroy {
 
       if (!template.content || template.content.trim().length === 0) {
         throw new Error(
-          "Contenuto del template non disponibile. " +
-            "Verifica che il file Markdown sia accessibile (GitHub o storage locale).",
+          "Contenuto del template non disponibile. Verifica che il file Markdown esista su GitHub.",
         );
       }
 
-      // FIX: usa strict: false così i placeholder non compilati rimangono visibili
-      // nel PDF invece di bloccare la generazione con errore.
       const { filename, unresolvedFields } =
         await this.pdfGenerationService.generatePdf({
           title: template.name,
@@ -156,26 +139,51 @@ export class PdfJobsService implements OnModuleDestroy {
   }
 
   async getJob(templateId: string, jobId: string) {
+    const persistedTemplateId =
+      await this.templatesService.resolveTemplateIdForPdfJob(templateId);
+    if (!persistedTemplateId) throw makeError("Job PDF non trovato", 404);
+
     const job = await this.pdfJobsRepository.findById(jobId);
-    if (!job || job.template_id !== templateId)
+    if (!job || job.template_id !== persistedTemplateId) {
       throw makeError("Job PDF non trovato", 404);
+    }
     return job;
   }
 
   async getJobs(templateId: string) {
-    return this.pdfJobsRepository.findByTemplate(templateId);
+    const persistedTemplateId =
+      await this.templatesService.resolveTemplateIdForPdfJob(templateId);
+    if (!persistedTemplateId) return [];
+    return this.pdfJobsRepository.findByTemplate(persistedTemplateId);
   }
 
   private async getCompletedJob(templateId: string, jobId: string) {
     const job = await this.getJob(templateId, jobId);
-    if (job.status !== "completed" || !job.filename)
+    if (job.status === "failed") {
+      throw makeError(job.error_message || "Generazione PDF fallita", 422);
+    }
+    if (job.status !== "completed" || !job.filename) {
       throw makeError("PDF non ancora disponibile", 409);
+    }
     return job;
   }
 
+  private requirePdfFilename(job: { filename: string | null }): string {
+    if (!job.filename) throw makeError("PDF non ancora disponibile", 409);
+    return job.filename;
+  }
+
   async getLatestCompleted(templateId: string) {
-    const job = await this.pdfJobsRepository.findLatestCompleted(templateId);
+    const persistedTemplateId =
+      await this.templatesService.resolveTemplateIdForPdfJob(templateId);
+    if (!persistedTemplateId) {
+      throw makeError("Nessun PDF completato per questo template", 404);
+    }
+
+    const job =
+      await this.pdfJobsRepository.findLatestCompleted(persistedTemplateId);
     if (!job) throw makeError("Nessun PDF completato per questo template", 404);
+    if (!job.filename) throw makeError("PDF non ancora disponibile", 409);
     return job;
   }
 
@@ -185,7 +193,9 @@ export class PdfJobsService implements OnModuleDestroy {
     response: Response,
   ): Promise<void> {
     const job = await this.getCompletedJob(templateId, jobId);
-    const stream = await this.pdfGenerationService.getPdfStream(job.filename!);
+    const stream = await this.pdfGenerationService.getPdfStream(
+      this.requirePdfFilename(job),
+    );
     response.setHeader("Content-Type", "application/pdf");
     response.setHeader(
       "Content-Disposition",
@@ -196,7 +206,9 @@ export class PdfJobsService implements OnModuleDestroy {
 
   async streamLatest(templateId: string, response: Response): Promise<void> {
     const job = await this.getLatestCompleted(templateId);
-    const stream = await this.pdfGenerationService.getPdfStream(job.filename!);
+    const stream = await this.pdfGenerationService.getPdfStream(
+      this.requirePdfFilename(job),
+    );
     response.setHeader("Content-Type", "application/pdf");
     response.setHeader(
       "Content-Disposition",

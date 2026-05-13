@@ -36,10 +36,9 @@ body {
 .architecture-note,
 .panel-shell,
 .editor-paper,
-.field-card,
 .preview-sheet,
 .project-structure {
-  border-radius: 18px;
+  border-radius: 8px;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
 }
 
@@ -99,10 +98,6 @@ body {
   line-height: 1.8;
 }
 
-.field-card {
-  padding: 16px;
-}
-
 .preview-sheet {
   padding: 48px 56px;
   min-height: 960px;
@@ -122,30 +117,76 @@ body {
   font-size: 12px;
 }
 
-.markdown-preview h1 {
+.dynamic-document {
+  color: #334155;
+  line-height: 1.8;
+}
+
+.doc-heading {
+  color: #1346a0;
+  letter-spacing: 0;
+}
+
+.doc-heading.h1 {
   font-size: 2.2rem;
   line-height: 1.2;
   margin-bottom: 0.25rem;
   color: #0f4fb8;
 }
 
-.markdown-preview h2 {
+.doc-heading.h2 {
   margin-top: 2rem;
   margin-bottom: 0.75rem;
-  color: #1346a0;
   font-size: 1.2rem;
 }
 
-.markdown-preview p,
-.markdown-preview li {
-  color: #334155;
-  line-height: 1.8;
+.doc-paragraph {
+  margin: 0.6rem 0;
 }
 
-.markdown-preview hr {
-  border: 0;
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
+.doc-rule {
+  border-top: 1px solid rgba(15, 23, 42, 0.1);
   margin: 2rem 0;
+}
+
+.doc-space {
+  height: 0.75rem;
+}
+
+.inline-field {
+  min-width: 180px;
+  margin: 0 4px 4px;
+  vertical-align: middle;
+}
+
+.inline-field-textarea {
+  display: block;
+  max-width: 720px;
+  margin: 8px 0;
+}
+
+.inline-checkbox {
+  margin: 0 8px;
+}
+
+.inline-value {
+  display: inline-block;
+  min-width: 80px;
+  padding: 0 4px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.24);
+}
+
+.markdown-table,
+.dynamic-table {
+  margin: 14px 0;
+}
+
+.dynamic-table {
+  overflow-x: auto;
+}
+
+.dynamic-table .inline-field {
+  min-width: 140px;
 }
 
 .architecture-note {

@@ -1,0 +1,56 @@
+FROM debian:bookworm-slim
+
+ARG PANDOC_VERSION=3.6.4
+ARG TARGETARCH=amd64
+ARG PANDOC_SHA256_AMD64=68e5516a5464b12354146e9e23bc41a4c05f302f4ba5def9bdc49f1e2db0d1e0
+ARG PANDOC_SHA256_ARM64=33c8e3456a2bd2a0b58b88583ba7f0f126c6b7a4cfc1c04206cd538e4bbd4b04
+
+ENV NODE_ENV=production \
+    PANDOC_PATH=/usr/local/bin/pandoc \
+    TEXMFVAR=/tmp/texmf-var \
+    TEXMFCONFIG=/tmp/texmf-config \
+    DEBIAN_FRONTEND=noninteractive \
+    TZ=Europe/Rome
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    nodejs \
+    texlive-xetex \
+    texlive-latex-recommended \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    texlive-fonts-extra \
+    lmodern \
+    texlive-lang-european \
+    texlive-lang-italian \
+    texlive-lang-cjk \
+    texlive-lang-japanese \
+    texlive-lang-arabic \
+    fonts-liberation \
+    fonts-noto \
+    fonts-noto-cjk \
+    fonts-noto-color-emoji \
+    fonts-dejavu \
+    wget && \
+    wget -q "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-${TARGETARCH}.deb" -O /tmp/pandoc.deb && \
+    case "${TARGETARCH}" in \
+      amd64) expected_sha="${PANDOC_SHA256_AMD64}" ;; \
+      arm64) expected_sha="${PANDOC_SHA256_ARM64}" ;; \
+      *) echo "Architettura non supportata per checksum Pandoc: ${TARGETARCH}" && exit 1 ;; \
+    esac && \
+    echo "${expected_sha}  /tmp/pandoc.deb" | sha256sum -c - && \
+    dpkg -i /tmp/pandoc.deb && \
+    rm /tmp/pandoc.deb && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+WORKDIR /service
+
+COPY scripts/pdf-service.mjs ./pdf-service.mjs
+
+EXPOSE 3100
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD node -e "const h=require('http');h.get('http://localhost:'+(process.env.PDF_SERVICE_PORT||3100)+'/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+
+CMD ["node", "pdf-service.mjs"]

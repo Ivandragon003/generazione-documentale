@@ -34,9 +34,7 @@ export function HeaderBar({
 }: HeaderBarProps) {
   const latestJob = pdfJobs[0];
 
-  const pdfTooltip = canGeneratePdf
-    ? "Genera PDF"
-    : "Salva prima il template per abilitare la generazione PDF";
+  const pdfTooltip = canGeneratePdf ? "Genera PDF" : "Seleziona un template";
 
   return (
     <Box className="header-bar">

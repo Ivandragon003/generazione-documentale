@@ -8,6 +8,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
+import type { FieldValueMap } from "../service/document-rendering.service";
 import { TemplateEntity } from "./template.entity";
 
 @Entity({ name: "pdf_jobs" })
@@ -24,7 +25,7 @@ export class PdfJobEntity {
   template_id!: string;
 
   @Column({ type: "jsonb", default: () => "'{}'", nullable: false })
-  field_values!: Record<string, string | number | boolean | null>;
+  field_values!: FieldValueMap;
 
   @ManyToOne(() => TemplateEntity, { onDelete: "CASCADE" })
   @JoinColumn({ name: "template_id" })

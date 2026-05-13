@@ -1,6 +1,44 @@
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/api`;
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+export type FieldType =
+  | "text"
+  | "textarea"
+  | "number"
+  | "date"
+  | "boolean"
+  | "checkbox"
+  | "email"
+  | "url"
+  | "tel"
+  | "select"
+  | "currency"
+  | "table"
+  | "subtable"
+  | "list"
+  | "repeater";
+
+export type FieldPrimitive = string | number | boolean | null;
+export interface FieldRow {
+  [key: string]: FieldValue;
+}
+export type FieldValue = FieldPrimitive | FieldRow | FieldRow[];
+export type FieldValueMap = Record<string, FieldValue>;
+
+export type ApiTemplateFieldOption = {
+  label: string;
+  value: string;
+};
+
+export type ApiTemplateField = {
+  name: string;
+  label?: string;
+  type?: FieldType;
+  required?: boolean;
+  defaultValue?: string;
+  placeholder?: string;
+  options?: ApiTemplateFieldOption[];
+  columns?: ApiTemplateField[];
+};
 
 export type TemplateDto = {
   id: string;
@@ -29,31 +67,6 @@ export type PdfJobDto = {
   completedAt: string | null;
 };
 
-/**
- * Tipo campo allineato a TemplateFieldDto del backend.
- * IMPORTANTE: usa "name" (non "key") — whitelist:true nel ValidationPipe
- * strippava "key" causando body:undefined nel controller.
- */
-export type ApiTemplateField = {
-  name: string;
-  label?: string;
-  type?:
-    | "text"
-    | "textarea"
-    | "number"
-    | "date"
-    | "boolean"
-    | "email"
-    | "url"
-    | "tel"
-    | "select"
-    | "currency";
-  required?: boolean;
-  defaultValue?: string;
-};
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 async function api<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const res = await fetch(input, {
     ...init,
@@ -71,7 +84,9 @@ async function api<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// ─── Templates ───────────────────────────────────────────────────────────────
+function segment(value: string): string {
+  return encodeURIComponent(value);
+}
 
 export function getTemplates(): Promise<{
   data: TemplateDto[];
@@ -102,39 +117,35 @@ export function updateTemplate(
     status?: "draft" | "published";
   },
 ): Promise<TemplateDto> {
-  return api(`${BASE}/templates/${id}`, {
+  return api(`${BASE}/templates/${segment(id)}`, {
     method: "PUT",
     body: JSON.stringify(payload),
   });
 }
 
-// ─── PDF (direttamente su template, senza Document) ──────────────────────────
-
 export function triggerPdfGeneration(
   templateId: string,
-  fieldValues: Record<string, string | number | boolean | null> = {},
+  fieldValues: FieldValueMap = {},
 ): Promise<PdfJobDto> {
-  return api(`${BASE}/templates/${templateId}/pdf`, {
+  return api(`${BASE}/templates/${segment(templateId)}/pdf`, {
     method: "POST",
     body: JSON.stringify({ fieldValues }),
   });
 }
 
 export function getPdfJobs(templateId: string): Promise<PdfJobDto[]> {
-  return api(`${BASE}/templates/${templateId}/pdf/jobs`);
+  return api(`${BASE}/templates/${segment(templateId)}/pdf/jobs`);
 }
 
 export function getPdfJob(
   templateId: string,
   jobId: string,
 ): Promise<PdfJobDto> {
-  return api(`${BASE}/templates/${templateId}/pdf/jobs/${jobId}`);
+  return api(
+    `${BASE}/templates/${segment(templateId)}/pdf/jobs/${segment(jobId)}`,
+  );
 }
 
 export function getPdfDownloadUrl(templateId: string, jobId: string): string {
-  return `${BASE}/templates/${templateId}/pdf/jobs/${jobId}/download`;
-}
-
-export function getLatestPdfUrl(templateId: string): string {
-  return `${BASE}/templates/${templateId}/pdf/latest`;
+  return `${BASE}/templates/${segment(templateId)}/pdf/jobs/${segment(jobId)}/download`;
 }

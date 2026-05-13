@@ -1,16 +1,19 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createReadStream, type ReadStream } from "node:fs";
-import { access, mkdir, unlink } from "node:fs/promises";
+import { access, mkdir, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { Inject, Injectable } from "@nestjs/common";
 import { pdfConfig } from "../config/pdf.config";
-import { DocumentRenderingService } from "./document-rendering.service";
+import {
+  DocumentRenderingService,
+  type FieldValueMap,
+} from "./document-rendering.service";
 
 export interface PdfGenerationInput {
   title: string;
   content: string;
-  fieldValues: Record<string, string | number | boolean | null>;
+  fieldValues: FieldValueMap;
   strict: boolean;
 }
 
@@ -19,6 +22,8 @@ export interface PdfGenerationInput {
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+
+const pdfServiceUrl = process.env.PDF_SERVICE_URL?.trim();
 
 @Injectable()
 export class PdfGenerationService {
@@ -101,7 +106,7 @@ export class PdfGenerationService {
         rejectRun(new Error(`Pandoc exit ${code}: ${stderr.slice(0, 500)}`));
       });
 
-      process.on("error", (error: any) => {
+      process.on("error", (error: NodeJS.ErrnoException) => {
         clearTimeout(timer);
         if (error.code === "ENOENT") {
           rejectRun(
@@ -121,6 +126,58 @@ export class PdfGenerationService {
 
       process.stdin.end(input, "utf8");
     });
+  }
+
+  private async runRemotePdfService(input: {
+    markdown: string;
+    title: string;
+    author: string;
+    outputPath: string;
+  }): Promise<void> {
+    if (!pdfServiceUrl) return;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), pdfConfig.timeoutMs);
+    try {
+      const response = await fetch(
+        `${pdfServiceUrl.replace(/\/$/, "")}/generate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            markdown: input.markdown,
+            title: input.title,
+            author: input.author,
+            options: {
+              engine: pdfConfig.engine,
+              paper: pdfConfig.paper,
+              fontSize: pdfConfig.fontSize,
+              marginTop: pdfConfig.marginTop,
+              marginBottom: pdfConfig.marginBottom,
+              marginLeft: pdfConfig.marginLeft,
+              marginRight: pdfConfig.marginRight,
+              mainFont: pdfConfig.mainFont,
+              sansFont: pdfConfig.sansFont,
+              monoFont: pdfConfig.monoFont,
+              colorLinks: pdfConfig.colorLinks,
+              linkColor: pdfConfig.linkColor,
+            },
+          }),
+          signal: controller.signal,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `PDF service ${response.status}: ${(await response.text()).slice(0, 500)}`,
+        );
+      }
+
+      const bytes = Buffer.from(await response.arrayBuffer());
+      await writeFile(input.outputPath, bytes);
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async generatePdf(document: PdfGenerationInput): Promise<{
@@ -150,6 +207,16 @@ export class PdfGenerationService {
     const filename = `${randomUUID()}.pdf`;
     const outputPath = join(this.getStoragePath(), filename);
     const args = this.buildPandocArgs(outputPath, title, author);
+
+    if (pdfServiceUrl) {
+      await this.runRemotePdfService({
+        markdown: interpolated,
+        title,
+        author,
+        outputPath,
+      });
+      return { filename, unresolvedFields: unresolved };
+    }
 
     let lastError: Error | undefined;
     for (let attempt = 0; attempt <= pdfConfig.retries; attempt++) {

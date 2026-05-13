@@ -12,18 +12,22 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import type { PdfJobDto } from "../data/api";
+import {
+  type FieldValueMap,
+  getPdfDownloadUrl,
+  type PdfJobDto,
+} from "../data/api";
+import type { NormalizedField } from "../utils/template";
+import { DynamicDocument } from "./DynamicDocument";
 
 type Props = {
-  content: string;
+  markdown: string;
+  fields: NormalizedField[];
+  values: FieldValueMap;
   pdfJobs?: PdfJobDto[];
   templateId?: string;
   documentName?: string;
 };
-
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/api`;
 
 function jobStatusColor(
   status: PdfJobDto["status"],
@@ -42,36 +46,24 @@ function jobStatusLabel(status: PdfJobDto["status"]): string {
 }
 
 export function PdfPreview({
-  content,
+  markdown,
+  fields,
+  values,
   pdfJobs = [],
   templateId,
   documentName,
 }: Props) {
-  // Prendi il job più recente completato
-  const latestCompleted = pdfJobs.find((j) => j.status === "completed");
-  // Prendi il job più recente in assoluto (qualsiasi stato)
+  const latestCompleted = pdfJobs.find((job) => job.status === "completed");
   const latestJob = pdfJobs[0];
-
-  // L'URL di download richiede un UUID valido del template
-  const isValidUuid = (s?: string) =>
-    Boolean(
-      s &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-          s,
-        ),
-    );
-
   const downloadUrl =
-    latestCompleted && templateId && isValidUuid(templateId)
-      ? `${BASE}/templates/${templateId}/pdf/jobs/${latestCompleted.id}/download`
+    latestCompleted && templateId
+      ? getPdfDownloadUrl(templateId, latestCompleted.id)
       : null;
-
   const isGenerating =
     latestJob?.status === "queued" || latestJob?.status === "running";
 
   return (
     <Stack gap={2}>
-      {/* Barra di stato PDF */}
       <Paper className="panel-shell">
         <Stack
           direction="row"
@@ -87,7 +79,7 @@ export function PdfPreview({
               </Typography>
             )}
 
-            {isGenerating && (
+            {isGenerating && latestJob && (
               <Stack direction="row" alignItems="center" gap={1}>
                 <CircularProgress size={16} />
                 <Typography variant="body2" color="text.secondary">
@@ -131,9 +123,7 @@ export function PdfPreview({
                     iframe.style.display = "none";
                     iframe.src = downloadUrl;
                     document.body.appendChild(iframe);
-                    iframe.onload = () => {
-                      iframe.contentWindow?.print();
-                    };
+                    iframe.onload = () => iframe.contentWindow?.print();
                   }}
                 >
                   Stampa
@@ -151,7 +141,6 @@ export function PdfPreview({
                   disabled={!downloadUrl}
                   onClick={() => {
                     if (!downloadUrl) return;
-                    // Scarica tramite click su link — più affidabile di window.open
                     const a = document.createElement("a");
                     a.href = downloadUrl;
                     a.download = `${documentName ?? "documento"}.pdf`;
@@ -167,22 +156,13 @@ export function PdfPreview({
           </Stack>
         </Stack>
 
-        {/* Mostra errore se l'ultimo job è fallito */}
         {latestJob?.status === "failed" && latestJob.errorMessage && (
           <Alert severity="error" sx={{ mt: 2 }}>
             <strong>Generazione fallita:</strong> {latestJob.errorMessage}
           </Alert>
         )}
-
-        {/* Avviso se templateId non è UUID (template GitHub non salvato) */}
-        {templateId && !isValidUuid(templateId) && (
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            Salva il template come copia locale per poter scaricare il PDF.
-          </Alert>
-        )}
       </Paper>
 
-      {/* Anteprima Markdown */}
       <Paper className="preview-sheet">
         <Stack
           direction="row"
@@ -192,7 +172,7 @@ export function PdfPreview({
           <Box>
             <Box className="logo-box">LOGO</Box>
             <Typography variant="caption" color="text.secondary">
-              Confidenziale · v1.0
+              Confidenziale - v1.0
             </Typography>
           </Box>
           <Box textAlign="right">
@@ -207,9 +187,12 @@ export function PdfPreview({
           </Box>
         </Stack>
         <Divider sx={{ my: 4 }} />
-        <Box className="markdown-preview">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-        </Box>
+        <DynamicDocument
+          markdown={markdown}
+          fields={fields}
+          values={values}
+          readOnly
+        />
       </Paper>
     </Stack>
   );

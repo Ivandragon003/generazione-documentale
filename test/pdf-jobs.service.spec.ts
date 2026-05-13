@@ -90,7 +90,10 @@ async function buildModule(repoOverrides: Record<string, jest.Mock> = {}) {
       },
       {
         provide: TemplatesService,
-        useValue: { findOne: jest.fn() },
+        useValue: {
+          findOne: jest.fn(),
+          resolveTemplateIdForPdfJob: jest.fn(),
+        },
       },
       {
         provide: PdfGenerationService,
@@ -126,6 +129,9 @@ describe("PdfJobsService", () => {
     templatesService = module.get(
       TemplatesService,
     ) as jest.Mocked<TemplatesService>;
+    templatesService.resolveTemplateIdForPdfJob.mockImplementation(
+      async (id: string) => id,
+    );
     pdfGenerationService = module.get(
       PdfGenerationService,
     ) as jest.Mocked<PdfGenerationService>;
@@ -184,26 +190,40 @@ describe("PdfJobsService", () => {
       });
     });
 
-    it("lancia 422 se mancano campi obbligatori", async () => {
+    it("accoda il job anche se mancano campi obbligatori", async () => {
+      const job = makeJob();
       templatesService.findOne.mockResolvedValue(makeTpl());
-      documentRenderingService.getMissingRequiredFields.mockReturnValue([
-        "Titolo",
-        "Nome",
-      ]);
+      pdfJobsRepository.insert.mockResolvedValue(job);
 
-      await expect(service.enqueue(VALID_TPL_UUID, {})).rejects.toMatchObject({
-        status: 422,
-      });
+      const result = await service.enqueue(VALID_TPL_UUID, {});
+
+      expect(result).toEqual(job);
+      expect(pdfJobsRepository.insert).toHaveBeenCalledWith(
+        VALID_TPL_UUID,
+        {},
+        "system",
+      );
     });
 
-    it("il messaggio 422 elenca i campi mancanti", async () => {
+    it("risolve un template GitHub virtuale prima di accodare", async () => {
+      const job = makeJob();
+      templatesService.resolveTemplateIdForPdfJob.mockResolvedValue(
+        VALID_TPL_UUID,
+      );
       templatesService.findOne.mockResolvedValue(makeTpl());
-      documentRenderingService.getMissingRequiredFields.mockReturnValue([
-        "Titolo",
-      ]);
+      pdfJobsRepository.insert.mockResolvedValue(job);
 
-      await expect(service.enqueue(VALID_TPL_UUID, {})).rejects.toThrow(
-        "Titolo",
+      await service.enqueue("github:category/section/name", {}, "user1");
+
+      expect(templatesService.resolveTemplateIdForPdfJob).toHaveBeenCalledWith(
+        "github:category/section/name",
+        "user1",
+        true,
+      );
+      expect(pdfJobsRepository.insert).toHaveBeenCalledWith(
+        VALID_TPL_UUID,
+        {},
+        "user1",
       );
     });
   });

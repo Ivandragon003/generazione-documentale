@@ -12,13 +12,8 @@ import {
   Query,
   Req,
   Res,
-  UploadedFile,
-  UseInterceptors,
 } from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
 import {
-  ApiBody,
-  ApiConsumes,
   ApiHeader,
   ApiOperation,
   ApiParam,
@@ -29,49 +24,14 @@ import {
 import type { Request, Response } from "express";
 import { toTemplateResponse } from "../common/mappers/response.mapper";
 import { makeError } from "../common/utils/errors";
-import {
-  getActor,
-  parsePagination,
-  readAndCleanupUpload,
-} from "../common/utils/http.utils";
-import { appConfig } from "../config/app.config";
+import { getActor, parsePagination } from "../common/utils/http.utils";
 import type { CreateTemplateDto } from "../dto/create-template.dto";
 import type { GeneratePdfDto } from "../dto/generate-pdf.dto";
-import { ImportTemplateFileDto } from "../dto/import-template-file.dto";
 import type { TemplateQueryDto } from "../dto/template-query.dto";
 import type { UpdateTemplateDto } from "../dto/update-template.dto";
 import type { ValidateMarkdownDto } from "../dto/validate-markdown.dto";
 import { PdfJobsService } from "../service/pdf-jobs.service";
 import { TemplatesService } from "../service/templates.service";
-
-const UPLOAD_PATH = appConfig.uploadPath;
-const MAX_FILE_SIZE = appConfig.maxFileSizeBytes;
-
-interface UploadedMarkdownFile {
-  path: string;
-  originalname: string;
-  mimetype: string;
-}
-
-const multerOptions = {
-  dest: UPLOAD_PATH,
-  limits: { fileSize: MAX_FILE_SIZE },
-  fileFilter: (
-    _request: Request,
-    file: UploadedMarkdownFile,
-    callback: (error: Error | null, acceptFile: boolean) => void,
-  ) => {
-    if (
-      file.originalname.endsWith(".md") ||
-      file.mimetype === "text/markdown" ||
-      file.mimetype === "text/plain"
-    ) {
-      callback(null, true);
-      return;
-    }
-    callback(new Error("Formato file non supportato. Accettati: .md"), false);
-  },
-};
 
 function toPdfJobResponse(job: {
   id: string;
@@ -177,52 +137,11 @@ export class TemplatesController {
     return this.templatesService.delete(id);
   }
 
-  @Get(":id/export")
-  @ApiOperation({ summary: "Esporta template come file .md" })
-  @ApiParam({ name: "id", description: "UUID template" })
-  async export(@Param("id") id: string, @Res() response: Response) {
-    const template = await this.templatesService.findOne(id);
-    if (!template) throw makeError("Template non trovato", 404);
-    const content = this.templatesService.getExportContent(template);
-    response.setHeader("Content-Type", "text/markdown");
-    response.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${template.name}.md"`,
-    );
-    response.send(content);
-  }
-
-  @Post("import")
-  @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor("file", multerOptions))
-  @ApiConsumes("multipart/form-data")
-  @ApiBody({ type: ImportTemplateFileDto })
-  @ApiOperation({ summary: "Importa template da file .md" })
-  @ApiHeader({ name: "x-user", required: false, example: "ivan" })
-  async import(
-    @UploadedFile() file: UploadedMarkdownFile,
-    @Body() body: ImportTemplateFileDto,
-    @Req() request: Request,
-  ) {
-    if (!file) throw makeError("File non fornito", 400);
-    const content = await readAndCleanupUpload(file);
-    const name = body.name || file.originalname.replace(/\.md$/i, "");
-    const template = await this.templatesService.importFromMarkdown(
-      content,
-      name,
-      getActor(request),
-    );
-    if (!template) throw makeError("Template non trovato", 404);
-    return toTemplateResponse(template);
-  }
-
   @Post("validate")
   @ApiOperation({ summary: "Valida contenuto Markdown" })
   validate(@Body() body: ValidateMarkdownDto) {
     return this.templatesService.validateMarkdown(body.content);
   }
-
-  // ─── PDF endpoints (sostituiscono /api/documents/:id/pdf) ────────────────────
 
   @Post(":id/pdf")
   @HttpCode(HttpStatus.CREATED)

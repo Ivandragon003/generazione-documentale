@@ -4,7 +4,7 @@ import { TemplateEntity } from "../src/entities/template.entity";
 import { TemplatesRepository } from "../src/repository/templates.repository";
 
 function makeManagerStub(rawCount: string) {
-  const qb: any = {
+  const qb: Record<string, jest.Mock> = {
     select: jest.fn().mockReturnThis(),
     from: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),

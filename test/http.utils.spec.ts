@@ -456,7 +456,7 @@ describe("HTTP Utilities", () => {
         const req = {
           headers: { "x-user": "api-consumer-123" },
           method: "POST",
-          url: "/api/documents",
+          url: "/api/templates",
         } as unknown as Request;
 
         const actor = getActor(req);

@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { Repository } from "typeorm";
 import { PdfJobEntity } from "../entities/pdf-job.entity";
+import type { FieldValueMap } from "../service/document-rendering.service";
 
 @Injectable()
 export class PdfJobsRepository {
@@ -12,7 +13,7 @@ export class PdfJobsRepository {
 
   async insert(
     templateId: string,
-    fieldValues: Record<string, string | number | boolean | null>,
+    fieldValues: FieldValueMap,
     actor: string,
   ): Promise<PdfJobEntity> {
     const job = this.repo.create({

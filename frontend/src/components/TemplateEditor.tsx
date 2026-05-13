@@ -1,19 +1,13 @@
 import AddIcon from "@mui/icons-material/Add";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
 import {
   Alert,
   Button,
   Chip,
-  Divider,
   Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import { useRef } from "react";
-import type { TemplateDto } from "../data/api";
-
-const BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:3000") + "/api";
 
 type Props = {
   markdown: string;
@@ -21,7 +15,6 @@ type Props = {
   placeholders: string[];
   added: string[];
   removed: string[];
-  onTemplateImported?: (template: TemplateDto) => void;
 };
 
 export function TemplateEditor({
@@ -30,53 +23,11 @@ export function TemplateEditor({
   placeholders,
   added,
   removed,
-  onTemplateImported,
 }: Props) {
-  const importInputRef = useRef<HTMLInputElement>(null);
-
-  // ── Importa template via API (multipart) ─────────────────────────────────
-  async function handleImportFile(file: File) {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("name", file.name.replace(/\.md$/i, ""));
-
-    try {
-      const res = await fetch(`${BASE}/templates/import`, {
-        method: "POST",
-        headers: { "x-user": "frontend" },
-        body: formData,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const tmpl = (await res.json()) as TemplateDto;
-      onChange(tmpl.content);
-      onTemplateImported?.(tmpl); // passa il TemplateDto completo con id UUID
-    } catch (err) {
-      alert(`Errore importazione: ${String(err)}`);
-    }
-  }
-
-  // ── Drag & drop ──────────────────────────────────────────────────────────
-  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-    if (
-      file.name.endsWith(".md") ||
-      file.type === "text/plain" ||
-      file.type === "text/markdown"
-    ) {
-      void handleImportFile(file);
-    } else {
-      alert("Formato non supportato. Carica un file .md");
-    }
-  }
-
-  // ── Crea campo: inserisce {{campo_N}} nel testo ───────────────────────────
   function handleCreateField() {
     const fieldName = window.prompt("Nome del campo (es: nome_cliente):");
     if (!fieldName) return;
 
-    // Normalizza il nome (minuscolo, senza spazi)
     const normalized = fieldName
       .trim()
       .toLowerCase()
@@ -89,11 +40,10 @@ export function TemplateEditor({
     }
 
     const type = window.prompt(
-      "Tipo campo (text, longText, date, number, boolean, select):",
+      "Tipo campo (text, textarea, date, number, boolean, select, table, list):",
       "text",
     );
 
-    // Inserisce su nuova riga in fondo (o all'inizio se l'editor è vuoto)
     const separator = markdown.length > 0 ? "\n" : "";
     const placeholder =
       type && type !== "text"
@@ -104,39 +54,7 @@ export function TemplateEditor({
 
   return (
     <Stack gap={2}>
-      {/* file input nascosto — solo .md */}
-      <input
-        ref={importInputRef}
-        type="file"
-        accept=".md,text/markdown,text/plain"
-        style={{ display: "none" }}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) void handleImportFile(file);
-          e.target.value = "";
-        }}
-      />
-
       <Paper className="panel-shell">
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          justifyContent="space-between"
-          gap={2}
-        >
-          <Stack direction="row" gap={1} flexWrap="wrap">
-            <Button
-              variant="outlined"
-              startIcon={<UploadFileIcon />}
-              onClick={() => importInputRef.current?.click()}
-            >
-              Importa template
-            </Button>
-          </Stack>
-          <Typography variant="body2" color="text.secondary">
-            Trascina un file .md per importarlo
-          </Typography>
-        </Stack>
-        <Divider sx={{ my: 2 }} />
         <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center">
           <Button
             size="small"
@@ -165,11 +83,7 @@ export function TemplateEditor({
         </Stack>
       </Paper>
 
-      <Paper
-        className="editor-paper"
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={handleDrop}
-      >
+      <Paper className="editor-paper">
         <TextField
           multiline
           minRows={22}
@@ -178,7 +92,7 @@ export function TemplateEditor({
           onChange={(event) => onChange(event.target.value)}
           variant="standard"
           InputProps={{ disableUnderline: true, className: "editor-input" }}
-          placeholder="Scrivi il tuo template Markdown qui, oppure trascina un file .md"
+          placeholder="Scrivi il template Markdown oppure seleziona un template GitHub"
         />
       </Paper>
 
@@ -203,10 +117,10 @@ export function TemplateEditor({
         </Stack>
         {(added.length > 0 || removed.length > 0) && (
           <Alert severity="warning" sx={{ mt: 2 }}>
-            Struttura cambiata — nuovi:{" "}
-            <strong>{added.join(", ") || "nessuno"}</strong> · rimossi:{" "}
+            Struttura cambiata: nuovi{" "}
+            <strong>{added.join(", ") || "nessuno"}</strong>, rimossi{" "}
             <strong>{removed.join(", ") || "nessuno"}</strong>. Al salvataggio
-            verrà creato un nuovo template.
+            verra creato un nuovo template.
           </Alert>
         )}
       </Paper>

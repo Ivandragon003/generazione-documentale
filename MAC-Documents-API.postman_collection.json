@@ -1,414 +1,110 @@
 {
   "info": {
+    "_postman_id": "mac-documents-api-current",
     "name": "MAC Documents API",
-    "_postman_id": "mac-documents-api-current-no-scripts",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Collection sincronizzata con i controller reali. Nessuno script pm/Postman."
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "base_url",
-      "value": "http://127.0.0.1:3000"
-    },
-    {
-      "key": "user",
-      "value": "ivan"
+      "value": "http://localhost:3000"
     },
     {
       "key": "template_id",
-      "value": "11111111-1111-4111-8111-111111111111"
-    },
-    {
-      "key": "template_delete_id",
-      "value": "11111111-1111-4111-8111-111111111112"
-    },
-    {
-      "key": "document_id",
-      "value": "22222222-2222-4222-8222-222222222222"
+      "value": "github%3Aportfolio%2Fsezione-commerciale%2Fofferta"
     },
     {
       "key": "pdf_job_id",
-      "value": "33333333-3333-4333-8333-333333333333"
+      "value": ""
     }
   ],
   "item": [
     {
-      "name": "01 Health",
-      "item": [
-        {
-          "name": "Health check",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/health"
-          }
-        }
-      ]
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/health"
+      }
     },
     {
-      "name": "02 Templates",
-      "item": [
-        {
-          "name": "Valida Markdown",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{base_url}}/api/templates/validate",
-            "body": {
-              "mode": "raw",
-              "raw": "{\"content\":\"# {{titolo}}\\n\\n- Committente: {{committente}}\\n- Data: {{data}}\"}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Importa template da file .md",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/templates/import",
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "name",
-                  "value": "Template da upload",
-                  "type": "text"
-                },
-                {
-                  "key": "sectionId",
-                  "value": "",
-                  "type": "text",
-                  "description": "Opzionale"
-                },
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": ""
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Crea template (JSON)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/templates",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Template Capitolato\",\n  \"description\": \"Desc\",\n  \"sectionId\": null,\n  \"status\": \"draft\",\n  \"content\": \"# {{titolo}}\\n\\n| Committente | {{committente}} |\\n| Data | {{data}} |\\n\\n{{descrizione}}\\n\\nBudget: {{budget}}\\nFirma: {{firma}}\",\n  \"fields\": [\n    {\n      \"name\": \"titolo\",\n      \"label\": \"Titolo\",\n      \"type\": \"text\",\n      \"required\": true,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"committente\",\n      \"label\": \"Committente\",\n      \"type\": \"text\",\n      \"required\": true,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"responsabile\",\n      \"label\": \"Responsabile\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"Da assegnare\"\n    },\n    {\n      \"name\": \"data\",\n      \"label\": \"Data emissione\",\n      \"type\": \"date\",\n      \"required\": true,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"descrizione\",\n      \"label\": \"Descrizione\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"budget\",\n      \"label\": \"Budget\",\n      \"type\": \"text\",\n      \"required\": true,\n      \"defaultValue\": \"\"\n    },\n    {\n      \"name\": \"sconto\",\n      \"label\": \"Sconto\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"0%\"\n    },\n    {\n      \"name\": \"firma\",\n      \"label\": \"Firma\",\n      \"type\": \"text\",\n      \"required\": false,\n      \"defaultValue\": \"\"\n    }\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Lista template",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/templates?limit=20&offset=0",
-              "host": ["{{base_url}}"],
-              "path": ["api", "templates"],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "20"
-                },
-                {
-                  "key": "offset",
-                  "value": "0"
-                },
-                {
-                  "key": "status",
-                  "value": "",
-                  "disabled": true,
-                  "description": "draft | published"
-                },
-                {
-                  "key": "sectionId",
-                  "value": "",
-                  "disabled": true
-                },
-                {
-                  "key": "categoryId",
-                  "value": "",
-                  "disabled": true
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Dettaglio template",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/templates/{{template_id}}"
-          }
-        },
-        {
-          "name": "Aggiorna template",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/templates/{{template_id}}",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"description\": \"Versione aggiornata\",\n  \"status\": \"published\",\n  \"content\": \"# {{titolo}}\\n\\n{{committente}}\\n\\n{{data}}\\n\\nFirma: {{firma}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Esporta template come .md",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/templates/{{template_id}}/export"
-          }
-        },
-        {
-          "name": "Elimina template",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/templates/{{template_delete_id}}"
-          }
-        }
-      ]
+      "name": "Lista template GitHub",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/templates"
+      }
     },
     {
-      "name": "03 Documents",
-      "item": [
-        {
-          "name": "Crea documento da template",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/documents",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Capitolato Beta\",\n  \"templateId\": \"{{template_id}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Lista documenti",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/documents?limit=20&offset=0",
-              "host": ["{{base_url}}"],
-              "path": ["api", "documents"],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "20"
-                },
-                {
-                  "key": "offset",
-                  "value": "0"
-                },
-                {
-                  "key": "status",
-                  "value": "",
-                  "disabled": true,
-                  "description": "draft | generated | published | archived"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Dettaglio documento",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/documents/{{document_id}}"
-          }
-        },
-        {
-          "name": "Aggiorna documento (fieldValues)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/documents/{{document_id}}",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fieldValues\": {\n    \"titolo\": \"Capitolato Tecnico Beta\",\n    \"committente\": \"ASL Roma 2\",\n    \"responsabile\": \"Giulia Bianchi\",\n    \"data\": \"2026-04-29\",\n    \"descrizione\": \"Realizzazione piattaforma documentale.\",\n    \"budget\": \"120.000 EUR\",\n    \"sconto\": \"3%\",\n    \"firma\": \"Direzione Acquisti\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Anteprima documento (Markdown)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/documents/{{document_id}}/preview"
-          }
-        },
-        {
-          "name": "Avvia generazione PDF",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/documents/{{document_id}}/pdf"
-          }
-        },
-        {
-          "name": "Lista job PDF",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/documents/{{document_id}}/pdf/jobs"
-          }
-        },
-        {
-          "name": "Stato job PDF",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/documents/{{document_id}}/pdf/jobs/{{pdf_job_id}}"
-          }
-        },
-        {
-          "name": "Download PDF (per jobId)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/documents/{{document_id}}/pdf/jobs/{{pdf_job_id}}/download"
-          }
-        },
-        {
-          "name": "Download ultimo PDF",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/documents/{{document_id}}/pdf/latest"
-          }
-        },
-        {
-          "name": "Elimina PDF generato",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/documents/{{document_id}}/pdf/jobs/{{pdf_job_id}}"
-          }
-        },
-        {
-          "name": "Elimina documento",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "x-user",
-                "value": "{{user}}"
-              }
-            ],
-            "url": "{{base_url}}/api/documents/{{document_id}}"
-          }
-        }
-      ]
+      "name": "Dettaglio template",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/templates/{{template_id}}"
+      }
     },
     {
-      "name": "04 Sections",
-      "item": [
-        {
-          "name": "Lista sezioni con categoria",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/sections"
+      "name": "Valida template",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
           }
-        }
-      ]
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"# {{titolo}}\\n\\nCliente: {{cliente:text}}\\nData: {{data:date}}\"\n}"
+        },
+        "url": "{{base_url}}/api/templates/validate"
+      }
+    },
+    {
+      "name": "Genera PDF",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-user",
+            "value": "postman"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fieldValues\": {\n    \"titolo\": \"Documento Test\",\n    \"cliente\": \"Acme SpA\",\n    \"data\": \"2026-05-13\"\n  }\n}"
+        },
+        "url": "{{base_url}}/api/templates/{{template_id}}/pdf"
+      }
+    },
+    {
+      "name": "Lista job PDF",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/templates/{{template_id}}/pdf/jobs"
+      }
+    },
+    {
+      "name": "Stato job PDF",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/templates/{{template_id}}/pdf/jobs/{{pdf_job_id}}"
+      }
+    },
+    {
+      "name": "Download job PDF",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/templates/{{template_id}}/pdf/jobs/{{pdf_job_id}}/download"
+      }
+    },
+    {
+      "name": "Download ultimo PDF",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/templates/{{template_id}}/pdf/latest"
+      }
     }
   ]
 }

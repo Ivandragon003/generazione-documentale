@@ -1,14 +1,35 @@
 export type FieldType =
-  | "text" // input singola riga
-  | "textarea" // testo multi-riga
-  | "number" // numero
-  | "date" // data (YYYY-MM-DD)
-  | "boolean" // checkbox si/no
-  | "email" // email (validazione frontend)
-  | "url" // link/URL
-  | "tel" // numero di telefono
-  | "select" // scelta da lista (opzioni in defaultValue separato da virgola)
-  | "currency"; // importo monetario (es. € 1.000,00)
+  | "text"
+  | "textarea"
+  | "number"
+  | "date"
+  | "boolean"
+  | "checkbox"
+  | "email"
+  | "url"
+  | "tel"
+  | "select"
+  | "currency"
+  | "table"
+  | "subtable"
+  | "list"
+  | "repeater";
+
+export interface FieldOption {
+  label: string;
+  value: string;
+}
+
+export interface FieldColumnDefinition {
+  name: string;
+  label?: string;
+  type?: FieldType;
+  required?: boolean;
+  defaultValue?: string;
+  placeholder?: string;
+  options?: FieldOption[];
+  columns?: FieldColumnDefinition[];
+}
 
 export interface FieldDefinition {
   name: string;
@@ -16,4 +37,7 @@ export interface FieldDefinition {
   type: FieldType;
   required: boolean;
   defaultValue: string;
+  placeholder?: string;
+  options?: FieldOption[];
+  columns?: FieldColumnDefinition[];
 }

@@ -1,5 +1,7 @@
 import type {
+  FieldColumnDefinition,
   FieldDefinition,
+  FieldOption,
   FieldType,
 } from "../types/field-definition.type";
 
@@ -43,6 +45,29 @@ export const extractFieldsWithTypes = (
   return fields;
 };
 
+export const allowedFieldTypes: FieldType[] = [
+  "text",
+  "textarea",
+  "number",
+  "date",
+  "boolean",
+  "checkbox",
+  "email",
+  "url",
+  "tel",
+  "select",
+  "currency",
+  "table",
+  "subtable",
+  "list",
+  "repeater",
+];
+
+const allowedFieldTypeSet = new Set<string>(allowedFieldTypes);
+
+export const isFieldType = (value: string | undefined): value is FieldType =>
+  Boolean(value && allowedFieldTypeSet.has(value));
+
 const labelFromName = (name: string): string => {
   return name
     .split("_")
@@ -56,6 +81,9 @@ export interface PartialFieldDefinition {
   type?: FieldType;
   required?: boolean;
   defaultValue?: string;
+  placeholder?: string;
+  options?: FieldOption[];
+  columns?: FieldColumnDefinition[];
 }
 
 export const normalizeFieldDefinitions = (
@@ -78,6 +106,9 @@ export const normalizeFieldDefinitions = (
       type: provided?.type ?? inlineType ?? "text",
       required: provided?.required ?? true,
       defaultValue: provided?.defaultValue ?? "",
+      placeholder: provided?.placeholder,
+      options: provided?.options,
+      columns: provided?.columns,
     };
   });
 };
@@ -121,6 +152,13 @@ export const validateMarkdownContent = (
     errors.push(
       `Placeholder non validi: ${[...new Set(invalidPlaceholders)].join(", ")}`,
     );
+  }
+
+  const invalidTypes = [...extractFieldsWithTypes(content).entries()]
+    .filter(([, type]) => !isFieldType(type))
+    .map(([name, type]) => `${name}:${type}`);
+  if (invalidTypes.length > 0) {
+    errors.push(`Tipi campo non validi: ${invalidTypes.join(", ")}`);
   }
 
   const blockedPatterns: Array<{ pattern: RegExp; label: string }> = [

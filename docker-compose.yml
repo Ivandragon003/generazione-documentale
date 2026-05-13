@@ -48,6 +48,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      pdf-service:
+        condition: service_healthy
 
     environment:
       NODE_ENV: development
@@ -61,18 +63,38 @@ services:
       DB_NAME: ${DB_NAME:-mac_documents}
 
       STORAGE_PATH: /app/storage/pdf
-      UPLOAD_PATH: /app/storage/uploads
-      TEMPLATES_STORAGE_PATH: /app/storage/templates
+      PDF_SERVICE_URL: http://pdf-service:3100
 
     volumes:
       - pdf_storage:/app/storage/pdf
-      - upload_storage:/app/storage/uploads
-      - ./storage/templates:/app/storage/templates
       # Sincronizza openapi.json dal container all'host ad ogni avvio
       - ./openapi.json:/app/openapi.json
 
     ports:
       - "${PORT:-3000}:3000"
+
+    networks:
+      - mac_net
+
+
+  # PDF/LaTeX/Pandoc separato dall'app NestJS
+  pdf-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.pdf
+
+    container_name: mac_pdf_service
+    restart: unless-stopped
+
+    environment:
+      PDF_SERVICE_PORT: 3100
+      PDF_GENERATION_TIMEOUT_MS: ${PDF_GENERATION_TIMEOUT_MS:-120000}
+
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"const h=require('http');h.get('http://localhost:3100/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
     networks:
       - mac_net
@@ -108,7 +130,6 @@ services:
 volumes:
   postgres_data:
   pdf_storage:
-  upload_storage:
 
 
 # ───────────────────────────────────────────────────────────────

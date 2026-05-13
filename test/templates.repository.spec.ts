@@ -4,7 +4,7 @@ import { TemplateEntity } from "../src/entities/template.entity";
 import { TemplatesRepository } from "../src/repository/templates.repository";
 
 function makeManagerStub(rawCount: string) {
-  const qb: any = {
+  const qb: Record<string, jest.Mock> = {
     select: jest.fn().mockReturnThis(),
     from: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
@@ -40,7 +40,7 @@ describe("TemplatesRepository", () => {
     }) as TemplateEntity;
 
   function makeQb(data: TemplateEntity[] = [], total = 0) {
-    const qb: any = {
+    const qb: Record<string, jest.Mock> = {
       orderBy: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
@@ -107,17 +107,22 @@ describe("TemplatesRepository", () => {
   describe("insertTemplate()", () => {
     it("deve creare e salvare un template con tutti i campi", async () => {
       const tpl = fakeTpl();
-      const manager: any = {
+      const manager = {
         create: jest.fn().mockReturnValue(tpl),
         save: jest.fn().mockResolvedValue(tpl),
       };
-      const result = await repo.insertTemplate(manager, {
-        id: "tpl-1",
-        name: "Template Test",
-        contentPath: "/storage/tpl-1.md",
-        fields: [],
-        createdBy: "user1",
-      });
+      const result = await repo.insertTemplate(
+        manager as unknown as Parameters<
+          TemplatesRepository["insertTemplate"]
+        >[0],
+        {
+          id: "tpl-1",
+          name: "Template Test",
+          contentPath: "/storage/tpl-1.md",
+          fields: [],
+          createdBy: "user1",
+        },
+      );
       expect(result).toEqual(tpl);
       expect(manager.create).toHaveBeenCalledWith(
         TemplateEntity,
@@ -127,18 +132,23 @@ describe("TemplatesRepository", () => {
 
     it("deve usare status fornito", async () => {
       const tpl = fakeTpl();
-      const manager: any = {
+      const manager = {
         create: jest.fn().mockReturnValue(tpl),
         save: jest.fn().mockResolvedValue(tpl),
       };
-      await repo.insertTemplate(manager, {
-        id: "tpl-1",
-        name: "T",
-        contentPath: "/x",
-        fields: [],
-        createdBy: "u",
-        status: "published",
-      });
+      await repo.insertTemplate(
+        manager as unknown as Parameters<
+          TemplatesRepository["insertTemplate"]
+        >[0],
+        {
+          id: "tpl-1",
+          name: "T",
+          contentPath: "/x",
+          fields: [],
+          createdBy: "u",
+          status: "published",
+        },
+      );
       expect(manager.create).toHaveBeenCalledWith(
         TemplateEntity,
         expect.objectContaining({ status: "published" }),
@@ -149,35 +159,45 @@ describe("TemplatesRepository", () => {
   describe("updateTemplate()", () => {
     it("deve aggiornare e restituire il template", async () => {
       const tpl = fakeTpl();
-      const manager: any = {
+      const manager = {
         update: jest.fn().mockResolvedValue(undefined),
         findOne: jest.fn().mockResolvedValue(tpl),
       };
-      const result = await repo.updateTemplate(manager, {
-        id: "tpl-1",
-        name: "Updated",
-        description: null,
-        contentPath: "/x",
-        fields: [],
-        status: "published",
-      });
+      const result = await repo.updateTemplate(
+        manager as unknown as Parameters<
+          TemplatesRepository["updateTemplate"]
+        >[0],
+        {
+          id: "tpl-1",
+          name: "Updated",
+          description: null,
+          contentPath: "/x",
+          fields: [],
+          status: "published",
+        },
+      );
       expect(result).toEqual(tpl);
     });
 
     it("deve lanciare errore se template non trovato dopo update", async () => {
-      const manager: any = {
+      const manager = {
         update: jest.fn().mockResolvedValue(undefined),
         findOne: jest.fn().mockResolvedValue(null),
       };
       await expect(
-        repo.updateTemplate(manager, {
-          id: "x",
-          name: "T",
-          description: null,
-          contentPath: "/x",
-          fields: [],
-          status: "draft",
-        }),
+        repo.updateTemplate(
+          manager as unknown as Parameters<
+            TemplatesRepository["updateTemplate"]
+          >[0],
+          {
+            id: "x",
+            name: "T",
+            description: null,
+            contentPath: "/x",
+            fields: [],
+            status: "draft",
+          },
+        ),
       ).rejects.toThrow(/non trovato dopo update/);
     });
   });

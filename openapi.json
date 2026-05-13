@@ -195,62 +195,6 @@
         "tags": ["templates"]
       }
     },
-    "/api/templates/{id}/export": {
-      "get": {
-        "operationId": "TemplatesController_export",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "UUID template",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Esporta template come file .md",
-        "tags": ["templates"]
-      }
-    },
-    "/api/templates/import": {
-      "post": {
-        "operationId": "TemplatesController_import",
-        "parameters": [
-          {
-            "name": "x-user",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "example": "ivan"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/ImportTemplateFileDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "Importa template da file .md",
-        "tags": ["templates"]
-      }
-    },
     "/api/templates/validate": {
       "post": {
         "operationId": "TemplatesController_validate",
@@ -440,19 +384,7 @@
     },
     {
       "name": "templates",
-      "description": "Gestione template documentali"
-    },
-    {
-      "name": "documents",
-      "description": "Gestione documenti generati"
-    },
-    {
-      "name": "pdf",
-      "description": "Utilita generazione PDF"
-    },
-    {
-      "name": "dev",
-      "description": "Utility ambiente locale"
+      "description": "Template GitHub, compilazione campi e PDF"
     }
   ],
   "servers": [],
@@ -461,16 +393,6 @@
       "Function": {
         "type": "object",
         "properties": {}
-      },
-      "ImportTemplateFileDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Nome del template (opzionale)",
-            "example": "Template importato"
-          }
-        }
       }
     }
   }

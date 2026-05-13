@@ -1,4 +1,3 @@
-import { readFile, unlink } from "node:fs/promises";
 import type { Request } from "express";
 import { validate as isUuid } from "uuid";
 import { makeError } from "./errors";
@@ -6,10 +5,6 @@ import { makeError } from "./errors";
 interface PaginationInput {
   limit?: string | number;
   offset?: string | number;
-}
-
-interface UploadedFileInput {
-  path: string;
 }
 
 interface PaginationOptions {
@@ -29,16 +24,6 @@ export const getActor = (req: Request): string => {
     return actorHeader;
   }
   return "system";
-};
-
-export const readAndCleanupUpload = async (
-  file: UploadedFileInput,
-): Promise<string> => {
-  try {
-    return await readFile(file.path, "utf8");
-  } finally {
-    await unlink(file.path).catch(() => undefined);
-  }
 };
 
 export const parsePagination = (

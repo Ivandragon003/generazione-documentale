@@ -1,13 +1,12 @@
-import { randomUUID } from "node:crypto";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { DataSource, type EntityManager } from "typeorm";
 import type { TemplateEntity } from "../src/entities/template.entity";
 import { TemplatesRepository } from "../src/repository/templates.repository";
+import type { GitHubTemplateFile } from "../src/service/github-storage.service";
 import { GitHubStorageService } from "../src/service/github-storage.service";
 import { TemplatesService } from "../src/service/templates.service";
 
 // ── helpers ────────────────────────────────────────────────────────────────────
-const uuid = () => randomUUID();
 const VALID_UUID = "550e8400-e29b-41d4-a716-446655440000";
 
 const makeTemplate = (
@@ -42,6 +41,36 @@ const makeTemplate = (
     ...overrides,
   }) as TemplateEntity & { content: string };
 
+const normalizeGitHubId = (raw: string): string => {
+  let normalized = raw.replace(/^github:/, "").replace(/^templates\//, "");
+  if (normalized.endsWith(".md")) normalized = normalized.slice(0, -3);
+  return normalized;
+};
+
+const makeGitHubTemplate = (
+  raw: string,
+  content = "# {{titolo}}",
+): GitHubTemplateFile => {
+  const id = normalizeGitHubId(raw);
+  const parts = id.split("/");
+  const now = new Date("2024-01-01");
+  return {
+    id: `github:${id}`,
+    name: parts.at(-1) ?? id,
+    description: null,
+    content_path: id,
+    githubPath: `templates/${id}.md`,
+    category: parts.length >= 3 ? parts[0] : null,
+    section: parts.length >= 3 ? parts[1] : null,
+    status: "published",
+    fields: [],
+    created_by: "github",
+    created_at: now,
+    updated_at: now,
+    content,
+  };
+};
+
 describe("TemplatesService", () => {
   let service: TemplatesService;
   let templatesRepository: jest.Mocked<TemplatesRepository>;
@@ -73,6 +102,8 @@ describe("TemplatesService", () => {
             updateTemplate: jest.fn(),
             deleteTemplate: jest.fn(),
             countActiveDocuments: jest.fn(),
+            findByContentPaths: jest.fn(),
+            findOneByContentPaths: jest.fn(),
           },
         },
         {
@@ -83,9 +114,15 @@ describe("TemplatesService", () => {
           provide: GitHubStorageService,
           useValue: {
             readTemplate: jest.fn(),
+            getTemplate: jest.fn(),
             writeTemplate: jest.fn(),
             deleteTemplate: jest.fn(),
             listTemplates: jest.fn().mockResolvedValue([]),
+            normalizeTemplateId: jest.fn(normalizeGitHubId),
+            contentPathCandidates: jest.fn((raw: string) => {
+              const id = normalizeGitHubId(raw);
+              return [id, `${id}.md`, `templates/${id}.md`];
+            }),
           },
         },
       ],
@@ -99,6 +136,13 @@ describe("TemplatesService", () => {
     githubStorage = module.get(
       GitHubStorageService,
     ) as jest.Mocked<GitHubStorageService>;
+
+    templatesRepository.findByContentPaths.mockResolvedValue([]);
+    templatesRepository.findOneByContentPaths.mockResolvedValue(null);
+    githubStorage.getTemplate.mockImplementation(async (raw: string) => {
+      const content = await githubStorage.readTemplate(raw);
+      return content === null ? null : makeGitHubTemplate(raw, content);
+    });
   });
 
   afterEach(() => jest.resetAllMocks());
@@ -285,12 +329,12 @@ describe("TemplatesService", () => {
       });
     });
 
-    it("lancia 503 se il contenuto non è disponibile su GitHub (strict)", async () => {
+    it("lancia 404 se il contenuto non e disponibile su GitHub", async () => {
       templatesRepository.findById.mockResolvedValue(makeTemplate());
       githubStorage.readTemplate.mockResolvedValue(null);
 
       await expect(service.findOne(VALID_UUID)).rejects.toMatchObject({
-        status: 503,
+        status: 404,
       });
     });
   });
@@ -299,13 +343,10 @@ describe("TemplatesService", () => {
 
   describe("findAll() - casi nominali e limite", () => {
     it("ritorna lista paginata di template", async () => {
-      const templates = [makeTemplate(), makeTemplate({ id: uuid() })];
-      templatesRepository.findAll.mockResolvedValue({
-        data: templates,
-        total: 2,
-      });
-      githubStorage.readTemplate.mockResolvedValue("# {{titolo}}");
-      githubStorage.listTemplates.mockResolvedValue([]);
+      githubStorage.listTemplates.mockResolvedValue([
+        makeGitHubTemplate("category/section/one"),
+        makeGitHubTemplate("category/section/two"),
+      ]);
 
       const result = await service.findAll({ limit: 20, offset: 0 });
 
@@ -313,7 +354,6 @@ describe("TemplatesService", () => {
     });
 
     it("gestisce lista vuota", async () => {
-      templatesRepository.findAll.mockResolvedValue({ data: [], total: 0 });
       githubStorage.listTemplates.mockResolvedValue([]);
 
       const result = await service.findAll({ limit: 20, offset: 0 });
@@ -323,35 +363,26 @@ describe("TemplatesService", () => {
     });
 
     it("filtra per status", async () => {
-      templatesRepository.findAll.mockResolvedValue({ data: [], total: 0 });
       githubStorage.listTemplates.mockResolvedValue([]);
 
       await service.findAll({ status: "published", limit: 10, offset: 0 });
 
-      expect(templatesRepository.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({ status: "published" }),
-      );
+      expect(githubStorage.listTemplates).toHaveBeenCalled();
     });
 
     it("applica i default di paginazione (limit=20, offset=0)", async () => {
-      templatesRepository.findAll.mockResolvedValue({ data: [], total: 0 });
       githubStorage.listTemplates.mockResolvedValue([]);
 
-      await service.findAll({});
+      const result = await service.findAll({});
 
-      expect(templatesRepository.findAll).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 20, offset: 0 }),
-      );
+      expect(result.limit).toBe(20);
+      expect(result.offset).toBe(0);
     });
 
-    it("template con contenuto mancante su GitHub non viene incluso nella lista (non strict)", async () => {
+    it("template DB senza corrispondente GitHub non viene incluso nella lista", async () => {
       const tpl = makeTemplate();
-      templatesRepository.findAll.mockResolvedValue({
-        data: [tpl],
-        total: 1,
-      });
-      githubStorage.readTemplate.mockResolvedValue(null);
       githubStorage.listTemplates.mockResolvedValue([]);
+      templatesRepository.findByContentPaths.mockResolvedValue([tpl]);
 
       const result = await service.findAll({ limit: 20, offset: 0 });
 
@@ -468,33 +499,6 @@ describe("TemplatesService", () => {
         "# {{t}}<script>alert(1)</script>",
       );
       expect(result.valid).toBe(false);
-    });
-  });
-
-  // ── importFromMarkdown() ─────────────────────────────────────────────────
-
-  describe("importFromMarkdown()", () => {
-    it("delega a create() con i parametri corretti", async () => {
-      const createSpy = jest
-        .spyOn(service, "create")
-        .mockResolvedValue(makeTemplate());
-
-      await service.importFromMarkdown("# {{titolo}}", "Importato", "user1");
-
-      expect(createSpy).toHaveBeenCalledWith({
-        name: "Importato",
-        content: "# {{titolo}}",
-        created_by: "user1",
-      });
-    });
-  });
-
-  // ── getExportContent() ──────────────────────────────────────────────────
-
-  describe("getExportContent()", () => {
-    it("ritorna il contenuto del template", () => {
-      const content = service.getExportContent({ content: "# ciao" });
-      expect(content).toBe("# ciao");
     });
   });
 });

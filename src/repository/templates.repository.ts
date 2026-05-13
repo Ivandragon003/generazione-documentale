@@ -1,6 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import type { EntityManager, Repository, SelectQueryBuilder } from "typeorm";
+import {
+  type EntityManager,
+  In,
+  type Repository,
+  type SelectQueryBuilder,
+} from "typeorm";
 import type { FieldDefinition } from "../common/types/field-definition.type";
 import { TemplateEntity } from "../entities/template.entity";
 
@@ -65,6 +70,21 @@ export class TemplatesRepository {
 
   async findById(id: string): Promise<TemplateEntity | null> {
     return this.templateRepository.findOne({ where: { id } });
+  }
+
+  async findByContentPaths(paths: string[]): Promise<TemplateEntity[]> {
+    if (paths.length === 0) return [];
+    return this.templateRepository.find({
+      where: { content_path: In([...new Set(paths)]) },
+    });
+  }
+
+  async findOneByContentPaths(paths: string[]): Promise<TemplateEntity | null> {
+    if (paths.length === 0) return null;
+    return this.templateRepository.findOne({
+      where: { content_path: In([...new Set(paths)]) },
+      order: { updated_at: "DESC" },
+    });
   }
 
   async insertTemplate(

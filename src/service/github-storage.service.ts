@@ -1,30 +1,10 @@
 /**
- * github-storage.service.ts
+ * Storage GitHub per i contenuti Markdown dei template.
  *
- * Servizio di storage per i contenuti Markdown dei template su GitHub.
- * Sostituisce il file system locale (writeFile/readFile) usato da TemplatesService.
- *
- * Variabili d'ambiente richieste:
- *   GITHUB_TOKEN         Personal Access Token con scope "repo" (o "contents:write" per fine-grained)
- *   GITHUB_OWNER         Owner del repository (utente o organizzazione)
- *   GITHUB_REPO          Nome del repository
- *   GITHUB_BRANCH        Branch di destinazione (default: main)
- *   GITHUB_TEMPLATES_DIR Directory nel repo (default: templates)
- *
- * Ogni template viene salvato come:
- *   {GITHUB_TEMPLATES_DIR}/{templateId}.md
- *
- * L'API GitHub usata è la REST Content API:
- *   PUT  /repos/{owner}/{repo}/contents/{path}   → crea o aggiorna
- *   GET  /repos/{owner}/{repo}/contents/{path}   → legge
- *   DELETE /repos/{owner}/{repo}/contents/{path} → elimina
- *
- * Il campo "sha" è obbligatorio per aggiornare o eliminare un file esistente.
- * Viene recuperato automaticamente prima di ogni write/delete.
+ * GitHub e l'unica sorgente dei template: nessuna lettura/scrittura locale,
+ * nessun seed legacy e nessun fallback silenzioso.
  */
 
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { Injectable, Logger } from "@nestjs/common";
 import type { FieldDefinition } from "../common/types/field-definition.type";
 import { makeError } from "../common/utils/errors";
@@ -39,9 +19,8 @@ export interface GitHubConfig {
 
 interface GitHubContentResponse {
   sha: string;
-  content?: string; // base64, presente solo in GET singolo file
-  download_url?: string;
-  message?: string; // presente in caso di errore
+  content?: string;
+  message?: string;
 }
 
 interface GitHubDirectoryEntry {
@@ -71,7 +50,10 @@ export class GitHubStorageService {
   private readonly logger = new Logger(GitHubStorageService.name);
   private readonly config: GitHubConfig;
   private readonly baseUrl = "https://api.github.com";
-  private readonly localTemplatesDir: string;
+  private listCache: {
+    expiresAt: number;
+    templates: GitHubTemplateFile[];
+  } | null = null;
 
   constructor() {
     const token = process.env.GITHUB_TOKEN?.trim() ?? "";
@@ -80,8 +62,7 @@ export class GitHubStorageService {
 
     if (!token || !owner || !repo) {
       this.logger.warn(
-        "GITHUB_TOKEN, GITHUB_OWNER o GITHUB_REPO non configurati. " +
-          "GitHubStorageService non sarà operativo.",
+        "GITHUB_TOKEN, GITHUB_OWNER o GITHUB_REPO non configurati. I template richiedono GitHub.",
       );
     }
 
@@ -92,57 +73,30 @@ export class GitHubStorageService {
       branch: process.env.GITHUB_BRANCH?.trim() || "main",
       templatesDir: process.env.GITHUB_TEMPLATES_DIR?.trim() || "templates",
     };
-    this.localTemplatesDir = resolve(
-      process.env.TEMPLATES_STORAGE_PATH?.trim() || "./storage/templates",
-    );
   }
 
-  // ── Helpers interni ──────────────────────────────────────────────────────
+  normalizeTemplateId(raw: string): string {
+    let normalized = raw.trim().replace(/\\/g, "/");
+    if (normalized.startsWith("github:")) normalized = normalized.slice(7);
+    while (normalized.startsWith("/")) normalized = normalized.slice(1);
+    if (normalized.startsWith(`${this.config.templatesDir}/`)) {
+      normalized = normalized.slice(this.config.templatesDir.length + 1);
+    }
+    if (normalized.toLowerCase().endsWith(".md")) {
+      normalized = normalized.slice(0, -3);
+    }
+    return normalized;
+  }
+
+  contentPathCandidates(raw: string): string[] {
+    const id = this.normalizeTemplateId(raw);
+    return [
+      ...new Set([id, `${id}.md`, `${this.config.templatesDir}/${id}.md`]),
+    ];
+  }
 
   private filePath(templateId: string): string {
-    return `${this.config.templatesDir}/${templateId}.md`;
-  }
-
-  private localFilePath(templateId: string): string {
-    const relativePath = `${templateId}.md`;
-    const target = resolve(this.localTemplatesDir, relativePath);
-
-    // Protezione da path traversal: il target deve essere sottocartella di localTemplatesDir
-    const normalizedDir = this.localTemplatesDir.endsWith("/")
-      ? this.localTemplatesDir
-      : `${this.localTemplatesDir}/`;
-    const normalizedTarget = target.replace(/\\/g, "/");
-
-    if (!normalizedTarget.startsWith(normalizedDir.replace(/\\/g, "/"))) {
-      throw makeError("Percorso template locale non valido", 400);
-    }
-    return target;
-  }
-
-  private async readLocalTemplate(templateId: string): Promise<string | null> {
-    try {
-      return await readFile(this.localFilePath(templateId), "utf8");
-    } catch {
-      return null;
-    }
-  }
-
-  private async writeLocalTemplate(
-    templateId: string,
-    content: string,
-  ): Promise<void> {
-    const target = this.localFilePath(templateId);
-    const parentDir = resolve(target, "..");
-
-    await mkdir(parentDir, { recursive: true });
-    await writeFile(target, content, "utf8");
-    this.logger.warn(
-      `Template ${templateId} salvato nello storage locale (${target})`,
-    );
-  }
-
-  private async deleteLocalTemplate(templateId: string): Promise<void> {
-    await rm(this.localFilePath(templateId), { force: true });
+    return `${this.config.templatesDir}/${this.normalizeTemplateId(templateId)}.md`;
   }
 
   private headers(): Record<string, string> {
@@ -163,6 +117,15 @@ export class GitHubStorageService {
     return `${this.baseUrl}/repos/${owner}/${repo}/contents/${encodedPath}`;
   }
 
+  private assertConfigured(operation: string): void {
+    if (!this.isConfigured()) {
+      throw makeError(
+        `GitHub storage non configurato: impossibile ${operation} template`,
+        503,
+      );
+    }
+  }
+
   private gitHubFailureMessage(
     operation: "leggere" | "scrivere" | "eliminare",
     path: string,
@@ -172,19 +135,14 @@ export class GitHubStorageService {
     if (status === 404) {
       return (
         `GitHub storage: impossibile ${operation} ${path}. ` +
-        `Repository, branch o permessi non validi per ` +
+        `Repository, branch, directory o permessi non validi per ` +
         `${this.config.owner}/${this.config.repo}@${this.config.branch}. ` +
-        "Verifica GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH e permesso contents:write."
+        "Verifica GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH e i permessi contents."
       );
     }
     return `GitHub storage: impossibile ${operation} ${path}: ${body}`;
   }
 
-  /**
-   * Recupera sha e contenuto di un file esistente.
-   * Ritorna null se il file non esiste (404).
-   * Lancia per altri errori HTTP.
-   */
   private async getFileMeta(
     path: string,
   ): Promise<{ sha: string; content: string } | null> {
@@ -195,7 +153,7 @@ export class GitHubStorageService {
 
     if (!response.ok) {
       const body = await response.text();
-      this.logger.error(`GitHub GET ${path} → ${response.status}: ${body}`);
+      this.logger.error(`GitHub GET ${path} -> ${response.status}: ${body}`);
       throw makeError(
         this.gitHubFailureMessage("leggere", path, response.status, body),
         502,
@@ -203,7 +161,6 @@ export class GitHubStorageService {
     }
 
     const data = (await response.json()) as GitHubContentResponse;
-    // content è base64 con \n ogni 60 char — va pulito
     const raw = data.content ?? "";
     const decoded = Buffer.from(raw.replace(/\n/g, ""), "base64").toString(
       "utf8",
@@ -217,10 +174,16 @@ export class GitHubStorageService {
 
     if (!response.ok) {
       const body = await response.text();
-      this.logger.warn(
+      if (response.status === 404) {
+        this.logger.warn(
+          `GitHub templates: directory ${path} non trovata in ${this.config.owner}/${this.config.repo}@${this.config.branch}`,
+        );
+        return [];
+      }
+      throw makeError(
         this.gitHubFailureMessage("leggere", path, response.status, body),
+        502,
       );
-      return [];
     }
 
     const data = await response.json();
@@ -254,99 +217,122 @@ export class GitHubStorageService {
     const parts = relativePath.split("/");
     const filename = parts.at(-1) ?? relativePath;
     const name = filename.replace(/\.md$/i, "");
+    const templateId = this.normalizeTemplateId(relativePath);
 
     return {
       relativePath,
+      templateId,
       name,
       category: parts.length >= 3 ? parts[0] : null,
       section: parts.length >= 3 ? parts[1] : null,
     };
   }
 
-  // ── API pubblica ─────────────────────────────────────────────────────────
-
-  /**
-   * Legge il contenuto Markdown di un template da GitHub.
-   * Ritorna null se il file non esiste.
-   * Se GitHub è configurato, NON effettua fallback locale.
-   */
   async readTemplate(templateId: string): Promise<string | null> {
-    if (!this.isConfigured()) {
-      return this.readLocalTemplate(templateId);
-    }
+    this.assertConfigured("leggere");
 
-    const path = this.filePath(templateId);
-    try {
-      const meta = await this.getFileMeta(path);
-      return meta?.content ?? null;
-    } catch (error) {
-      this.logger.error(
-        `Impossibile leggere template ${templateId} da GitHub`,
-        error instanceof Error ? error.stack : undefined,
-      );
+    const normalized = this.normalizeTemplateId(templateId);
+    const path = this.filePath(normalized);
+    const meta = await this.getFileMeta(path);
+    if (!meta) {
+      this.logger.warn(`Template ${normalized} assente su GitHub (${path})`);
       return null;
     }
+    this.logger.debug(`Template ${normalized} letto da GitHub (${path})`);
+    return meta.content;
+  }
+
+  async getTemplate(templateId: string): Promise<GitHubTemplateFile | null> {
+    const normalized = this.normalizeTemplateId(templateId);
+    const content = await this.readTemplate(normalized);
+    if (content === null) return null;
+
+    const path = this.filePath(normalized);
+    const meta = this.templateMetaFromPath(path);
+    const now = new Date();
+    return {
+      id: `github:${meta.templateId}`,
+      name: meta.name,
+      content_path: meta.templateId,
+      githubPath: path,
+      category: meta.category,
+      section: meta.section,
+      status: "published",
+      description: null,
+      fields: [],
+      created_by: "github",
+      created_at: now,
+      updated_at: now,
+      content,
+    };
   }
 
   async listTemplates(): Promise<GitHubTemplateFile[]> {
-    if (!this.isConfigured()) return [];
+    this.assertConfigured("elencare");
+
+    const nowMs = Date.now();
+    if (this.listCache && this.listCache.expiresAt > nowMs) {
+      return this.listCache.templates;
+    }
 
     const files = await this.listMarkdownFiles(this.config.templatesDir);
     const now = new Date();
-    const templates = await Promise.all(
-      files
-        .filter((file) => file.path.split("/").length >= 4)
-        .map(async (file) => {
-          const meta = this.templateMetaFromPath(file.path);
-          const content = (await this.getFileMeta(file.path))?.content ?? "";
-          return {
-            id: `github:${meta.relativePath}`,
-            name: meta.name,
-            content_path: file.path,
-            githubPath: file.path,
-            category: meta.category,
-            section: meta.section,
-            status: "published" as const,
-            description: null,
-            fields: [],
-            created_by: "github",
-            created_at: now,
-            updated_at: now,
-            content,
-          };
-        }),
+    const maybeTemplates = await Promise.all<GitHubTemplateFile | null>(
+      files.map(async (file) => {
+        const fileMeta = await this.getFileMeta(file.path);
+        if (!fileMeta?.content?.trim()) {
+          this.logger.warn(
+            `Template GitHub escluso per contenuto vuoto o non leggibile: ${file.path}`,
+          );
+          return null;
+        }
+
+        const meta = this.templateMetaFromPath(file.path);
+        return {
+          id: `github:${meta.templateId}`,
+          name: meta.name,
+          content_path: meta.templateId,
+          githubPath: file.path,
+          category: meta.category,
+          section: meta.section,
+          status: "published" as const,
+          description: null,
+          fields: [] as FieldDefinition[],
+          created_by: "github",
+          created_at: now,
+          updated_at: now,
+          content: fileMeta.content,
+        };
+      }),
     );
 
+    const templates = maybeTemplates.filter(
+      (template): template is GitHubTemplateFile => template !== null,
+    );
+    this.listCache = { expiresAt: nowMs + 30_000, templates };
+    this.logger.log(
+      `Template caricati da GitHub: ${templates.length} file da ${this.config.owner}/${this.config.repo}@${this.config.branch}/${this.config.templatesDir}`,
+    );
     return templates;
   }
 
-  /**
-   * Scrive (crea o aggiorna) il contenuto Markdown di un template su GitHub.
-   * Usa PUT con sha se il file esiste già (aggiornamento atomico).
-   * Se GitHub è configurato e fallisce, lancia errore (no fallback locale).
-   */
   async writeTemplate(templateId: string, content: string): Promise<void> {
-    if (!this.isConfigured()) {
-      await this.writeLocalTemplate(templateId, content);
-      return;
-    }
-    const path = this.filePath(templateId);
-    const url = this.contentUrl(path);
+    this.assertConfigured("salvare");
 
-    // Recupera sha se il file esiste (necessario per update)
+    const normalized = this.normalizeTemplateId(templateId);
+    const path = this.filePath(normalized);
+    const url = this.contentUrl(path);
     const existing = await this.getFileMeta(path);
 
     const body: Record<string, unknown> = {
       message: existing
-        ? `chore: update template ${templateId}`
-        : `chore: add template ${templateId}`,
+        ? `chore: update template ${normalized}`
+        : `chore: add template ${normalized}`,
       content: Buffer.from(content, "utf8").toString("base64"),
       branch: this.config.branch,
     };
 
-    if (existing?.sha) {
-      body.sha = existing.sha;
-    }
+    if (existing?.sha) body.sha = existing.sha;
 
     const response = await fetch(url, {
       method: "PUT",
@@ -357,7 +343,7 @@ export class GitHubStorageService {
     if (!response.ok) {
       const responseBody = await response.text();
       this.logger.error(
-        `GitHub PUT ${path} → ${response.status}: ${responseBody}`,
+        `GitHub PUT ${path} -> ${response.status}: ${responseBody}`,
       );
       throw makeError(
         this.gitHubFailureMessage(
@@ -370,46 +356,39 @@ export class GitHubStorageService {
       );
     }
 
+    this.listCache = null;
     this.logger.log(
-      `Template ${templateId} ${existing ? "aggiornato" : "creato"} su GitHub (${this.config.owner}/${this.config.repo}/${path})`,
+      `Template ${normalized} ${existing ? "aggiornato" : "creato"} su GitHub (${this.config.owner}/${this.config.repo}/${path})`,
     );
   }
 
-  /**
-   * Elimina il file Markdown di un template da GitHub.
-   * Non lancia se il file non esiste (idempotente).
-   */
   async deleteTemplate(templateId: string): Promise<void> {
-    await this.deleteLocalTemplate(templateId);
-    if (!this.isConfigured()) return;
+    this.assertConfigured("eliminare");
 
-    const path = this.filePath(templateId);
-
+    const normalized = this.normalizeTemplateId(templateId);
+    const path = this.filePath(normalized);
     const existing = await this.getFileMeta(path);
     if (!existing) {
       this.logger.warn(
-        `Template ${templateId} non trovato su GitHub, skip delete`,
+        `Template ${normalized} non trovato su GitHub, skip delete`,
       );
       return;
     }
 
-    const url = this.contentUrl(path);
-    const body = {
-      message: `chore: delete template ${templateId}`,
-      sha: existing.sha,
-      branch: this.config.branch,
-    };
-
-    const response = await fetch(url, {
+    const response = await fetch(this.contentUrl(path), {
       method: "DELETE",
       headers: this.headers(),
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        message: `chore: delete template ${normalized}`,
+        sha: existing.sha,
+        branch: this.config.branch,
+      }),
     });
 
     if (!response.ok) {
       const responseBody = await response.text();
       this.logger.error(
-        `GitHub DELETE ${path} → ${response.status}: ${responseBody}`,
+        `GitHub DELETE ${path} -> ${response.status}: ${responseBody}`,
       );
       throw makeError(
         this.gitHubFailureMessage(
@@ -422,7 +401,8 @@ export class GitHubStorageService {
       );
     }
 
-    this.logger.log(`Template ${templateId} eliminato da GitHub`);
+    this.listCache = null;
+    this.logger.log(`Template ${normalized} eliminato da GitHub`);
   }
 
   private isConfigured(): boolean {

@@ -43,10 +43,7 @@ async function bootstrap(): Promise<void> {
     )
     .setVersion("1.0.0")
     .addTag("health", "Stato applicazione")
-    .addTag("templates", "Gestione template documentali")
-    .addTag("documents", "Gestione documenti generati")
-    .addTag("pdf", "Utilita generazione PDF")
-    .addTag("dev", "Utility ambiente locale")
+    .addTag("templates", "Template GitHub, compilazione campi e PDF")
     .build();
 
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
