@@ -35,20 +35,20 @@
         "operationId": "TemplatesController_findAll",
         "parameters": [
           {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "example": 20,
-              "type": "number"
-            }
-          },
-          {
             "name": "offset",
             "required": false,
             "in": "query",
             "schema": {
               "example": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 20,
               "type": "number"
             }
           },
@@ -88,7 +88,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateTemplateDto"
+                "$ref": "#/components/schemas/Function"
               }
             }
           }
@@ -151,7 +151,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateTemplateDto"
+                "$ref": "#/components/schemas/Function"
               }
             }
           }
@@ -260,7 +260,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ValidateMarkdownDto"
+                "$ref": "#/components/schemas/Function"
               }
             }
           }
@@ -302,7 +302,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GeneratePdfDto"
+                "$ref": "#/components/schemas/Function"
               }
             }
           }
@@ -458,117 +458,9 @@
   "servers": [],
   "components": {
     "schemas": {
-      "TemplateFieldDto": {
+      "Function": {
         "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "example": "titolo"
-          },
-          "label": {
-            "type": "string",
-            "example": "Titolo"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "text",
-              "textarea",
-              "number",
-              "date",
-              "boolean",
-              "email",
-              "url",
-              "tel",
-              "select",
-              "currency"
-            ],
-            "example": "text",
-            "description": "Tipo del campo. 'select': opzioni in defaultValue separate da virgola."
-          },
-          "required": {
-            "type": "boolean",
-            "example": true,
-            "default": true
-          },
-          "defaultValue": {
-            "type": "string",
-            "example": "",
-            "description": "Valore di default. Per type=select: lista opzioni separate da virgola (es. \"Attivo,In attesa,Chiuso\")."
-          }
-        },
-        "required": ["name"]
-      },
-      "CreateTemplateDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Nome del template",
-            "maxLength": 255
-          },
-          "description": {
-            "type": "string",
-            "description": "Descrizione del template"
-          },
-          "content": {
-            "type": "string",
-            "description": "Contenuto Markdown del template"
-          },
-          "fields": {
-            "description": "Definizioni dei campi",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TemplateFieldDto"
-            }
-          },
-          "status": {
-            "type": "string",
-            "description": "Stato del template",
-            "enum": ["draft", "published"],
-            "default": "draft"
-          },
-          "path": {
-            "type": "string",
-            "description": "Percorso GitHub opzionale per sovrascrittura"
-          }
-        },
-        "required": ["name", "content"]
-      },
-      "UpdateTemplateDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Nome del template",
-            "maxLength": 255
-          },
-          "description": {
-            "type": "string",
-            "description": "Descrizione del template"
-          },
-          "content": {
-            "type": "string",
-            "description": "Contenuto Markdown del template"
-          },
-          "fields": {
-            "description": "Definizioni dei campi",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TemplateFieldDto"
-            }
-          },
-          "status": {
-            "type": "string",
-            "description": "Stato del template",
-            "enum": ["draft", "published"],
-            "default": "draft"
-          },
-          "path": {
-            "type": "string",
-            "description": "Percorso GitHub opzionale per sovrascrittura"
-          }
-        }
+        "properties": {}
       },
       "ImportTemplateFileDto": {
         "type": "object",
@@ -577,29 +469,6 @@
             "type": "string",
             "description": "Nome del template (opzionale)",
             "example": "Template importato"
-          }
-        }
-      },
-      "ValidateMarkdownDto": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "string",
-            "example": "# {{titolo}}\n\nCliente: {{cliente}}"
-          }
-        },
-        "required": ["content"]
-      },
-      "GeneratePdfDto": {
-        "type": "object",
-        "properties": {
-          "fieldValues": {
-            "type": "object",
-            "description": "Valori dei campi per la sostituzione dei placeholder",
-            "example": {
-              "nome_cliente": "Acme SpA",
-              "importo": "5000"
-            }
           }
         }
       }

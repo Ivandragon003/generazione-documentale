@@ -26,6 +26,7 @@ import { TemplateEditor } from "./components/TemplateEditor";
 import {
   type ApiTemplateField,
   createTemplate,
+  getPdfJob,
   getPdfJobs,
   getTemplates,
   type PdfJobDto,
@@ -61,11 +62,9 @@ async function withBootRetry<T>(load: () => Promise<T>): Promise<T> {
 }
 
 function apiFieldFromKey(key: string, markdown: string): ApiTemplateField {
-  // Cerca se nel markdown il placeholder ha un tipo specificato {{key:tipo}}
   const regex = new RegExp(`\\{\\{\\s*${key}(?::([a-z]+))?\\s*\\}\\}`, "i");
   const match = markdown.match(regex);
   const type = (match?.[1] as ApiTemplateField["type"]) || "text";
-
   return { name: key, label: key, type };
 }
 
@@ -99,6 +98,30 @@ function getItemSecondary(item: TemplateDto): string {
     return isUuid(item.id) ? `${filename} (Locale)` : filename;
   }
   return item.content ? item.status : "Contenuto mancante";
+}
+
+// ── Polling helper ────────────────────────────────────────────────────────────
+// Fa polling su un job PDF finché non è completed o failed (max 2 minuti)
+async function pollJobUntilDone(
+  templateId: string,
+  jobId: string,
+  onUpdate: (job: PdfJobDto) => void,
+): Promise<void> {
+  const MAX_ATTEMPTS = 24; // 24 × 5s = 120s
+  const INTERVAL_MS = 5000;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    await sleep(INTERVAL_MS);
+    try {
+      const updated = await getPdfJob(templateId, jobId);
+      onUpdate(updated);
+      if (updated.status === "completed" || updated.status === "failed") {
+        return;
+      }
+    } catch {
+      // ignora errori di rete temporanei durante il polling
+    }
+  }
 }
 
 function ProjectStructure({
@@ -187,8 +210,11 @@ export default function App() {
   const [templates, setTemplates] = useState<TemplateDto[]>([]);
   const [pdfJobs, setPdfJobs] = useState<PdfJobDto[]>([]);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  // templateId UUID reale da usare per le API PDF (potrebbe essere diverso da template.id)
+  const [pdfTemplateId, setPdfTemplateId] = useState<string | null>(null);
 
   const originalPlaceholders = useRef<string[]>([]);
+  const pollingAbort = useRef<AbortController | null>(null);
 
   // ── Boot ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -214,6 +240,7 @@ export default function App() {
           originalPlaceholders.current = extractPlaceholders(content);
 
           if (isUuid(firstTemplate.id)) {
+            setPdfTemplateId(firstTemplate.id);
             const jobs = await getPdfJobs(firstTemplate.id).catch(() => []);
             if (!cancelled) setPdfJobs(jobs);
           }
@@ -252,6 +279,9 @@ export default function App() {
       originalPlaceholders.current = extractPlaceholders(
         importedTemplate.content,
       );
+      setPdfTemplateId(
+        isUuid(importedTemplate.id) ? importedTemplate.id : null,
+      );
       setPdfJobs([]);
       setFieldValues({});
       setSnack({
@@ -269,23 +299,19 @@ export default function App() {
     originalPlaceholders.current = extractPlaceholders(selected.content);
     setFieldValues({});
     setPdfJobs([]);
+
     if (isUuid(selected.id)) {
+      setPdfTemplateId(selected.id);
       void getPdfJobs(selected.id)
         .then(setPdfJobs)
         .catch(() => {});
+    } else {
+      // Template GitHub non ancora salvato localmente — nessun UUID disponibile
+      setPdfTemplateId(null);
     }
   }, []);
 
   // ── Salva Template ────────────────────────────────────────────────────────
-  //
-  // FIX: rimossa logica structureChanged che causava POST errati su template
-  // con content vuoto (seed/legacy) — originalPlaceholders.current era []
-  // quindi qualsiasi placeholder risultava "aggiunto" e veniva chiamato
-  // createTemplate (POST) invece di updateTemplate (PUT).
-  //
-  // Nuova logica:
-  // - Template locale con UUID valido → sempre PUT
-  // - Template GitHub o senza UUID → POST per creare locale (content incluso)
   const handleSaveTemplate = useCallback(async () => {
     if (!markdown.trim()) {
       setSnack({
@@ -300,7 +326,6 @@ export default function App() {
     try {
       const currentPlaceholders = extractPlaceholders(markdown);
 
-      // Cerchiamo se esiste già un template locale che punta a questo path GitHub
       const existingLocal = isGithubTemplate(template)
         ? templates.find(
             (t) =>
@@ -309,25 +334,25 @@ export default function App() {
         : null;
 
       if (template && isUuid(template.id) && !isGithubTemplate(template)) {
-        // Template locale con UUID valido → aggiorna sempre con PUT
         const updated = await updateTemplate(template.id, {
           content: markdown,
           fields: currentPlaceholders.map((k) => apiFieldFromKey(k, markdown)),
         });
         originalPlaceholders.current = extractPlaceholders(updated.content);
         setTemplate(updated);
+        setPdfTemplateId(updated.id);
         setTemplates((current) =>
           current.map((t) => (t.id === updated.id ? updated : t)),
         );
         setSnack({ open: true, msg: "Template salvato.", severity: "success" });
       } else if (existingLocal) {
-        // Se stavamo modificando un template GitHub ma esiste già una copia locale, aggiorniamo quella
         const updated = await updateTemplate(existingLocal.id, {
           content: markdown,
           fields: currentPlaceholders.map((k) => apiFieldFromKey(k, markdown)),
         });
         originalPlaceholders.current = extractPlaceholders(updated.content);
         setTemplate(updated);
+        setPdfTemplateId(updated.id);
         setTemplates((current) =>
           current.map((t) => (t.id === updated.id ? updated : t)),
         );
@@ -337,7 +362,6 @@ export default function App() {
           severity: "success",
         });
       } else {
-        // Template GitHub o senza UUID: crea template locale (POST con content)
         const newTmpl = await createTemplate({
           name: template?.name ?? "Nuovo Template",
           content: markdown,
@@ -349,6 +373,7 @@ export default function App() {
             `Template creato senza ID UUID valido: ${newTmpl.id}`,
           );
         setTemplate(newTmpl);
+        setPdfTemplateId(newTmpl.id);
         setTemplates((current) => [
           newTmpl,
           ...current.filter((item) => item.id !== newTmpl.id),
@@ -370,25 +395,57 @@ export default function App() {
     } finally {
       setAppStatus("ready");
     }
-  }, [markdown, template, templates.find]);
+  }, [markdown, template, templates]);
 
   // ── Genera PDF ────────────────────────────────────────────────────────────
   const handleGeneratePdf = useCallback(async () => {
-    if (!template || !isUuid(template.id)) {
+    // Serve UUID reale del template
+    const targetId = pdfTemplateId;
+    if (!targetId) {
       setSnack({
         open: true,
-        msg: "Seleziona o salva un template prima di generare il PDF.",
+        msg: "Salva prima il template come copia locale per abilitare la generazione PDF.",
         severity: "error",
       });
       return;
     }
+
+    // Cancella eventuale polling precedente
+    pollingAbort.current?.abort();
+    const abort = new AbortController();
+    pollingAbort.current = abort;
+
     try {
-      const job = await triggerPdfGeneration(template.id, fieldValues);
-      setPdfJobs((prev) => [job, ...prev]);
+      const job = await triggerPdfGeneration(targetId, fieldValues);
+      // Aggiunge il job in cima alla lista
+      setPdfJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)]);
       setSnack({
         open: true,
-        msg: "Generazione PDF avviata.",
+        msg: "Generazione PDF avviata — attendi...",
         severity: "success",
+      });
+
+      // Avvia polling in background
+      void pollJobUntilDone(targetId, job.id, (updated) => {
+        if (abort.signal.aborted) return;
+        setPdfJobs((prev) =>
+          prev.map((j) => (j.id === updated.id ? updated : j)),
+        );
+        if (updated.status === "completed") {
+          setSnack({
+            open: true,
+            msg: "PDF generato con successo!",
+            severity: "success",
+          });
+          setActiveTab(2); // passa ad Anteprima PDF
+        }
+        if (updated.status === "failed") {
+          setSnack({
+            open: true,
+            msg: `Generazione PDF fallita: ${updated.errorMessage ?? "errore sconosciuto"}`,
+            severity: "error",
+          });
+        }
       });
     } catch (err) {
       setSnack({
@@ -397,7 +454,14 @@ export default function App() {
         severity: "error",
       });
     }
-  }, [template, fieldValues]);
+  }, [pdfTemplateId, fieldValues]);
+
+  // ── Cleanup polling su unmount ────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      pollingAbort.current?.abort();
+    };
+  }, []);
 
   // ── Campi ──────────────────────────────────────────────────────────────────
   const handleFieldChange = useCallback((key: string, value: string) => {
@@ -432,9 +496,8 @@ export default function App() {
     [markdown, fieldValues],
   );
 
-  const canGeneratePdf = Boolean(
-    template && (isUuid(template.id) || isGithubTemplate(template)),
-  );
+  // canGeneratePdf: serve UUID reale (salvato localmente)
+  const canGeneratePdf = Boolean(pdfTemplateId);
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (appStatus === "loading") {
@@ -517,7 +580,7 @@ export default function App() {
                 <PdfPreview
                   content={rendered}
                   pdfJobs={pdfJobs}
-                  templateId={template?.id}
+                  templateId={pdfTemplateId ?? undefined}
                   documentName={template?.name}
                 />
               )}
@@ -529,6 +592,13 @@ export default function App() {
           <Alert severity="warning" sx={{ mt: 2 }}>
             Backend non raggiungibile — assicurati che il server sia in
             esecuzione su <strong>localhost:3000</strong>.
+          </Alert>
+        )}
+
+        {isGithubTemplate(template) && !pdfTemplateId && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Questo è un template GitHub. Clicca <strong>Salva Template</strong>{" "}
+            per creare una copia locale e abilitare la generazione PDF.
           </Alert>
         )}
 
@@ -545,7 +615,7 @@ export default function App() {
 
       <Snackbar
         open={snack.open}
-        autoHideDuration={4000}
+        autoHideDuration={6000}
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >

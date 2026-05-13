@@ -85,7 +85,7 @@ export class PdfJobsService implements OnModuleDestroy {
 
     let template = await this.templatesService.findOne(templateId);
 
-    // Se il template è virtuale (GitHub), lo sincronizziamo nel DB locale
+    // Se il template è virtuale GitHub, lo sincronizziamo nel DB locale
     if (
       templateId.startsWith("github:") &&
       template?.id.startsWith("github:")
@@ -101,16 +101,10 @@ export class PdfJobsService implements OnModuleDestroy {
 
     if (!template) throw makeError("Template non trovato", 404);
 
-    const missing = this.documentRenderingService.getMissingRequiredFields(
-      template.fields ?? [],
-      fieldValues,
-    );
-    if (missing.length > 0) {
-      throw makeError(
-        `Campi obbligatori non compilati: ${missing.join(", ")}`,
-        422,
-      );
-    }
+    // FIX: non blocchiamo l'accodamento per campi mancanti.
+    // Il job viene creato sempre; i campi obbligatori non compilati
+    // producono placeholder visibili nel PDF (strict: false in processJob).
+    // Segnaliamo solo un warning nei metadati del job tramite unresolved_fields.
 
     const job = await this.pdfJobsRepository.insert(
       template.id,
@@ -132,12 +126,21 @@ export class PdfJobsService implements OnModuleDestroy {
       const template = await this.templatesService.findOne(job.template_id);
       if (!template) throw new Error("Template non trovato");
 
+      if (!template.content || template.content.trim().length === 0) {
+        throw new Error(
+          "Contenuto del template non disponibile. " +
+            "Verifica che il file Markdown sia accessibile (GitHub o storage locale).",
+        );
+      }
+
+      // FIX: usa strict: false così i placeholder non compilati rimangono visibili
+      // nel PDF invece di bloccare la generazione con errore.
       const { filename, unresolvedFields } =
         await this.pdfGenerationService.generatePdf({
           title: template.name,
           content: template.content,
           fieldValues: job.field_values ?? {},
-          strict: true,
+          strict: false,
         });
 
       await this.pdfJobsRepository.markCompleted(

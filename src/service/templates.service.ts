@@ -1,25 +1,3 @@
-/**
- * templates.service.ts
- *
- * Modifiche rispetto alla versione originale:
- * - Rimosso: writeFile, readFile, rename, mkdir, unlink da node:fs/promises
- * - Aggiunto: GitHubStorageService per read/write/delete dei file .md
- * - content_path ora contiene solo il templateId (non un percorso su disco)
- *   Il GitHubStorageService calcola internamente il path GitHub.
- * - Rimosso il pattern tmp+rename (non necessario con GitHub che gestisce
- *   la consistenza lato suo con il campo sha).
- * - La logica di business (validazione, normalizzazione campi, versioning)
- *   rimane invariata.
- * - FIX: hydrateContent non lancia più 503 se il file non esiste su GitHub
- *   (fallback graceful a stringa vuota + warn, così findAll non crasha).
- * - FIX: content_path con estensione .md viene strippato prima dell'uso.
- * - FIX: guard esplicito su content undefined/null in create() per diagnosticare
- *   chiamate POST errate (il client invia POST invece di PUT su update).
- * - NUOVO: importGitHubTemplateToDb() salva solo i metadati nel DB senza
- *   riscrivere il file su GitHub (usato da PdfJobsService.enqueue).
- * - FIX: update() su template GitHub fa sovrascrittura su GitHub (non fallback locale).
- */
-
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
@@ -58,6 +36,21 @@ export interface UpdateTemplateInput {
 
 const MAX_TEMPLATE_CONTENT_BYTES = appConfig.maxTemplateContentBytes;
 
+/**
+ * Un template DB è "orfano locale" (seeded / legacy) se il suo content_path
+ * è identico al suo UUID — significa che non è stato creato tramite l'app
+ * con un path GitHub reale.
+ */
+function isOrphanLocalTemplate(template: TemplateEntity): boolean {
+  if (!template.content_path) return true;
+  const path = template.content_path.endsWith(".md")
+    ? template.content_path.slice(0, -3)
+    : template.content_path;
+  // Un path GitHub reale contiene almeno uno slash (categoria/sezione/nome)
+  // Un UUID non contiene slash
+  return !path.includes("/");
+}
+
 @Injectable()
 export class TemplatesService {
   private readonly logger = new Logger(TemplatesService.name);
@@ -87,23 +80,10 @@ export class TemplatesService {
     return template;
   }
 
-  /**
-   * Normalizza il templateId rimuovendo l'eventuale estensione .md
-   * (alcuni record legacy in DB hanno content_path = "uuid.md").
-   */
   private normalizeTemplateId(raw: string): string {
     return raw.endsWith(".md") ? raw.slice(0, -3) : raw;
   }
 
-  /**
-   * Idrata il campo virtuale `content` leggendo da GitHub.
-   * content_path contiene il templateId (usato come chiave su GitHub).
-   *
-   * FIX: se il file non esiste su GitHub (template legacy / seed / migrazione)
-   * NON lancia più 503 — restituisce content vuoto con un WARN,
-   * così findAll non crasha e la lista rimane visibile.
-   * Solo findOne (GET singolo) deve essere strict → parametro `strict`.
-   */
   private async hydrateContent<
     T extends { content_path: string | null; id: string },
   >(row: T | null, strict = false): Promise<(T & { content: string }) | null> {
@@ -130,6 +110,14 @@ export class TemplatesService {
     return { ...row, content };
   }
 
+  private isGitHubConfigured(): boolean {
+    return Boolean(
+      process.env.GITHUB_TOKEN?.trim() &&
+        process.env.GITHUB_OWNER?.trim() &&
+        process.env.GITHUB_REPO?.trim(),
+    );
+  }
+
   // ── API pubblica ───────────────────────────────────────────────────────────
 
   async findAll({
@@ -147,23 +135,39 @@ export class TemplatesService {
       offset,
     });
 
+    const githubConfigured = this.isGitHubConfigured();
+
     // strict=false: template senza file GitHub vengono restituiti con content=""
     const hydratedData = await Promise.all(
       data.map((row) => this.hydrateContent(row, false)),
     );
+
     const githubTemplates = await this.githubStorage.listTemplates();
 
+    // FIX: quando GitHub è configurato, escludiamo i template DB "orfani"
+    // (quelli senza un path GitHub valido, es. template seeded con UUID come content_path).
+    // Quando GitHub NON è configurato, mostriamo tutto (storage locale).
     const localTemplates = hydratedData.filter(
-      (row): row is TemplateEntity & { content: string } =>
-        Boolean(row) && Boolean(row?.content?.trim()),
+      (row): row is TemplateEntity & { content: string } => {
+        if (!row) return false;
+        if (!row.content?.trim()) return false;
+
+        if (githubConfigured && isOrphanLocalTemplate(row as TemplateEntity)) {
+          // Template seeded/legacy senza corrispondenza GitHub — escludi
+          return false;
+        }
+        return true;
+      },
     );
 
     const localPaths = new Set(
       localTemplates
         .map((t) => t.content_path)
-        .filter((p): p is string => Boolean(p)),
+        .filter((p): p is string => Boolean(p))
+        .map((p) => this.normalizeTemplateId(p)),
     );
 
+    // Includi solo i template GitHub che non hanno già una copia locale
     const uniqueGithubTemplates = githubTemplates.filter((gt) => {
       let githubNormalized = gt.id;
       if (githubNormalized.startsWith("github:")) {
@@ -196,7 +200,6 @@ export class TemplatesService {
         return this.hydrateContent(row as TemplateEntity, true);
       }
 
-      // Se non è nel DB, restituiamo un oggetto "virtuale" leggendo da GitHub
       const githubTemplates = await this.githubStorage.listTemplates();
       const virtual = githubTemplates.find((t) => t.id === id);
       if (!virtual) return null;
@@ -206,7 +209,6 @@ export class TemplatesService {
 
     assertUuid(id);
     const row = await this.templatesRepository.findById(id);
-    // strict=true: GET singolo deve segnalare se il content manca
     return this.hydrateContent(row, true);
   }
 
@@ -223,8 +225,6 @@ export class TemplatesService {
       throw makeError("Il nome del template e obbligatorio", 400);
     }
 
-    // Guard esplicito: content undefined/null indica che il client ha inviato
-    // una richiesta POST (creazione) invece di PUT (aggiornamento).
     if (content === undefined || content === null) {
       throw makeError(
         "Il campo 'content' manca nel body della richiesta. " +
@@ -239,8 +239,6 @@ export class TemplatesService {
     let contentPath: string = id;
 
     if (path) {
-      // Se viene passato path (es. github:category/section/name.md),
-      // lo usiamo come contentPath rimuovendo prefisso ed estensione.
       let normalized = path;
       if (normalized.startsWith("github:")) normalized = normalized.slice(7);
       contentPath = this.normalizeTemplateId(normalized);
@@ -251,12 +249,9 @@ export class TemplatesService {
       fields,
     );
 
-    // Fase 1: scrivi il file su GitHub PRIMA della transazione DB.
-    // Se GitHub fallisce, non tocchiamo il DB.
     await this.githubStorage.writeTemplate(contentPath, content);
 
     try {
-      // Fase 2: salva i metadati nel DB.
       const template = await this.dataSource.transaction(async (manager) =>
         this.templatesRepository.insertTemplate(manager, {
           id,
@@ -303,8 +298,6 @@ export class TemplatesService {
     const rawId = existing.content_path ?? id;
     const templateId = this.normalizeTemplateId(rawId);
 
-    // Fase 1: sovrascrittura su GitHub (non fallback locale)
-    // writeTemplate usa PUT con sha se il file esiste già → aggiornamento atomico
     await this.githubStorage.writeTemplate(templateId, nextContent);
 
     try {
@@ -329,16 +322,10 @@ export class TemplatesService {
     }
   }
 
-  /**
-   * Importa un template GitHub virtuale nel DB locale salvando solo i metadati.
-   * NON riscrive il file su GitHub (il file esiste già lì).
-   * Usato da PdfJobsService.enqueue() per ottenere un UUID reale per il job.
-   */
   async importGitHubTemplateToDb(
     template: GitHubTemplateFile | (TemplateEntity & { content: string }),
     actor = "system",
   ): Promise<TemplateEntity> {
-    // Ricerca per content_path: se già importato, restituisce quello esistente
     const contentPath = this.normalizeTemplateId(
       (template as GitHubTemplateFile).githubPath ??
         template.content_path ??
