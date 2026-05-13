@@ -380,8 +380,10 @@ export default function App() {
     const abort = new AbortController();
     pollingAbort.current = abort;
 
+    const resolvedTemplateId = currentTemplate.id;
+
     try {
-      const job = await triggerPdfGeneration(currentTemplate.id, fieldValues);
+      const job = await triggerPdfGeneration(resolvedTemplateId, fieldValues);
       setPdfJobs((current) => [
         job,
         ...current.filter((item) => item.id !== job.id),
@@ -392,7 +394,7 @@ export default function App() {
         severity: "success",
       });
 
-      void pollJobUntilDone(template.id, job.id, (updated) => {
+      void pollJobUntilDone(resolvedTemplateId, job.id, (updated) => {
         if (abort.signal.aborted) return;
         setPdfJobs((current) =>
           current.map((item) => (item.id === updated.id ? updated : item)),
@@ -420,7 +422,7 @@ export default function App() {
         severity: "error",
       });
     }
-  }, [fieldValues, hasUnsavedChanges, template, visibleFields]);
+  }, [fieldValues, hasUnsavedChanges, handleSaveTemplate, template, visibleFields]);
 
   useEffect(() => {
     return () => {
