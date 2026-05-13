@@ -1,6 +1,8 @@
-/dist
+﻿/dist
 /node_modules
 /coverage
+/frontend/dist
+/frontend/node_modules
 
 # logs
 logs
@@ -47,12 +49,12 @@ storage/test-runs/*.json
 *.dump
 *.pgdump
 
-# NestJS build cache
+# TypeScript build cache
 .tsbuildinfo
 *.tsbuildinfo
 
-# ─── Lock files ──────────────────────────────────────────
-package-lock.json
-pnpm-lock.yaml
-yarn.lock
-
+# archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz

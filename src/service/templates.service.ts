@@ -436,8 +436,4 @@ export class TemplatesService {
 
     return { deleted: true };
   }
-
-  validateMarkdown(content: string) {
-    return validateMarkdownContent(content, MAX_TEMPLATE_CONTENT_BYTES);
-  }
 }

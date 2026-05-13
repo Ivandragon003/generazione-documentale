@@ -148,10 +148,6 @@ export function getPdfJob(
   );
 }
 
-export function getPdfDownloadUrl(templateId: string, jobId: string): string {
-  return `${BASE}/templates/${segment(templateId)}/pdf/jobs/${segment(jobId)}/download`;
-}
-
 export function getLatestPdfDownloadUrl(
   templateId: string,
   fieldValues: FieldValueMap,

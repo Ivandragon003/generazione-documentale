@@ -14,17 +14,42 @@ export const validateEnv = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
   const dbPassword = requireEnv(env.DB_PASSWORD, "DB_PASSWORD");
   const dbName = requireEnv(env.DB_NAME, "DB_NAME");
   const port = requireEnv(env.PORT, "PORT");
+  const nodeEnv = (env.NODE_ENV ?? "development").trim().toLowerCase();
+  const pdfServiceUrl = env.PDF_SERVICE_URL?.trim() ?? "";
+  const enableLocalPdfFallback =
+    env.ENABLE_LOCAL_PDF_FALLBACK?.trim().toLowerCase() ?? "false";
 
   parsePort(dbPortRaw, "DB_PORT");
   parsePort(port, "PORT");
 
+  if (!["development", "test", "production"].includes(nodeEnv)) {
+    throw new Error(
+      `Invalid NODE_ENV="${env.NODE_ENV}". Allowed: development, test, production`,
+    );
+  }
+
+  if (!["true", "false", ""].includes(enableLocalPdfFallback)) {
+    throw new Error(
+      `Invalid ENABLE_LOCAL_PDF_FALLBACK="${env.ENABLE_LOCAL_PDF_FALLBACK}". Allowed: true, false`,
+    );
+  }
+
+  if (nodeEnv === "production" && pdfServiceUrl.length === 0) {
+    throw new Error(
+      "Missing required environment variable: PDF_SERVICE_URL (production mode requires remote pdf-service)",
+    );
+  }
+
   return {
     ...env,
+    NODE_ENV: nodeEnv,
     DB_HOST: dbHost,
     DB_PORT: dbPortRaw,
     DB_USER: dbUser,
     DB_PASSWORD: dbPassword,
     DB_NAME: dbName,
     PORT: port,
+    PDF_SERVICE_URL: pdfServiceUrl,
+    ENABLE_LOCAL_PDF_FALLBACK: enableLocalPdfFallback,
   };
 };

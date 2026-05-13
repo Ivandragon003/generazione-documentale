@@ -24,7 +24,11 @@ import {
 import type { Request, Response } from "express";
 import { toTemplateResponse } from "../common/mappers/response.mapper";
 import { makeError } from "../common/utils/errors";
-import { getActor, parsePagination } from "../common/utils/http.utils";
+import {
+  assertUuid,
+  getActor,
+  parsePagination,
+} from "../common/utils/http.utils";
 // biome-ignore lint/style/useImportType: Nest uses DTO classes for runtime validation metadata.
 import { CreateTemplateDto } from "../dto/create-template.dto";
 // biome-ignore lint/style/useImportType: Nest uses DTO classes for runtime validation metadata.
@@ -33,8 +37,6 @@ import { GeneratePdfDto } from "../dto/generate-pdf.dto";
 import { TemplateQueryDto } from "../dto/template-query.dto";
 // biome-ignore lint/style/useImportType: Nest uses DTO classes for runtime validation metadata.
 import { UpdateTemplateDto } from "../dto/update-template.dto";
-// biome-ignore lint/style/useImportType: Nest uses DTO classes for runtime validation metadata.
-import { ValidateMarkdownDto } from "../dto/validate-markdown.dto";
 import type { FieldValueMap } from "../service/document-rendering.service";
 import { PdfJobsService } from "../service/pdf-jobs.service";
 import { TemplatesService } from "../service/templates.service";
@@ -66,6 +68,33 @@ function resolveFieldValues(
   const rawFieldValues = parseRawFieldValues(request);
   if (rawFieldValues) return rawFieldValues;
   return body.fieldValues ?? {};
+}
+
+function assertTemplatePathParam(id: string): void {
+  if (!id || id.trim().length === 0) {
+    throw makeError("id template non valido", 400);
+  }
+}
+
+function parseFieldValuesQuery(raw: string | undefined): FieldValueMap {
+  if (!raw || raw.trim().length === 0) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isFieldValueMap(parsed)) {
+      throw makeError("fieldValues query deve essere un oggetto JSON", 400);
+    }
+    return parsed;
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      (error as { status?: number }).status === 400
+    ) {
+      throw error;
+    }
+    throw makeError("fieldValues query non valido: JSON malformato", 400);
+  }
 }
 
 function toPdfJobResponse(job: {
@@ -175,12 +204,6 @@ export class TemplatesController {
     return this.templatesService.delete(id);
   }
 
-  @Post("validate")
-  @ApiOperation({ summary: "Valida contenuto Markdown" })
-  validate(@Body() body: ValidateMarkdownDto) {
-    return this.templatesService.validateMarkdown(body.content);
-  }
-
   @Post(":id/pdf")
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Avvia generazione PDF da template" })
@@ -191,6 +214,7 @@ export class TemplatesController {
     @Body() body: GeneratePdfDto,
     @Req() request: Request,
   ) {
+    assertTemplatePathParam(id);
     const job = await this.pdfJobsService.enqueue(
       id,
       resolveFieldValues(body, request),
@@ -203,6 +227,7 @@ export class TemplatesController {
   @ApiOperation({ summary: "Lista job PDF del template" })
   @ApiParam({ name: "id", description: "UUID template" })
   async getPdfJobs(@Param("id") id: string) {
+    assertTemplatePathParam(id);
     const jobs = await this.pdfJobsService.getJobs(id);
     return jobs.map(toPdfJobResponse);
   }
@@ -212,6 +237,8 @@ export class TemplatesController {
   @ApiParam({ name: "id", description: "UUID template" })
   @ApiParam({ name: "jobId", description: "UUID job" })
   async getPdfJob(@Param("id") id: string, @Param("jobId") jobId: string) {
+    assertTemplatePathParam(id);
+    assertUuid(jobId, "jobId");
     return toPdfJobResponse(await this.pdfJobsService.getJob(id, jobId));
   }
 
@@ -224,6 +251,8 @@ export class TemplatesController {
     @Param("jobId") jobId: string,
     @Res() response: Response,
   ) {
+    assertTemplatePathParam(id);
+    assertUuid(jobId, "jobId");
     await this.pdfJobsService.streamDownload(id, jobId, response);
   }
 
@@ -235,10 +264,8 @@ export class TemplatesController {
     @Query("fieldValues") fieldValuesRaw: string | undefined,
     @Res() response: Response,
   ) {
-    const fieldValues =
-      fieldValuesRaw && fieldValuesRaw.trim().length > 0
-        ? JSON.parse(fieldValuesRaw)
-        : {};
+    assertTemplatePathParam(id);
+    const fieldValues = parseFieldValuesQuery(fieldValuesRaw);
     await this.pdfJobsService.streamLatest(id, response, fieldValues);
   }
 }

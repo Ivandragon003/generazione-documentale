@@ -24,27 +24,66 @@ export interface PdfGenerationInput {
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
-const pdfServiceUrl = process.env.PDF_SERVICE_URL?.trim();
+type PdfMode = "remote" | "local";
 
 @Injectable()
 export class PdfGenerationService {
   private readonly logger = new Logger(PdfGenerationService.name);
+  private readonly nodeEnv = process.env.NODE_ENV?.trim().toLowerCase() ?? "";
+  private readonly pdfServiceUrl = process.env.PDF_SERVICE_URL?.trim() ?? "";
+  private readonly localFallbackRaw =
+    process.env.ENABLE_LOCAL_PDF_FALLBACK?.trim().toLowerCase();
 
   constructor(
     @Inject(DocumentRenderingService)
     private readonly documentRenderingService: DocumentRenderingService,
   ) {}
 
-  async onModuleInit(): Promise<void> {
-    if (pdfServiceUrl) {
-      this.logger.log(`PDF generation via remote service: ${pdfServiceUrl}`);
-      return;
-    }
+  private isProduction(): boolean {
+    return this.nodeEnv === "production";
+  }
 
-    this.logger.log(`PDF generation via local Pandoc: ${pdfConfig.pandocPath}`);
-    const health = await this.checkHealth();
-    if (!health.ok) {
-      throw new Error(health.error ?? "Pandoc non disponibile");
+  private isLocalFallbackEnabled(): boolean {
+    if (this.localFallbackRaw === "true") return true;
+    if (this.localFallbackRaw === "false") return false;
+    return !this.isProduction();
+  }
+
+  private resolvePdfMode(): PdfMode {
+    if (this.pdfServiceUrl.length > 0) return "remote";
+    if (this.isProduction()) {
+      throw new Error(
+        "PDF_SERVICE_URL obbligatoria in produzione. " +
+          "Configura il pdf-service o abilita esplicitamente ENABLE_LOCAL_PDF_FALLBACK=true solo per debug controllato.",
+      );
+    }
+    if (!this.isLocalFallbackEnabled()) {
+      throw new Error(
+        "PDF_SERVICE_URL non configurata e fallback locale disabilitato. " +
+          "Imposta ENABLE_LOCAL_PDF_FALLBACK=true in sviluppo oppure configura PDF_SERVICE_URL.",
+      );
+    }
+    return "local";
+  }
+
+  async onModuleInit(): Promise<void> {
+    const mode = this.resolvePdfMode();
+    if (mode === "remote") {
+      this.logger.log(
+        `PDF mode=remote service url=${this.pdfServiceUrl} env=${this.nodeEnv || "development"}`,
+      );
+      const health = await this.checkHealth();
+      if (!health.ok) {
+        throw new Error(health.error ?? "PDF service non disponibile");
+      }
+    } else {
+      this.logger.log(
+        `PDF mode=local pandocPath=${pdfConfig.pandocPath} env=${this.nodeEnv || "development"} fallback=${this.isLocalFallbackEnabled()}`,
+      );
+      const health = await this.checkHealth();
+      if (!health.ok) {
+        throw new Error(health.error ?? "Pandoc non disponibile");
+      }
     }
   }
 
@@ -198,14 +237,24 @@ export class PdfGenerationService {
     version?: string;
     error?: string;
   }> {
-    if (!pdfServiceUrl) {
+    let mode: PdfMode;
+    try {
+      mode = this.resolvePdfMode();
+    } catch (error) {
+      return {
+        ok: false,
+        mode: this.pdfServiceUrl.length > 0 ? "remote" : "local",
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+    if (mode === "local") {
       const local = await this.checkLocalPandoc();
       return { mode: "local", pandocPath: pdfConfig.pandocPath, ...local };
     }
 
     try {
       const response = await fetch(
-        `${pdfServiceUrl.replace(/\/$/, "")}/health`,
+        `${this.pdfServiceUrl.replace(/\/$/, "")}/health`,
       );
       const body = (await response.json().catch(() => ({}))) as {
         ok?: boolean;
@@ -238,13 +287,11 @@ export class PdfGenerationService {
     author: string;
     outputPath: string;
   }): Promise<void> {
-    if (!pdfServiceUrl) return;
-
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), pdfConfig.timeoutMs);
     try {
       const response = await fetch(
-        `${pdfServiceUrl.replace(/\/$/, "")}/generate`,
+        `${this.pdfServiceUrl.replace(/\/$/, "")}/generate`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -314,7 +361,7 @@ export class PdfGenerationService {
     const outputPath = join(this.getStoragePath(), filename);
     const args = this.buildPandocArgs(outputPath, title, author);
 
-    if (pdfServiceUrl) {
+    if (this.resolvePdfMode() === "remote") {
       await this.runRemotePdfService({
         markdown: interpolated,
         title,

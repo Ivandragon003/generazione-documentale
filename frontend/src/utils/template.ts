@@ -51,9 +51,7 @@ export function extractPlaceholders(markdown: string): string[] {
   return [...new Set([...matches].map((match) => match[1]).filter(Boolean))];
 }
 
-export function extractInlineFieldTypes(
-  markdown: string,
-): Map<string, FieldType> {
+function extractInlineFieldTypes(markdown: string): Map<string, FieldType> {
   const result = new Map<string, FieldType>();
   for (const match of markdown.matchAll(PLACEHOLDER_REGEX)) {
     const name = match[1];
@@ -90,7 +88,7 @@ export function normalizeFieldDefinitions(
   });
 }
 
-export function defaultValueForField(field: ApiTemplateField): FieldValue {
+function defaultValueForField(field: ApiTemplateField): FieldValue {
   const type = field.type ?? "text";
   if (type === "boolean" || type === "checkbox") {
     return field.defaultValue === "true";

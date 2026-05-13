@@ -199,29 +199,6 @@
         "tags": ["templates"]
       }
     },
-    "/api/templates/validate": {
-      "post": {
-        "operationId": "TemplatesController_validate",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ValidateMarkdownDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "Valida contenuto Markdown",
-        "tags": ["templates"]
-      }
-    },
     "/api/templates/{id}/pdf": {
       "post": {
         "operationId": "TemplatesController_generatePdf",
@@ -586,16 +563,6 @@
             "description": "Percorso GitHub opzionale per sovrascrittura"
           }
         }
-      },
-      "ValidateMarkdownDto": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "string",
-            "example": "# {{titolo}}\n\nCliente: {{cliente}}"
-          }
-        },
-        "required": ["content"]
       },
       "GeneratePdfDto": {
         "type": "object",

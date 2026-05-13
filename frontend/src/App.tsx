@@ -87,8 +87,15 @@ async function pollJobUntilDone(
       if (updated.status === "completed" || updated.status === "failed") {
         return;
       }
-    } catch {
-      // Network hiccups during polling are ignored; the next tick retries.
+    } catch (error) {
+      console.warn(
+        "Polling job PDF fallito, nuovo tentativo al prossimo tick",
+        {
+          templateId,
+          jobId,
+          error,
+        },
+      );
     }
   }
 }
@@ -270,7 +277,14 @@ export default function App() {
       applyTemplate(selected);
       void getPdfJobs(selected.id)
         .then(setPdfJobs)
-        .catch(() => {});
+        .catch((error) => {
+          setSnack({
+            open: true,
+            msg: "Impossibile caricare lo storico PDF del template selezionato.",
+            severity: "error",
+          });
+          console.error("Errore caricamento job PDF", error);
+        });
     },
     [applyTemplate],
   );

@@ -1,79 +1,106 @@
-# MAC Documents
+﻿# MAC Documents
 
-Backend NestJS + frontend React per lavorare su template Markdown salvati su GitHub, compilare i placeholder direttamente nel documento e generare PDF.
+Piattaforma documentale composta da backend NestJS, frontend React e servizio PDF opzionale separato.
 
-## Flusso
+## Architettura reale
 
-1. I template vengono letti solo da GitHub (`GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_TEMPLATES_DIR`).
-2. Il frontend renderizza il Markdown in HTML controllato.
-3. I placeholder `{{nome}}` o `{{nome:tipo}}` diventano controlli inline.
-4. I valori compilati vengono inviati a `POST /api/templates/:id/pdf`.
-5. Il backend genera il PDF localmente con Pandoc oppure tramite `PDF_SERVICE_URL`.
+- `src/` Backend NestJS (API REST, integrazione GitHub template, queue job PDF, persistenza metadata su PostgreSQL).
+- `frontend/` Frontend React + Vite (editor template, compilazione campi, stato job PDF, download PDF).
+- `scripts/pdf-service.mjs` Servizio Node standalone per rendering PDF remoto (Pandoc/LaTeX in container dedicato).
+- `scripts/check-pandoc.ts` Verifica toolchain Pandoc locale.
+- `scripts/seed.ts` Seeder database metadata template.
 
-## API esposte
+## Flusso end-to-end
 
-| Metodo | Path | Uso |
-| --- | --- | --- |
-| `GET` | `/health` | Health check |
-| `GET` | `/api/templates` | Lista template presenti su GitHub |
-| `POST` | `/api/templates` | Crea template su GitHub |
-| `GET` | `/api/templates/:id` | Dettaglio template |
-| `PUT` | `/api/templates/:id` | Aggiorna template |
-| `DELETE` | `/api/templates/:id` | Elimina template |
-| `POST` | `/api/templates/validate` | Valida Markdown e placeholder |
-| `POST` | `/api/templates/:id/pdf` | Accoda generazione PDF |
-| `GET` | `/api/templates/:id/pdf/jobs` | Lista job PDF del template |
-| `GET` | `/api/templates/:id/pdf/jobs/:jobId` | Stato job PDF |
-| `GET` | `/api/templates/:id/pdf/jobs/:jobId/download` | Scarica PDF del job |
-| `GET` | `/api/templates/:id/pdf/latest` | Scarica ultimo PDF completato |
+1. I template Markdown sono la sorgente primaria su GitHub (`GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_BRANCH`, `GITHUB_TEMPLATES_DIR`).
+2. Il backend legge template/metadata da GitHub, normalizza placeholder `{{campo}}` o `{{campo:tipo}}`, e unisce metadata DB (nome, descrizione, fields, mapping path).
+3. Il frontend mostra il template, genera i controlli di compilazione dai placeholder/fields e produce l'anteprima HTML.
+4. `POST /api/templates/:id/pdf` crea un job asincrono (`queued -> running -> completed/failed`).
+5. Il worker backend processa la coda:
+   - rendering Markdown compilato;
+   - conversione PDF via `pdf-service` remoto oppure Pandoc locale (solo fallback dev).
+6. Il frontend monitora stato job (`GET /api/templates/:id/pdf/jobs/:jobId`) e scarica il PDF completato (`/download` o `/latest`).
 
-Non sono esposte API `documents`, `/api/pdf` o `/api/dev`.
+## API attuali (backend)
 
-## Campi dinamici
+Health:
+- `GET /health`
+- `GET /health/pdf`
 
-Tipi supportati:
+Template:
+- `GET /api/templates`
+- `GET /api/templates/:id`
+- `POST /api/templates`
+- `PUT /api/templates/:id`
+- `DELETE /api/templates/:id`
 
-`text`, `textarea`, `number`, `date`, `boolean`, `checkbox`, `email`, `url`, `tel`, `select`, `currency`, `table`, `subtable`, `list`, `repeater`.
+PDF async:
+- `POST /api/templates/:id/pdf`
+- `GET /api/templates/:id/pdf/jobs`
+- `GET /api/templates/:id/pdf/jobs/:jobId`
+- `GET /api/templates/:id/pdf/jobs/:jobId/download`
+- `GET /api/templates/:id/pdf/latest`
 
-Sintassi inline:
+OpenAPI UI: `GET /api-docs`  
+Spec file (non-production boot): `openapi.json`
 
-```md
-# Offerta per {{nome_cliente:text}}
+## Struttura cartelle
 
-Data: {{data_offerta:date}}
-Totale: {{totale:number}}
-Accettata: {{accettata:boolean}}
-
-{{righe:table}}
+```text
+.
+├─ src/
+│  ├─ common/
+│  ├─ config/
+│  ├─ controller/
+│  ├─ dto/
+│  ├─ entities/
+│  ├─ migrations/
+│  ├─ repository/
+│  └─ service/
+├─ frontend/
+│  ├─ src/components/
+│  ├─ src/data/
+│  └─ src/utils/
+├─ scripts/
+├─ test/
+├─ Dockerfile
+├─ Dockerfile.pdf
+└─ docker-compose.yml
 ```
 
-Le definizioni complete possono essere passate nel campo `fields`, con `options` per select e `columns` per tabelle, subtabelle e repeater.
+## Variabili environment
 
-## PDF service separato
+File di riferimento: `.env.example`.
 
-Docker Compose avvia:
+Backend:
+- `NODE_ENV`, `PORT`
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+- `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_BRANCH`, `GITHUB_TEMPLATES_DIR`
+- `MAX_TEMPLATE_CONTENT_BYTES`, `MAX_PDF_MARKDOWN_BYTES`
+- `PDF_SERVICE_URL`
+- `ENABLE_LOCAL_PDF_FALLBACK` (`true|false`)
+- `PANDOC_PATH`, `PDF_ENGINE`
+- `PDF_GENERATION_RETRIES`, `PDF_GENERATION_RETRY_DELAY_MS`, `PDF_GENERATION_TIMEOUT_MS`, `PDF_QUEUE_RECOVERY_RETRY_MS`
+- `PDF_PAPER`, `PDF_FONT_SIZE`, `PDF_MARGIN_TOP`, `PDF_MARGIN_BOTTOM`, `PDF_MARGIN_LEFT`, `PDF_MARGIN_RIGHT`
+- `PDF_MAIN_FONT`, `PDF_SANS_FONT`, `PDF_MONO_FONT`
+- `RUN_REGRESSION_ON_BOOT`
 
-- `app`: backend NestJS leggero, senza LaTeX/Pandoc.
-- `pdf-service`: container separato con Pandoc e TeX Live.
-- `frontend`: build Vite servita da Nginx.
-- `postgres`: database.
+Frontend:
+- `VITE_API_URL` (base URL backend, default `http://localhost:3000`)
 
-L'app parla col servizio PDF tramite:
+## Setup locale
 
-```env
-PDF_SERVICE_URL=http://pdf-service:3100
-```
-
-Se `PDF_SERVICE_URL` non e impostato, il backend usa `PANDOC_PATH` locale.
-
-## Comandi
+Prerequisiti:
+- Node.js 22+
+- PostgreSQL 16+
+- Accesso GitHub con token valido ai template
+- Pandoc + engine LaTeX solo se non si usa `PDF_SERVICE_URL`
 
 Backend:
 
 ```bash
 npm install
 npm run build
-npm test -- --runInBand
 npm run start:dev
 ```
 
@@ -82,12 +109,70 @@ Frontend:
 ```bash
 cd frontend
 npm install
+npm run dev
+```
+
+Verifica Pandoc locale:
+
+```bash
+npm run check:pandoc
+```
+
+## Modalita PDF (dev/prod)
+
+- `NODE_ENV=production`:
+  - `PDF_SERVICE_URL` e obbligatoria.
+  - fallback locale disabilitato di default.
+  - se `PDF_SERVICE_URL` manca, il backend fallisce all'avvio (fail-fast).
+- `NODE_ENV=development` o `test`:
+  - se `PDF_SERVICE_URL` e presente, usa modalita remota;
+  - se assente, puo usare fallback locale Pandoc;
+  - `ENABLE_LOCAL_PDF_FALLBACK=false` forza errore esplicito quando manca `PDF_SERVICE_URL`.
+
+## Docker / multi-container
+
+`docker compose up --build` avvia:
+- `postgres`
+- `app` (backend NestJS)
+- `pdf-service` (Pandoc + TeX Live)
+- `frontend` (Vite build servito da Nginx)
+
+Nel compose, `app` usa sempre `PDF_SERVICE_URL=http://pdf-service:3100`.
+Nel compose corrente, `ENABLE_LOCAL_PDF_FALLBACK=false` per evitare fallback implicito nel container app.
+
+## Comandi principali
+
+Backend:
+
+```bash
+npm run build
+npm run start
+npm run start:dev
+npm run test
+npm run check
+npm run typeorm -- migration:run
+```
+
+Frontend:
+
+```bash
+cd frontend
 npm run build
 npm run dev
 ```
 
-Docker:
+## Note Pandoc/LaTeX
 
-```bash
-docker compose up --build
-```
+- Modalita locale: backend invoca `PANDOC_PATH` (solo fallback sviluppo/test).
+- Modalita service: backend delega al servizio HTTP PDF (`PDF_SERVICE_URL`) ed e la modalita raccomandata in produzione.
+- `Dockerfile.pdf` installa Pandoc e pacchetti TeX Live estesi per casi multilingua/font.
+
+## Troubleshooting rapido
+
+- Errore `Pandoc non trovato`: verificare `PANDOC_PATH` (fallback locale) oppure salute `pdf-service` su `/health`.
+- Errore startup in produzione per `PDF_SERVICE_URL`: configurare URL del servizio PDF o correggere `NODE_ENV`.
+- `fieldValues` non valido su `/api/templates/:id/pdf/latest`: la query deve contenere JSON valido e oggetto (`{...}`), altrimenti ritorna `400`.
+
+## Coerenza documentazione
+
+Questo README descrive solo endpoint, flussi e componenti presenti nel codice corrente. Non include API legacy (`/api/pdf`, `/api/dev`, `documents`) perché non esistono nel runtime attuale.

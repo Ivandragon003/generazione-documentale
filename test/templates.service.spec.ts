@@ -1,4 +1,4 @@
-import { Test, type TestingModule } from "@nestjs/testing";
+﻿import { Test, type TestingModule } from "@nestjs/testing";
 import { DataSource, type EntityManager } from "typeorm";
 import type { TemplateEntity } from "../src/entities/template.entity";
 import { TemplatesRepository } from "../src/repository/templates.repository";
@@ -6,7 +6,7 @@ import type { GitHubTemplateFile } from "../src/service/github-storage.service";
 import { GitHubStorageService } from "../src/service/github-storage.service";
 import { TemplatesService } from "../src/service/templates.service";
 
-// ── helpers ────────────────────────────────────────────────────────────────────
+// â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const VALID_UUID = "550e8400-e29b-41d4-a716-446655440000";
 
 const makeTemplate = (
@@ -162,7 +162,7 @@ describe("TemplatesService", () => {
 
   afterEach(() => jest.resetAllMocks());
 
-  // ── create() ──────────────────────────────────────────────────────────────
+  // â”€â”€ create() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   describe("create() - casi nominali", () => {
     it("crea un template con contenuto valido", async () => {
@@ -242,7 +242,7 @@ describe("TemplatesService", () => {
   });
 
   describe("create() - casi limite", () => {
-    it("lancia 400 se il nome è vuoto", async () => {
+    it("lancia 400 se il nome Ã¨ vuoto", async () => {
       await expect(
         service.create({ name: "", content: "# {{titolo}}" }),
       ).rejects.toMatchObject({ status: 400 });
@@ -315,7 +315,7 @@ describe("TemplatesService", () => {
     });
   });
 
-  // ── findOne() ──────────────────────────────────────────────────────────────
+  // â”€â”€ findOne() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   describe("findOne() - casi nominali e limite", () => {
     it("ritorna il template idratato se esiste", async () => {
@@ -354,7 +354,7 @@ describe("TemplatesService", () => {
     });
   });
 
-  // ── findAll() ─────────────────────────────────────────────────────────────
+  // â”€â”€ findAll() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   describe("findAll() - casi nominali e limite", () => {
     it("ritorna lista paginata di template", async () => {
@@ -405,7 +405,7 @@ describe("TemplatesService", () => {
     });
   });
 
-  // ── update() ──────────────────────────────────────────────────────────────
+  // â”€â”€ update() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   describe("update() - casi nominali", () => {
     it("aggiorna nome e contenuto", async () => {
@@ -444,7 +444,7 @@ describe("TemplatesService", () => {
     });
   });
 
-  // ── delete() ──────────────────────────────────────────────────────────────
+  // â”€â”€ delete() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   describe("delete() - casi nominali", () => {
     it("elimina il template se non ha documenti attivi", async () => {
@@ -485,35 +485,6 @@ describe("TemplatesService", () => {
       await expect(service.delete("not-a-uuid")).rejects.toMatchObject({
         status: 400,
       });
-    });
-  });
-
-  // ── validateMarkdown() ────────────────────────────────────────────────────
-
-  describe("validateMarkdown() - casi limite", () => {
-    it("valida correttamente un template corretto", () => {
-      const result = service.validateMarkdown(
-        "# {{titolo}}\n\nTesto {{nome}}.",
-      );
-      expect(result.valid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-    });
-
-    it("rileva template vuoto", () => {
-      const result = service.validateMarkdown("");
-      expect(result.valid).toBe(false);
-    });
-
-    it("rileva placeholder non validi", () => {
-      const result = service.validateMarkdown("# {{ titolo con spazi }}");
-      expect(result.valid).toBe(false);
-    });
-
-    it("rileva tag <script>", () => {
-      const result = service.validateMarkdown(
-        "# {{t}}<script>alert(1)</script>",
-      );
-      expect(result.valid).toBe(false);
     });
   });
 });
