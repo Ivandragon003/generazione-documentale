@@ -129,7 +129,7 @@ export function triggerPdfGeneration(
 ): Promise<PdfJobDto> {
   return api(`${BASE}/templates/${segment(templateId)}/pdf`, {
     method: "POST",
-    body: JSON.stringify({ fieldValues }),
+    body: JSON.stringify({ fieldValues, strict: false }),
   });
 }
 

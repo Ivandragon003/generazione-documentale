@@ -183,6 +183,8 @@ export default function App() {
   const originalPlaceholders = useRef<string[]>([]);
   const pollingAbort = useRef<AbortController | null>(null);
 
+  const hasUnsavedChanges = markdown !== (template?.content ?? "");
+
   const visibleFields = useMemo(
     () => normalizeFieldDefinitions(markdown, template?.fields ?? []),
     [markdown, template],
@@ -356,6 +358,15 @@ export default function App() {
       return;
     }
 
+    if (hasUnsavedChanges) {
+      setSnack({
+        open: true,
+        msg: "Hai modifiche non salvate. Salva il template prima di generare il PDF.",
+        severity: "error",
+      });
+      return;
+    }
+
     const errors = validateFieldValues(visibleFields, fieldValues);
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -412,7 +423,7 @@ export default function App() {
         severity: "error",
       });
     }
-  }, [fieldValues, template, visibleFields]);
+  }, [fieldValues, hasUnsavedChanges, template, visibleFields]);
 
   useEffect(() => {
     return () => {
@@ -517,6 +528,13 @@ export default function App() {
           <Alert severity="warning" sx={{ mt: 2 }}>
             Backend non raggiungibile. Assicurati che il server sia in
             esecuzione su <strong>localhost:3000</strong>.
+          </Alert>
+        )}
+
+        {hasUnsavedChanges && appStatus === "ready" && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Hai modifiche non salvate. Salva il template prima di generare il
+            PDF.
           </Alert>
         )}
 

@@ -53,7 +53,13 @@ export function PdfPreview({
   templateId,
   documentName,
 }: Props) {
-  const latestCompleted = pdfJobs.find((job) => job.status === "completed");
+  const latestCompleted = [...pdfJobs]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    .find((job) => job.status === "completed");
+
   const latestJob = pdfJobs[0];
   const downloadUrl =
     latestCompleted && templateId
