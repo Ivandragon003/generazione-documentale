@@ -29,7 +29,6 @@ const fakeTpl = (overrides: Partial<TemplateEntity> = {}): TemplateEntity =>
     description: null,
     content_path: "/storage/tpl-1.md",
     fields: [],
-    status: "draft",
     created_by: "user1",
     created_at: new Date("2024-01-01"),
     updated_at: new Date("2024-06-01"),
@@ -72,13 +71,11 @@ describe("TemplatesRepository — edge cases aggiuntivi", () => {
   });
 
   describe("findAll() — filtri e paginazione", () => {
-    it("applica status filter", async () => {
+    it("non applica filtri di pubblicazione", async () => {
       const qb = makeQb([], 0);
       tplRepo.createQueryBuilder.mockReturnValue(qb);
-      await repo.findAll({ status: "published", limit: 10, offset: 0 });
-      expect(qb.andWhere).toHaveBeenCalledWith("template.status = :status", {
-        status: "published",
-      });
+      await repo.findAll({ limit: 10, offset: 0 });
+      expect(qb.andWhere).not.toHaveBeenCalled();
     });
 
     it("con offset grande restituisce array vuoto e total corretto", async () => {
@@ -122,27 +119,26 @@ describe("TemplatesRepository — edge cases aggiuntivi", () => {
       expect(result).toEqual(tpl);
       expect(manager.create).toHaveBeenCalledWith(
         TemplateEntity,
-        expect.objectContaining({ description: null, status: "draft" }),
+        expect.objectContaining({ description: null }),
       );
     });
 
-    it("crea template con status 'published' esplicitamente", async () => {
-      const tpl = fakeTpl({ status: "published" });
+    it("ignora eventuali status legacy", async () => {
+      const tpl = fakeTpl();
       const manager = {
         create: jest.fn().mockReturnValue(tpl),
         save: jest.fn().mockResolvedValue(tpl),
       };
       await repo.insertTemplate(manager as never, {
         id: "tpl-pub",
-        name: "Pubblicato",
+        name: "Template",
         contentPath: "/pub.md",
         fields: [],
         createdBy: "admin",
-        status: "published",
       });
       expect(manager.create).toHaveBeenCalledWith(
         TemplateEntity,
-        expect.objectContaining({ status: "published" }),
+        expect.not.objectContaining({ status: expect.any(String) }),
       );
     });
 
@@ -176,7 +172,6 @@ describe("TemplatesRepository — edge cases aggiuntivi", () => {
         description: null,
         contentPath: "/x.md",
         fields: [],
-        status: "draft",
       });
       expect(result).toEqual(tpl);
     });
@@ -193,7 +188,6 @@ describe("TemplatesRepository — edge cases aggiuntivi", () => {
           description: null,
           contentPath: "/x.md",
           fields: [],
-          status: "draft",
         }),
       ).rejects.toThrow("non trovato dopo update");
     });

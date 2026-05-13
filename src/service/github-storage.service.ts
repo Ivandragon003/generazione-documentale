@@ -36,7 +36,6 @@ export interface GitHubTemplateFile {
   githubPath: string;
   category: string | null;
   section: string | null;
-  status: "draft" | "published";
   description: string | null;
   fields: FieldDefinition[];
   created_by: string;
@@ -257,7 +256,6 @@ export class GitHubStorageService {
       githubPath: path,
       category: meta.category,
       section: meta.section,
-      status: "published",
       description: null,
       fields: [],
       created_by: "github",
@@ -295,7 +293,6 @@ export class GitHubStorageService {
           githubPath: file.path,
           category: meta.category,
           section: meta.section,
-          status: "published" as const,
           description: null,
           fields: [] as FieldDefinition[],
           created_by: "github",

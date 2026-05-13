@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsObject, IsOptional } from "class-validator";
+import { Allow, IsObject, IsOptional } from "class-validator";
 import type { FieldValueMap } from "../service/document-rendering.service";
 
 export class GeneratePdfDto {
@@ -12,6 +12,7 @@ export class GeneratePdfDto {
     },
     required: false,
   })
+  @Allow()
   @IsOptional()
   @IsObject()
   fieldValues?: FieldValueMap;

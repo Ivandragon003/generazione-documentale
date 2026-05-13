@@ -16,6 +16,7 @@ jest.mock("node:fs", () => ({
   createReadStream: jest.fn(),
 }));
 jest.mock("node:crypto", () => ({
+  ...jest.requireActual("node:crypto"),
   randomUUID: jest.fn(() => "test-uuid-1234"),
 }));
 

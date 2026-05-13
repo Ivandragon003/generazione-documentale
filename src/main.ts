@@ -10,6 +10,7 @@ import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     logger: ["log", "warn", "error"],
+    rawBody: true,
   });
 
   app.enableCors({
@@ -33,7 +34,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new AllExceptionsFilter());
 
   app.setGlobalPrefix("api", {
-    exclude: ["health"],
+    exclude: ["health", "health/pdf"],
   });
 
   const swaggerConfig = new DocumentBuilder()

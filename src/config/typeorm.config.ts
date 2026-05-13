@@ -7,9 +7,6 @@ import { TemplateEntity } from "../entities/template.entity";
 export const buildTypeOrmOptions = (
   configService: ConfigService,
 ): TypeOrmModuleOptions => {
-  const nodeEnv = configService.get<string>("NODE_ENV") ?? "development";
-  const isProduction = nodeEnv === "production";
-
   return {
     type: "postgres",
     host: configService.getOrThrow<string>("DB_HOST"),
@@ -18,13 +15,8 @@ export const buildTypeOrmOptions = (
     password: configService.getOrThrow<string>("DB_PASSWORD"),
     database: configService.getOrThrow<string>("DB_NAME"),
     entities: [TemplateEntity, PdfJobEntity],
-    // Entity-first policy:
-    // - development: direct sync from entities (automatic schema updates)
-    // - staging/production: DISABLED - use migrations only (safer for production data)
-    // WARNING: Never set synchronize:true in staging or production environments!
-    // This can cause data loss when schema changes are deployed.
-    synchronize: !isProduction,
-    migrationsRun: isProduction,
+    synchronize: false,
+    migrationsRun: true,
     migrations: ["dist/migrations/*.js"],
     autoLoadEntities: false,
   };

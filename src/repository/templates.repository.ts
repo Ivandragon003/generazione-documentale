@@ -1,16 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import {
-  type EntityManager,
-  In,
-  type Repository,
-  type SelectQueryBuilder,
-} from "typeorm";
+import { type EntityManager, In, type Repository } from "typeorm";
 import type { FieldDefinition } from "../common/types/field-definition.type";
 import { TemplateEntity } from "../entities/template.entity";
 
 interface FindAllOptions {
-  status?: "draft" | "published";
   limit: number;
   offset: number;
 }
@@ -22,7 +16,6 @@ interface InsertTemplatePayload {
   contentPath: string;
   fields: FieldDefinition[];
   createdBy: string;
-  status?: "draft" | "published";
 }
 
 interface UpdateTemplatePayload {
@@ -31,7 +24,6 @@ interface UpdateTemplatePayload {
   description: string | null;
   contentPath: string;
   fields: FieldDefinition[];
-  status: "draft" | "published";
 }
 
 @Injectable()
@@ -41,18 +33,7 @@ export class TemplatesRepository {
     private readonly templateRepository: Repository<TemplateEntity>,
   ) {}
 
-  private withFilters(
-    qb: SelectQueryBuilder<TemplateEntity>,
-    { status }: Omit<FindAllOptions, "limit" | "offset">,
-  ): SelectQueryBuilder<TemplateEntity> {
-    if (status) {
-      qb.andWhere("template.status = :status", { status });
-    }
-    return qb;
-  }
-
   async findAll({
-    status,
     limit,
     offset,
   }: FindAllOptions): Promise<{ data: TemplateEntity[]; total: number }> {
@@ -60,7 +41,6 @@ export class TemplatesRepository {
       .createQueryBuilder("template")
       .orderBy("template.updated_at", "DESC");
 
-    this.withFilters(baseQuery, { status });
     const [data, total] = await baseQuery
       .take(limit)
       .skip(offset)
@@ -97,7 +77,6 @@ export class TemplatesRepository {
       description: payload.description ?? null,
       content_path: payload.contentPath,
       fields: payload.fields,
-      status: payload.status ?? "draft",
       created_by: payload.createdBy,
     });
     return manager.save(TemplateEntity, template);
@@ -115,7 +94,6 @@ export class TemplatesRepository {
         description: payload.description,
         content_path: payload.contentPath,
         fields: payload.fields,
-        status: payload.status,
       },
     );
     const updated = await manager.findOne(TemplateEntity, {

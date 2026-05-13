@@ -14,10 +14,10 @@ import {
 } from "@mui/material";
 import {
   type FieldValueMap,
-  getPdfDownloadUrl,
+  getLatestPdfDownloadUrl,
   type PdfJobDto,
 } from "../data/api";
-import type { NormalizedField } from "../utils/template";
+import { type NormalizedField, stableStringify } from "../utils/template";
 import { DynamicDocument } from "./DynamicDocument";
 
 type Props = {
@@ -27,6 +27,7 @@ type Props = {
   pdfJobs?: PdfJobDto[];
   templateId?: string;
   documentName?: string;
+  templateContentHash?: string;
 };
 
 function jobStatusColor(
@@ -52,18 +53,25 @@ export function PdfPreview({
   pdfJobs = [],
   templateId,
   documentName,
+  templateContentHash,
 }: Props) {
+  const currentValuesSignature = stableStringify(values);
   const latestCompleted = [...pdfJobs]
     .sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
-    .find((job) => job.status === "completed");
+    .find(
+      (job) =>
+        job.status === "completed" &&
+        job.templateContentHash === templateContentHash &&
+        stableStringify(job.fieldValues ?? {}) === currentValuesSignature,
+    );
 
   const latestJob = pdfJobs[0];
   const downloadUrl =
     latestCompleted && templateId
-      ? getPdfDownloadUrl(templateId, latestCompleted.id)
+      ? getLatestPdfDownloadUrl(templateId, values)
       : null;
   const isGenerating =
     latestJob?.status === "queued" || latestJob?.status === "running";
@@ -165,6 +173,12 @@ export function PdfPreview({
         {latestJob?.status === "failed" && latestJob.errorMessage && (
           <Alert severity="error" sx={{ mt: 2 }}>
             <strong>Generazione fallita:</strong> {latestJob.errorMessage}
+          </Alert>
+        )}
+        {!downloadUrl && pdfJobs.some((job) => job.status === "completed") && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            PDF non ancora generato per questa versione del template e questi
+            campi.
           </Alert>
         )}
       </Paper>

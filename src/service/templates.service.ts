@@ -22,7 +22,6 @@ export interface CreateTemplateInput {
   content: string;
   fields?: PartialFieldDefinition[];
   created_by?: string;
-  status?: "draft" | "published";
   path?: string;
 }
 
@@ -31,7 +30,6 @@ export interface UpdateTemplateInput {
   description?: string;
   content?: string;
   fields?: PartialFieldDefinition[];
-  status?: "draft" | "published";
 }
 
 type TemplateWithContent = TemplateEntity & {
@@ -99,7 +97,6 @@ export class TemplatesService {
       name: metadata?.name ?? template.name,
       description: metadata?.description ?? template.description,
       content_path: metadata?.content_path ?? template.content_path,
-      status: metadata?.status ?? template.status,
       fields: metadata?.fields ?? template.fields,
       created_by: metadata?.created_by ?? template.created_by,
       created_at: metadata?.created_at ?? template.created_at,
@@ -165,11 +162,9 @@ export class TemplatesService {
   }
 
   async findAll({
-    status,
     limit = 20,
     offset = 0,
   }: {
-    status?: "draft" | "published";
     limit?: number;
     offset?: number;
   }) {
@@ -181,14 +176,12 @@ export class TemplatesService {
     );
     const metadataByPath = this.mapMetadataByGitHubId(metadataRows);
 
-    const merged = githubTemplates
-      .map((template) =>
-        this.mergeGitHubTemplate(
-          template,
-          metadataByPath.get(this.normalizeTemplateId(template.content_path)),
-        ),
-      )
-      .filter((template) => !status || template.status === status);
+    const merged = githubTemplates.map((template) =>
+      this.mergeGitHubTemplate(
+        template,
+        metadataByPath.get(this.normalizeTemplateId(template.content_path)),
+      ),
+    );
 
     this.logger.log(
       `Lista template servita da GitHub: ${merged.length}/${githubTemplates.length} template visibili, ${metadataRows.length} record DB usati solo come metadata`,
@@ -225,7 +218,6 @@ export class TemplatesService {
     content,
     fields,
     created_by = "system",
-    status,
     path,
   }: CreateTemplateInput) {
     if (!name || name.trim().length === 0) {
@@ -260,7 +252,6 @@ export class TemplatesService {
           contentPath,
           fields: normalizedFields,
           createdBy: created_by,
-          status,
         }),
       );
 
@@ -274,7 +265,6 @@ export class TemplatesService {
           githubPath: path,
           category: meta.category,
           section: meta.section,
-          status: dbRow.status,
           description: dbRow.description,
           fields: dbRow.fields,
           created_by: dbRow.created_by,
@@ -304,7 +294,7 @@ export class TemplatesService {
 
   async update(
     id: string,
-    { name, description, content, fields, status }: UpdateTemplateInput,
+    { name, description, content, fields }: UpdateTemplateInput,
   ) {
     const persistedId = id.startsWith("github:")
       ? await this.resolveTemplateIdForPdfJob(id, "system", true)
@@ -333,7 +323,6 @@ export class TemplatesService {
           description: description ?? existing.description,
           contentPath: templateId,
           fields: nextFields,
-          status: status ?? existing.status,
         }),
       );
 
@@ -347,7 +336,6 @@ export class TemplatesService {
           githubPath: path,
           category: meta.category,
           section: meta.section,
-          status: dbRow.status,
           description: dbRow.description,
           fields: dbRow.fields,
           created_by: dbRow.created_by,
@@ -392,7 +380,6 @@ export class TemplatesService {
         contentPath,
         fields: normalizedFields,
         createdBy: actor,
-        status: "published",
       }),
     );
 

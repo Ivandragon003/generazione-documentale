@@ -317,7 +317,6 @@ const TEMPLATES: {
   sectionId: string;
   name: string;
   description: string;
-  status: "draft" | "published";
   fields: FieldDefinition[];
   content: string;
 }[] = [
@@ -326,7 +325,6 @@ const TEMPLATES: {
     sectionId: "aa000001-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     name: "Lettera di presentazione",
     description: "Lettera formale di presentazione o accompagnamento",
-    status: "published",
     fields: FIELDS_LETTERA_PRESENTAZIONE,
     content:
       "# Lettera di presentazione\n\n> Lettera formale di presentazione o accompagnamento.\n",
@@ -336,7 +334,6 @@ const TEMPLATES: {
     sectionId: "aa000001-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     name: "Profilo aziendale",
     description: "Scheda sintetica di presentazione dell'azienda",
-    status: "published",
     fields: FIELDS_PROFILO_AZIENDALE,
     content:
       "# Profilo aziendale\n\n> Scheda sintetica di presentazione dell'azienda.\n",
@@ -346,7 +343,6 @@ const TEMPLATES: {
     sectionId: "aa000002-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     name: "Offerta commerciale standard",
     description: "Offerta commerciale con importo e condizioni base",
-    status: "published",
     fields: FIELDS_OFFERTA_STANDARD,
     content:
       "# Offerta commerciale standard\n\n> Offerta commerciale con importo e condizioni base.\n",
@@ -356,7 +352,6 @@ const TEMPLATES: {
     sectionId: "aa000002-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     name: "Preventivo dettagliato",
     description: "Preventivo con voci di costo, imponibile e IVA",
-    status: "published",
     fields: FIELDS_PREVENTIVO,
     content:
       "# Preventivo dettagliato\n\n> Preventivo con voci di costo, imponibile e IVA.\n",
@@ -366,7 +361,6 @@ const TEMPLATES: {
     sectionId: "bb000001-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
     name: "Piano operativo annuale",
     description: "Pianificazione annuale con obiettivi, azioni e KPI",
-    status: "published",
     fields: FIELDS_PIANO_OPERATIVO,
     content:
       "# Piano operativo annuale\n\n> Pianificazione annuale con obiettivi, azioni e KPI.\n",
@@ -376,7 +370,6 @@ const TEMPLATES: {
     sectionId: "bb000001-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
     name: "Cronoprogramma attività",
     description: "Schedulazione temporale delle attività con milestone",
-    status: "published",
     fields: FIELDS_CRONOPROGRAMMA,
     content:
       "# Cronoprogramma attività\n\n> Schedulazione temporale delle attività con milestone.\n",
@@ -386,7 +379,6 @@ const TEMPLATES: {
     sectionId: "bb000002-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
     name: "Report avanzamento lavori",
     description: "Report periodico sullo stato avanzamento del progetto",
-    status: "published",
     fields: FIELDS_REPORT_AVANZAMENTO,
     content:
       "# Report avanzamento lavori\n\n> Report periodico sullo stato avanzamento del progetto.\n",
@@ -396,7 +388,6 @@ const TEMPLATES: {
     sectionId: "bb000002-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
     name: "Verbale di riunione",
     description: "Verbale con partecipanti, punti discussi e delibere",
-    status: "published",
     fields: FIELDS_VERBALE,
     content:
       "# Verbale di riunione\n\n> Verbale con partecipanti, punti discussi e delibere.\n",
@@ -406,7 +397,6 @@ const TEMPLATES: {
     sectionId: "cc000001-cccc-4ccc-8ccc-cccccccccccc",
     name: "Scheda progetto completa",
     description: "Anagrafica completa del progetto con budget e milestone",
-    status: "published",
     fields: FIELDS_SCHEDA_PROGETTO,
     content:
       "# Scheda progetto completa\n\n> Anagrafica completa del progetto con budget e milestone.\n",
@@ -416,7 +406,6 @@ const TEMPLATES: {
     sectionId: "cc000001-cccc-4ccc-8ccc-cccccccccccc",
     name: "Brief creativo",
     description: "Brief per progetti creativi: obiettivo, target, tono",
-    status: "published",
     fields: FIELDS_BRIEF_CREATIVO,
     content:
       "# Brief creativo\n\n> Brief per progetti creativi: obiettivo, target, tono.\n",
@@ -426,7 +415,6 @@ const TEMPLATES: {
     sectionId: "cc000002-cccc-4ccc-8ccc-cccccccccccc",
     name: "Registro rischi",
     description: "Identificazione e gestione dei rischi di progetto",
-    status: "published",
     fields: FIELDS_REGISTRO_RISCHI,
     content:
       "# Registro rischi\n\n> Identificazione e gestione dei rischi di progetto.\n",
@@ -436,7 +424,6 @@ const TEMPLATES: {
     sectionId: "cc000002-cccc-4ccc-8ccc-cccccccccccc",
     name: "Piano di comunicazione",
     description: "Pianificazione delle comunicazioni verso gli stakeholder",
-    status: "published",
     fields: FIELDS_PIANO_COMUNICAZIONE,
     content:
       "# Piano di comunicazione\n\n> Pianificazione delle comunicazioni verso gli stakeholder.\n",
@@ -446,7 +433,6 @@ const TEMPLATES: {
     sectionId: "cc000003-cccc-4ccc-8ccc-cccccccccccc",
     name: "Collaudo e accettazione",
     description: "Verbale di collaudo con esito e accettazione cliente",
-    status: "published",
     fields: FIELDS_COLLAUDO,
     content:
       "# Collaudo e accettazione\n\n> Verbale di collaudo con esito e accettazione cliente.\n",
@@ -456,7 +442,6 @@ const TEMPLATES: {
     sectionId: "cc000003-cccc-4ccc-8ccc-cccccccccccc",
     name: "Consuntivo finale",
     description: "Consuntivo di chiusura con costi, risultati e lezioni",
-    status: "published",
     fields: FIELDS_CONSUNTIVO,
     content:
       "# Consuntivo finale\n\n> Consuntivo di chiusura con costi, risultati e lezioni.\n",
@@ -500,7 +485,6 @@ const runSeed = async (): Promise<void> => {
         id: tpl.id,
         name: tpl.name,
         description: tpl.description,
-        status: tpl.status,
         fields: tpl.fields,
         content_path: contentPath,
         created_by: "seed",

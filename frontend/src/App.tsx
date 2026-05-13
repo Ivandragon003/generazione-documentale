@@ -66,7 +66,9 @@ async function withBootRetry<T>(load: () => Promise<T>): Promise<T> {
 
 function getItemSecondary(item: TemplateDto): string {
   if (item.githubPath) return item.githubPath;
-  return item.status;
+  return item.updatedAt
+    ? new Date(item.updatedAt).toLocaleDateString("it-IT")
+    : "";
 }
 
 async function pollJobUntilDone(
@@ -422,7 +424,13 @@ export default function App() {
         severity: "error",
       });
     }
-  }, [fieldValues, hasUnsavedChanges, handleSaveTemplate, template, visibleFields]);
+  }, [
+    fieldValues,
+    hasUnsavedChanges,
+    handleSaveTemplate,
+    template,
+    visibleFields,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -517,6 +525,7 @@ export default function App() {
                   pdfJobs={pdfJobs}
                   templateId={template?.id}
                   documentName={template?.name}
+                  templateContentHash={template?.contentHash}
                 />
               )}
             </Box>

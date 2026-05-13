@@ -151,6 +151,21 @@ export function comparePlaceholderSets(previous: string[], next: string[]) {
   return { added, removed, unchanged };
 }
 
+export function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+  return `{${Object.entries(value as Record<string, unknown>)
+    .filter(([, entryValue]) => entryValue !== undefined)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(
+      ([key, entryValue]) =>
+        `${JSON.stringify(key)}:${stableStringify(entryValue)}`,
+    )
+    .join(",")}}`;
+}
+
 export function emptyRow(columns: ApiTemplateField[] = []): FieldRow {
   return Object.fromEntries(
     columns.map((column) => [column.name, defaultValueForField(column)]),

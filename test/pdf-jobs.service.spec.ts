@@ -20,7 +20,6 @@ const makeTpl = (
   name: "Template Test",
   description: "",
   content_path: "/storage/tpl.md",
-  status: "draft",
   fields: [],
   created_by: "system",
   created_at: new Date(),
@@ -36,6 +35,9 @@ const makeJob = (overrides: Partial<PdfJobEntity> = {}): PdfJobEntity =>
     field_values: { titolo: "Ciao" },
     status: "queued",
     filename: null,
+    template_content_hash: "template-hash",
+    field_values_hash: "field-hash",
+    rendered_content_hash: null,
     requested_by: "system",
     error_message: null,
     unresolved_fields: [],
@@ -163,6 +165,8 @@ describe("PdfJobsService", () => {
         VALID_TPL_UUID,
         { titolo: "Ciao" },
         "user1",
+        "2f1c40a3f7ea636405584f51973fab5dfea9e6eb4a440afb6ba4d2a2187a520c",
+        "05721cea004c25d6955738c372bc11bbd34b02bf1e522ccc7bfbb53005ff5575",
       );
     });
 
@@ -177,6 +181,8 @@ describe("PdfJobsService", () => {
         VALID_TPL_UUID,
         {},
         "system",
+        "2f1c40a3f7ea636405584f51973fab5dfea9e6eb4a440afb6ba4d2a2187a520c",
+        "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
       );
     });
   });
@@ -202,6 +208,8 @@ describe("PdfJobsService", () => {
         VALID_TPL_UUID,
         {},
         "system",
+        "2f1c40a3f7ea636405584f51973fab5dfea9e6eb4a440afb6ba4d2a2187a520c",
+        "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
       );
     });
 
@@ -224,6 +232,8 @@ describe("PdfJobsService", () => {
         VALID_TPL_UUID,
         {},
         "user1",
+        "2f1c40a3f7ea636405584f51973fab5dfea9e6eb4a440afb6ba4d2a2187a520c",
+        "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
       );
     });
   });
@@ -292,17 +302,26 @@ describe("PdfJobsService", () => {
     it("ritorna l'ultimo job completato", async () => {
       const job = makeJob({ status: "completed", filename: "latest.pdf" });
       pdfJobsRepository.findLatestCompleted.mockResolvedValue(job);
+      templatesService.findOne.mockResolvedValue(makeTpl());
 
-      const result = await service.getLatestCompleted(VALID_TPL_UUID);
+      const result = await service.getLatestCompleted(VALID_TPL_UUID, {
+        titolo: "Ciao",
+      });
 
       expect(result.filename).toBe("latest.pdf");
+      expect(pdfJobsRepository.findLatestCompleted).toHaveBeenCalledWith(
+        VALID_TPL_UUID,
+        "2f1c40a3f7ea636405584f51973fab5dfea9e6eb4a440afb6ba4d2a2187a520c",
+        "05721cea004c25d6955738c372bc11bbd34b02bf1e522ccc7bfbb53005ff5575",
+      );
     });
 
     it("lancia 404 se non esiste nessun PDF completato", async () => {
       pdfJobsRepository.findLatestCompleted.mockResolvedValue(null);
+      templatesService.findOne.mockResolvedValue(makeTpl());
 
       await expect(
-        service.getLatestCompleted(VALID_TPL_UUID),
+        service.getLatestCompleted(VALID_TPL_UUID, {}),
       ).rejects.toMatchObject({ status: 404 });
     });
   });
@@ -363,6 +382,7 @@ describe("PdfJobsService", () => {
     it("streamma l'ultimo PDF completato", async () => {
       const job = makeJob({ status: "completed", filename: "latest.pdf" });
       pdfJobsRepository.findLatestCompleted.mockResolvedValue(job);
+      templatesService.findOne.mockResolvedValue(makeTpl());
       const readable = new Readable({
         read() {
           this.push(null);
@@ -371,7 +391,7 @@ describe("PdfJobsService", () => {
       pdfGenerationService.getPdfStream.mockResolvedValue(readable as never);
       const res = makeMockResponse();
 
-      await service.streamLatest(VALID_TPL_UUID, res);
+      await service.streamLatest(VALID_TPL_UUID, res, { titolo: "Ciao" });
 
       expect(pdfGenerationService.getPdfStream).toHaveBeenCalledWith(
         "latest.pdf",
@@ -384,10 +404,11 @@ describe("PdfJobsService", () => {
 
     it("lancia 404 se non esiste nessun PDF completato", async () => {
       pdfJobsRepository.findLatestCompleted.mockResolvedValue(null);
+      templatesService.findOne.mockResolvedValue(makeTpl());
       const res = makeMockResponse();
 
       await expect(
-        service.streamLatest(VALID_TPL_UUID, res),
+        service.streamLatest(VALID_TPL_UUID, res, {}),
       ).rejects.toMatchObject({ status: 404 });
     });
   });
@@ -432,6 +453,8 @@ describe("PdfJobsService", () => {
       pdfGenerationService.generatePdf.mockResolvedValue({
         filename: "out.pdf",
         unresolvedFields: [],
+        renderedContentHash:
+          "e736bd17f917051ba6020c7064a1d0cbe0562201defb3b176ba0d084f513761e",
       } as never);
 
       await service.processJob(VALID_JOB_UUID);
@@ -440,6 +463,8 @@ describe("PdfJobsService", () => {
         VALID_JOB_UUID,
         "out.pdf",
         [],
+        expect.any(String),
+        "e736bd17f917051ba6020c7064a1d0cbe0562201defb3b176ba0d084f513761e",
       );
     });
 

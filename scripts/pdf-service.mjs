@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { mkdir, rm } from "node:fs/promises";
+import { access, mkdir, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
 
@@ -76,7 +76,17 @@ function runPandoc(markdown, outputPath, options, title, author) {
     });
     process.on("error", (error) => {
       clearTimeout(timer);
-      reject(error);
+      if (error?.code === "ENOENT") {
+        reject(
+          new Error(
+            `Pandoc non trovato al percorso: ${pandocPath}. Verifica PANDOC_PATH e l'installazione nel container pdf-service.`,
+          ),
+        );
+        return;
+      }
+      reject(
+        new Error(`Errore avvio Pandoc (${pandocPath}): ${error.message}`),
+      );
     });
     process.on("close", (code) => {
       clearTimeout(timer);
@@ -87,10 +97,51 @@ function runPandoc(markdown, outputPath, options, title, author) {
   });
 }
 
+function pandocVersion() {
+  return new Promise((resolve) => {
+    const process = spawn(pandocPath, ["--version"], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    process.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    process.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    process.on("error", (error) => {
+      resolve({
+        ok: false,
+        error:
+          error?.code === "ENOENT"
+            ? `Pandoc non trovato al percorso: ${pandocPath}`
+            : `Errore avvio Pandoc (${pandocPath}): ${error.message}`,
+      });
+    });
+    process.on("close", (code) => {
+      if (code === 0) {
+        resolve({
+          ok: true,
+          version: (stdout.split(/\r?\n/)[0] ?? "").trim(),
+        });
+        return;
+      }
+      resolve({
+        ok: false,
+        error: `Pandoc health check fallito (${pandocPath}): exit ${code} ${stderr.slice(0, 300)}`,
+      });
+    });
+  });
+}
+
 const server = createServer(async (request, response) => {
   if (request.method === "GET" && request.url === "/health") {
-    response.writeHead(200, { "Content-Type": "application/json" });
-    response.end(JSON.stringify({ ok: true }));
+    const health = await pandocVersion();
+    response.writeHead(health.ok ? 200 : 503, {
+      "Content-Type": "application/json",
+    });
+    response.end(JSON.stringify({ ...health, pandocPath }));
     return;
   }
 
@@ -132,6 +183,15 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.listen(port, () => {
-  console.log(`pdf-service listening on ${port}`);
+server.listen(port, async () => {
+  await mkdir(workdir, { recursive: true });
+  await access(workdir);
+  const health = await pandocVersion();
+  console.log(
+    `pdf-service listening on ${port}; PANDOC_PATH=${pandocPath}; ${health.ok ? health.version : health.error}`,
+  );
+  if (!health.ok) {
+    process.exitCode = 1;
+    server.close(() => process.exit(1));
+  }
 });

@@ -38,6 +38,15 @@ export class PdfJobEntity {
   @Column({ type: "varchar", length: 500, nullable: true })
   filename!: string | null;
 
+  @Column({ type: "varchar", length: 64, nullable: true })
+  template_content_hash!: string | null;
+
+  @Column({ type: "varchar", length: 64, nullable: true })
+  field_values_hash!: string | null;
+
+  @Column({ type: "varchar", length: 64, nullable: true })
+  rendered_content_hash!: string | null;
+
   @Column({ type: "jsonb", default: () => "'[]'" })
   unresolved_fields!: string[];
 

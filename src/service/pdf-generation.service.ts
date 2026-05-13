@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 import { createReadStream, type ReadStream } from "node:fs";
 import { access, mkdir, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
+import { sha256Signature } from "../common/utils/signature.utils";
 import { pdfConfig } from "../config/pdf.config";
 import {
   DocumentRenderingService,
@@ -27,10 +28,25 @@ const pdfServiceUrl = process.env.PDF_SERVICE_URL?.trim();
 
 @Injectable()
 export class PdfGenerationService {
+  private readonly logger = new Logger(PdfGenerationService.name);
+
   constructor(
     @Inject(DocumentRenderingService)
     private readonly documentRenderingService: DocumentRenderingService,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    if (pdfServiceUrl) {
+      this.logger.log(`PDF generation via remote service: ${pdfServiceUrl}`);
+      return;
+    }
+
+    this.logger.log(`PDF generation via local Pandoc: ${pdfConfig.pandocPath}`);
+    const health = await this.checkHealth();
+    if (!health.ok) {
+      throw new Error(health.error ?? "Pandoc non disponibile");
+    }
+  }
 
   private getStoragePath(): string {
     return resolve(pdfConfig.storagePath);
@@ -128,6 +144,94 @@ export class PdfGenerationService {
     });
   }
 
+  private checkLocalPandoc(): Promise<{
+    ok: boolean;
+    version?: string;
+    error?: string;
+  }> {
+    return new Promise((resolveCheck) => {
+      const process = spawn(pdfConfig.pandocPath, ["--version"], {
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+
+      let stdout = "";
+      let stderr = "";
+      process.stdout.on("data", (chunk: Buffer) => {
+        stdout += chunk.toString();
+      });
+      process.stderr.on("data", (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
+      process.on("error", (error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") {
+          resolveCheck({
+            ok: false,
+            error: `Pandoc non trovato al percorso: ${pdfConfig.pandocPath}`,
+          });
+          return;
+        }
+        resolveCheck({
+          ok: false,
+          error: `Errore avvio Pandoc (${pdfConfig.pandocPath}): ${error.message}`,
+        });
+      });
+      process.on("close", (code) => {
+        if (code === 0) {
+          resolveCheck({
+            ok: true,
+            version: (stdout.split(/\r?\n/)[0] ?? "").trim(),
+          });
+          return;
+        }
+        resolveCheck({
+          ok: false,
+          error: `Pandoc health check fallito (${pdfConfig.pandocPath}): exit ${code} ${stderr.slice(0, 300)}`,
+        });
+      });
+    });
+  }
+
+  async checkHealth(): Promise<{
+    ok: boolean;
+    mode: "remote" | "local";
+    pandocPath?: string;
+    version?: string;
+    error?: string;
+  }> {
+    if (!pdfServiceUrl) {
+      const local = await this.checkLocalPandoc();
+      return { mode: "local", pandocPath: pdfConfig.pandocPath, ...local };
+    }
+
+    try {
+      const response = await fetch(
+        `${pdfServiceUrl.replace(/\/$/, "")}/health`,
+      );
+      const body = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        pandocPath?: string;
+        version?: string;
+        error?: string;
+      };
+      return {
+        ok: response.ok && body.ok === true,
+        mode: "remote",
+        pandocPath: body.pandocPath,
+        version: body.version,
+        error: response.ok ? body.error : `PDF service ${response.status}`,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        mode: "remote",
+        error:
+          error instanceof Error
+            ? `PDF service non raggiungibile: ${error.message}`
+            : "PDF service non raggiungibile",
+      };
+    }
+  }
+
   private async runRemotePdfService(input: {
     markdown: string;
     title: string;
@@ -183,6 +287,7 @@ export class PdfGenerationService {
   async generatePdf(document: PdfGenerationInput): Promise<{
     filename: string;
     unresolvedFields?: string[];
+    renderedContentHash: string;
   }> {
     const title = document.title || "Documento";
     const author = "MAC Documents";
@@ -202,6 +307,7 @@ export class PdfGenerationService {
         document.fieldValues,
         strict,
       );
+    const renderedContentHash = sha256Signature(interpolated);
 
     await mkdir(this.getStoragePath(), { recursive: true });
     const filename = `${randomUUID()}.pdf`;
@@ -215,7 +321,7 @@ export class PdfGenerationService {
         author,
         outputPath,
       });
-      return { filename, unresolvedFields: unresolved };
+      return { filename, unresolvedFields: unresolved, renderedContentHash };
     }
 
     let lastError: Error | undefined;
@@ -223,7 +329,7 @@ export class PdfGenerationService {
       if (attempt > 0) await sleep(pdfConfig.retryDelayMs * attempt);
       try {
         await this.runPandoc(args, interpolated, pdfConfig.timeoutMs);
-        return { filename, unresolvedFields: unresolved };
+        return { filename, unresolvedFields: unresolved, renderedContentHash };
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
       }

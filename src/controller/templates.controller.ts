@@ -25,19 +25,58 @@ import type { Request, Response } from "express";
 import { toTemplateResponse } from "../common/mappers/response.mapper";
 import { makeError } from "../common/utils/errors";
 import { getActor, parsePagination } from "../common/utils/http.utils";
-import type { CreateTemplateDto } from "../dto/create-template.dto";
-import type { GeneratePdfDto } from "../dto/generate-pdf.dto";
-import type { TemplateQueryDto } from "../dto/template-query.dto";
-import type { UpdateTemplateDto } from "../dto/update-template.dto";
-import type { ValidateMarkdownDto } from "../dto/validate-markdown.dto";
+// biome-ignore lint/style/useImportType: Nest uses DTO classes for runtime validation metadata.
+import { CreateTemplateDto } from "../dto/create-template.dto";
+// biome-ignore lint/style/useImportType: Nest uses DTO classes for runtime validation metadata.
+import { GeneratePdfDto } from "../dto/generate-pdf.dto";
+// biome-ignore lint/style/useImportType: Nest uses DTO classes for runtime validation metadata.
+import { TemplateQueryDto } from "../dto/template-query.dto";
+// biome-ignore lint/style/useImportType: Nest uses DTO classes for runtime validation metadata.
+import { UpdateTemplateDto } from "../dto/update-template.dto";
+// biome-ignore lint/style/useImportType: Nest uses DTO classes for runtime validation metadata.
+import { ValidateMarkdownDto } from "../dto/validate-markdown.dto";
+import type { FieldValueMap } from "../service/document-rendering.service";
 import { PdfJobsService } from "../service/pdf-jobs.service";
 import { TemplatesService } from "../service/templates.service";
+
+type RequestWithRawBody = Request & { rawBody?: Buffer };
+
+function isFieldValueMap(value: unknown): value is FieldValueMap {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseRawFieldValues(request: Request): FieldValueMap | null {
+  const rawBody = (request as RequestWithRawBody).rawBody;
+  if (!rawBody || rawBody.length === 0) return null;
+
+  const parsed = JSON.parse(rawBody.toString("utf8")) as {
+    fieldValues?: unknown;
+  };
+  if (parsed.fieldValues === undefined) return {};
+  if (!isFieldValueMap(parsed.fieldValues)) {
+    throw makeError("fieldValues deve essere un oggetto", 400);
+  }
+  return parsed.fieldValues;
+}
+
+function resolveFieldValues(
+  body: GeneratePdfDto,
+  request: Request,
+): FieldValueMap {
+  const rawFieldValues = parseRawFieldValues(request);
+  if (rawFieldValues) return rawFieldValues;
+  return body.fieldValues ?? {};
+}
 
 function toPdfJobResponse(job: {
   id: string;
   template_id: string;
   status: string;
   filename: string | null;
+  field_values: Record<string, unknown>;
+  template_content_hash: string | null;
+  field_values_hash: string | null;
+  rendered_content_hash: string | null;
   unresolved_fields: string[];
   error_message: string | null;
   requested_by: string;
@@ -50,6 +89,10 @@ function toPdfJobResponse(job: {
     templateId: job.template_id,
     status: job.status,
     filename: job.filename,
+    fieldValues: job.field_values,
+    templateContentHash: job.template_content_hash,
+    fieldValuesHash: job.field_values_hash,
+    renderedContentHash: job.rendered_content_hash,
     unresolvedFields: job.unresolved_fields,
     errorMessage: job.error_message,
     requestedBy: job.requested_by,
@@ -71,17 +114,14 @@ export class TemplatesController {
 
   @Get()
   @ApiOperation({ summary: "Lista template" })
-  @ApiQuery({ name: "status", required: false, enum: ["draft", "published"] })
   @ApiQuery({ name: "limit", required: false, type: Number, example: 20 })
   @ApiQuery({ name: "offset", required: false, type: Number, example: 0 })
   findAll(@Query() query: TemplateQueryDto) {
     const { limit, offset } = parsePagination(query);
-    return this.templatesService
-      .findAll({ status: query.status, limit, offset })
-      .then((result) => ({
-        ...result,
-        data: result.data.map(toTemplateResponse),
-      }));
+    return this.templatesService.findAll({ limit, offset }).then((result) => ({
+      ...result,
+      data: result.data.map(toTemplateResponse),
+    }));
   }
 
   @Get(":id")
@@ -104,7 +144,6 @@ export class TemplatesController {
       description: body.description,
       content: body.content,
       fields: body.fields,
-      status: body.status,
       created_by: getActor(request),
       path: body.path,
     });
@@ -122,7 +161,6 @@ export class TemplatesController {
       description: body.description,
       content: body.content,
       fields: body.fields,
-      status: body.status,
     });
     if (!template) throw makeError("Template non trovato", 404);
     return toTemplateResponse(template);
@@ -155,7 +193,7 @@ export class TemplatesController {
   ) {
     const job = await this.pdfJobsService.enqueue(
       id,
-      body.fieldValues ?? {},
+      resolveFieldValues(body, request),
       getActor(request),
     );
     return toPdfJobResponse(job);
@@ -192,7 +230,15 @@ export class TemplatesController {
   @Get(":id/pdf/latest")
   @ApiOperation({ summary: "Scarica l'ultimo PDF completato" })
   @ApiParam({ name: "id", description: "UUID template" })
-  async downloadLatestPdf(@Param("id") id: string, @Res() response: Response) {
-    await this.pdfJobsService.streamLatest(id, response);
+  async downloadLatestPdf(
+    @Param("id") id: string,
+    @Query("fieldValues") fieldValuesRaw: string | undefined,
+    @Res() response: Response,
+  ) {
+    const fieldValues =
+      fieldValuesRaw && fieldValuesRaw.trim().length > 0
+        ? JSON.parse(fieldValuesRaw)
+        : {};
+    await this.pdfJobsService.streamLatest(id, response, fieldValues);
   }
 }

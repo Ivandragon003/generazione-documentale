@@ -1,16 +1,13 @@
 import {
-  Check,
   Column,
   CreateDateColumn,
   Entity,
-  Index,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
 import type { FieldDefinition } from "../common/types/field-definition.type";
 
 @Entity({ name: "templates" })
-@Check("ck_templates_status", `"status" IN ('draft', 'published')`)
 export class TemplateEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
@@ -23,10 +20,6 @@ export class TemplateEntity {
 
   @Column({ type: "varchar", length: 500, nullable: true })
   content_path!: string | null;
-
-  @Index("idx_templates_status")
-  @Column({ type: "varchar", length: 50, default: "draft" })
-  status!: "draft" | "published";
 
   @Column({ type: "jsonb", default: () => "'[]'" })
   fields!: FieldDefinition[];

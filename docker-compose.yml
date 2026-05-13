@@ -89,10 +89,10 @@ services:
     environment:
       PDF_SERVICE_PORT: 3100
       PDF_GENERATION_TIMEOUT_MS: ${PDF_GENERATION_TIMEOUT_MS:-120000}
-      PANDOC_PATH: /usr/local/bin/pandoc
+      PANDOC_PATH: ${PANDOC_PATH:-/usr/bin/pandoc}
 
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"const h=require('http');h.get('http://localhost:3100/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      test: ["CMD-SHELL", "node -e \"const h=require('http');h.get('http://localhost:3100/health',r=>{let b='';r.on('data',c=>b+=c);r.on('end',()=>process.exit(r.statusCode===200&&b.includes('\\\"ok\\\":true')?0:1));}).on('error',()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 5

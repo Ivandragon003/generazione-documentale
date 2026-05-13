@@ -2,6 +2,7 @@ import type { Readable } from "node:stream";
 import { Inject, Injectable, type OnModuleDestroy } from "@nestjs/common";
 import type { Response } from "express";
 import { makeError } from "../common/utils/errors";
+import { sha256Signature } from "../common/utils/signature.utils";
 import { appConfig } from "../config/app.config";
 import { PdfJobsRepository } from "../repository/pdf-jobs.repository";
 import type { FieldValueMap } from "./document-rendering.service";
@@ -92,10 +93,14 @@ export class PdfJobsService implements OnModuleDestroy {
     const template = await this.templatesService.findOne(persistedTemplateId);
     if (!template) throw makeError("Template non trovato", 404);
 
+    const templateContentHash = sha256Signature(template.content);
+    const fieldValuesHash = sha256Signature(fieldValues ?? {});
     const job = await this.pdfJobsRepository.insert(
       persistedTemplateId,
       fieldValues,
       actor,
+      templateContentHash,
+      fieldValuesHash,
     );
     this.triggerQueueProcessor().catch(() => undefined);
     return job;
@@ -118,7 +123,8 @@ export class PdfJobsService implements OnModuleDestroy {
         );
       }
 
-      const { filename, unresolvedFields } =
+      const templateContentHash = sha256Signature(template.content);
+      const { filename, unresolvedFields, renderedContentHash } =
         await this.pdfGenerationService.generatePdf({
           title: template.name,
           content: template.content,
@@ -130,6 +136,8 @@ export class PdfJobsService implements OnModuleDestroy {
         jobId,
         filename,
         unresolvedFields ?? [],
+        templateContentHash,
+        renderedContentHash,
       );
     } catch (error) {
       const message =
@@ -173,16 +181,27 @@ export class PdfJobsService implements OnModuleDestroy {
     return job.filename;
   }
 
-  async getLatestCompleted(templateId: string) {
+  async getLatestCompleted(templateId: string, fieldValues: FieldValueMap) {
     const persistedTemplateId =
       await this.templatesService.resolveTemplateIdForPdfJob(templateId);
     if (!persistedTemplateId) {
       throw makeError("Nessun PDF completato per questo template", 404);
     }
 
-    const job =
-      await this.pdfJobsRepository.findLatestCompleted(persistedTemplateId);
-    if (!job) throw makeError("Nessun PDF completato per questo template", 404);
+    const template = await this.templatesService.findOne(persistedTemplateId);
+    if (!template) throw makeError("Template non trovato", 404);
+
+    const job = await this.pdfJobsRepository.findLatestCompleted(
+      persistedTemplateId,
+      sha256Signature(template.content),
+      sha256Signature(fieldValues ?? {}),
+    );
+    if (!job) {
+      throw makeError(
+        "PDF non ancora generato per questa versione del template e questi campi",
+        404,
+      );
+    }
     if (!job.filename) throw makeError("PDF non ancora disponibile", 409);
     return job;
   }
@@ -204,8 +223,12 @@ export class PdfJobsService implements OnModuleDestroy {
     await pipeToResponse(stream, response);
   }
 
-  async streamLatest(templateId: string, response: Response): Promise<void> {
-    const job = await this.getLatestCompleted(templateId);
+  async streamLatest(
+    templateId: string,
+    response: Response,
+    fieldValues: FieldValueMap,
+  ): Promise<void> {
+    const job = await this.getLatestCompleted(templateId, fieldValues);
     const stream = await this.pdfGenerationService.getPdfStream(
       this.requirePdfFilename(job),
     );

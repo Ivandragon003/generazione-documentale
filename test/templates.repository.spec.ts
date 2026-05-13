@@ -33,7 +33,6 @@ describe("TemplatesRepository", () => {
       description: "Desc",
       content_path: "/storage/tpl-1.md",
       fields: [],
-      status: "draft",
       created_by: "user1",
       created_at: new Date(),
       updated_at: new Date(),
@@ -75,12 +74,10 @@ describe("TemplatesRepository", () => {
       expect(result.total).toBe(1);
     });
 
-    it("deve applicare il filtro status", async () => {
+    it("non applica filtri di pubblicazione ai template", async () => {
       const qb = makeQb([], 0);
-      await repo.findAll({ status: "draft", limit: 10, offset: 0 });
-      expect(qb.andWhere).toHaveBeenCalledWith("template.status = :status", {
-        status: "draft",
-      });
+      await repo.findAll({ limit: 10, offset: 0 });
+      expect(qb.andWhere).not.toHaveBeenCalled();
     });
 
     it("deve applicare paginazione", async () => {
@@ -126,11 +123,11 @@ describe("TemplatesRepository", () => {
       expect(result).toEqual(tpl);
       expect(manager.create).toHaveBeenCalledWith(
         TemplateEntity,
-        expect.objectContaining({ id: "tpl-1", status: "draft" }),
+        expect.objectContaining({ id: "tpl-1" }),
       );
     });
 
-    it("deve usare status fornito", async () => {
+    it("ignora lo status fornito", async () => {
       const tpl = fakeTpl();
       const manager = {
         create: jest.fn().mockReturnValue(tpl),
@@ -146,12 +143,11 @@ describe("TemplatesRepository", () => {
           contentPath: "/x",
           fields: [],
           createdBy: "u",
-          status: "published",
         },
       );
       expect(manager.create).toHaveBeenCalledWith(
         TemplateEntity,
-        expect.objectContaining({ status: "published" }),
+        expect.not.objectContaining({ status: expect.any(String) }),
       );
     });
   });
@@ -173,7 +169,6 @@ describe("TemplatesRepository", () => {
           description: null,
           contentPath: "/x",
           fields: [],
-          status: "published",
         },
       );
       expect(result).toEqual(tpl);
@@ -195,7 +190,6 @@ describe("TemplatesRepository", () => {
             description: null,
             contentPath: "/x",
             fields: [],
-            status: "draft",
           },
         ),
       ).rejects.toThrow(/non trovato dopo update/);

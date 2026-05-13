@@ -2,7 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsArray,
-  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -38,15 +37,6 @@ export class CreateTemplateDto {
   @ValidateNested({ each: true })
   @Type(() => TemplateFieldDto)
   fields?: TemplateFieldDto[];
-
-  @ApiPropertyOptional({
-    description: "Stato del template",
-    enum: ["draft", "published"],
-    default: "draft",
-  })
-  @IsOptional()
-  @IsIn(["draft", "published"])
-  status?: "draft" | "published";
 
   @ApiPropertyOptional({
     description: "Percorso GitHub opzionale per sovrascrittura",

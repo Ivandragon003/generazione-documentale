@@ -18,7 +18,6 @@ const makeTemplate = (
     description: "Descrizione di test",
     content: "# {{titolo}}\n\nTesto con {{nome}}.",
     content_path: `${VALID_UUID}`,
-    status: "draft",
     created_by: "system",
     fields: [
       {
@@ -62,7 +61,6 @@ const makeGitHubTemplate = (
     githubPath: `templates/${id}.md`,
     category: parts.length >= 3 ? parts[0] : null,
     section: parts.length >= 3 ? parts[1] : null,
-    status: "published",
     fields: [],
     created_by: "github",
     created_at: now,
@@ -379,10 +377,10 @@ describe("TemplatesService", () => {
       expect(result.total).toBe(0);
     });
 
-    it("filtra per status", async () => {
+    it("non filtra per stato di pubblicazione", async () => {
       githubStorage.listTemplates.mockResolvedValue([]);
 
-      await service.findAll({ status: "published", limit: 10, offset: 0 });
+      await service.findAll({ limit: 10, offset: 0 });
 
       expect(githubStorage.listTemplates).toHaveBeenCalled();
     });

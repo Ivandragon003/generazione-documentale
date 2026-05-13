@@ -49,7 +49,7 @@ export type TemplateDto = {
   category?: string | null;
   section?: string | null;
   fields: ApiTemplateField[];
-  status: "draft" | "published";
+  contentHash: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -59,6 +59,10 @@ export type PdfJobDto = {
   templateId: string;
   status: "queued" | "running" | "completed" | "failed";
   filename: string | null;
+  fieldValues: FieldValueMap;
+  templateContentHash: string | null;
+  fieldValuesHash: string | null;
+  renderedContentHash: string | null;
   unresolvedFields: string[];
   errorMessage: string | null;
   requestedBy: string;
@@ -99,7 +103,6 @@ export function createTemplate(payload: {
   name: string;
   content: string;
   fields?: ApiTemplateField[];
-  status?: "draft" | "published";
   path?: string;
 }): Promise<TemplateDto> {
   return api(`${BASE}/templates`, {
@@ -114,7 +117,6 @@ export function updateTemplate(
     name?: string;
     content?: string;
     fields?: ApiTemplateField[];
-    status?: "draft" | "published";
   },
 ): Promise<TemplateDto> {
   return api(`${BASE}/templates/${segment(id)}`, {
@@ -148,4 +150,11 @@ export function getPdfJob(
 
 export function getPdfDownloadUrl(templateId: string, jobId: string): string {
   return `${BASE}/templates/${segment(templateId)}/pdf/jobs/${segment(jobId)}/download`;
+}
+
+export function getLatestPdfDownloadUrl(
+  templateId: string,
+  fieldValues: FieldValueMap,
+): string {
+  return `${BASE}/templates/${segment(templateId)}/pdf/latest?fieldValues=${encodeURIComponent(JSON.stringify(fieldValues))}`;
 }

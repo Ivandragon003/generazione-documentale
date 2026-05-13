@@ -55,12 +55,6 @@ export function HeaderBar({
                 ? new Date(template.updatedAt).toLocaleDateString("it-IT")
                 : "—"}
             </Typography>
-            <Chip
-              label={template?.status === "published" ? "Pubblicato" : "Bozza"}
-              color={template?.status === "published" ? "success" : "secondary"}
-              size="small"
-              sx={{ mt: 1 }}
-            />
           </Box>
         </Stack>
 

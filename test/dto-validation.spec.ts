@@ -107,6 +107,23 @@ describe("DTO Validation", () => {
       ).toEqual([]);
     });
 
+    it("preserva le chiavi arbitrarie di fieldValues con whitelist attiva", async () => {
+      const dto = plainToClass(GeneratePdfDto, {
+        fieldValues: {
+          titolo: "Valore compilato",
+          righe: [{ descrizione: "Servizio", quantita: 2 }],
+        },
+        extra: "rimosso",
+      });
+
+      expect(await validate(dto, { whitelist: true })).toEqual([]);
+      expect(dto.fieldValues).toEqual({
+        titolo: "Valore compilato",
+        righe: [{ descrizione: "Servizio", quantita: 2 }],
+      });
+      expect(dto).not.toHaveProperty("extra");
+    });
+
     it("deve rifiutare fieldValues non object", async () => {
       const errors = await validateDto(GeneratePdfDto, {
         fieldValues: "stringa",

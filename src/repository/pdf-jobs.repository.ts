@@ -15,12 +15,16 @@ export class PdfJobsRepository {
     templateId: string,
     fieldValues: FieldValueMap,
     actor: string,
+    templateContentHash: string,
+    fieldValuesHash: string,
   ): Promise<PdfJobEntity> {
     const job = this.repo.create({
       template_id: templateId,
       field_values: fieldValues,
       requested_by: actor,
       status: "queued",
+      template_content_hash: templateContentHash,
+      field_values_hash: fieldValuesHash,
     });
     return this.repo.save(job);
   }
@@ -43,9 +47,18 @@ export class PdfJobsRepository {
     });
   }
 
-  async findLatestCompleted(templateId: string): Promise<PdfJobEntity | null> {
+  async findLatestCompleted(
+    templateId: string,
+    templateContentHash: string,
+    fieldValuesHash: string,
+  ): Promise<PdfJobEntity | null> {
     return this.repo.findOne({
-      where: { template_id: templateId, status: "completed" },
+      where: {
+        template_id: templateId,
+        status: "completed",
+        template_content_hash: templateContentHash,
+        field_values_hash: fieldValuesHash,
+      },
       order: { completed_at: "DESC" },
     });
   }
@@ -64,11 +77,15 @@ export class PdfJobsRepository {
     jobId: string,
     filename: string,
     unresolvedFields: string[],
+    templateContentHash: string,
+    renderedContentHash: string,
   ): Promise<void> {
     await this.repo.update(jobId, {
       status: "completed",
       filename,
       unresolved_fields: unresolvedFields,
+      template_content_hash: templateContentHash,
+      rendered_content_hash: renderedContentHash,
       completed_at: new Date(),
     });
   }

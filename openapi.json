@@ -30,19 +30,23 @@
         "tags": ["health"]
       }
     },
+    "/health/pdf": {
+      "get": {
+        "operationId": "HealthController_checkPdf",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Health check servizio PDF/Pandoc",
+        "tags": ["health"]
+      }
+    },
     "/api/templates": {
       "get": {
         "operationId": "TemplatesController_findAll",
         "parameters": [
-          {
-            "name": "offset",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "example": 0,
-              "type": "number"
-            }
-          },
           {
             "name": "limit",
             "required": false,
@@ -53,12 +57,12 @@
             }
           },
           {
-            "name": "status",
+            "name": "offset",
             "required": false,
             "in": "query",
             "schema": {
-              "enum": ["draft", "published"],
-              "type": "string"
+              "example": 0,
+              "type": "number"
             }
           }
         ],
@@ -88,7 +92,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Function"
+                "$ref": "#/components/schemas/CreateTemplateDto"
               }
             }
           }
@@ -151,7 +155,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Function"
+                "$ref": "#/components/schemas/UpdateTemplateDto"
               }
             }
           }
@@ -204,7 +208,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Function"
+                "$ref": "#/components/schemas/ValidateMarkdownDto"
               }
             }
           }
@@ -246,7 +250,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Function"
+                "$ref": "#/components/schemas/GeneratePdfDto"
               }
             }
           }
@@ -390,9 +394,228 @@
   "servers": [],
   "components": {
     "schemas": {
-      "Function": {
+      "TemplateFieldOptionDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "label": {
+            "type": "string",
+            "example": "Attivo"
+          },
+          "value": {
+            "type": "string",
+            "example": "active"
+          }
+        },
+        "required": ["label", "value"]
+      },
+      "TemplateFieldColumnDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "descrizione"
+          },
+          "label": {
+            "type": "string",
+            "example": "Descrizione"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "textarea",
+              "number",
+              "date",
+              "boolean",
+              "checkbox",
+              "email",
+              "url",
+              "tel",
+              "select",
+              "currency",
+              "table",
+              "subtable",
+              "list",
+              "repeater"
+            ],
+            "example": "text"
+          },
+          "required": {
+            "type": "boolean",
+            "example": true,
+            "default": true
+          },
+          "defaultValue": {
+            "type": "string",
+            "example": ""
+          },
+          "placeholder": {
+            "type": "string",
+            "example": "Inserisci valore"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateFieldOptionDto"
+            }
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateFieldColumnDto"
+            }
+          }
+        },
+        "required": ["name"]
+      },
+      "TemplateFieldDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "descrizione"
+          },
+          "label": {
+            "type": "string",
+            "example": "Descrizione"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "textarea",
+              "number",
+              "date",
+              "boolean",
+              "checkbox",
+              "email",
+              "url",
+              "tel",
+              "select",
+              "currency",
+              "table",
+              "subtable",
+              "list",
+              "repeater"
+            ],
+            "example": "text"
+          },
+          "required": {
+            "type": "boolean",
+            "example": true,
+            "default": true
+          },
+          "defaultValue": {
+            "type": "string",
+            "example": ""
+          },
+          "placeholder": {
+            "type": "string",
+            "example": "Inserisci valore"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateFieldOptionDto"
+            }
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateFieldColumnDto"
+            }
+          }
+        },
+        "required": ["name"]
+      },
+      "CreateTemplateDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome del template",
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "description": "Descrizione del template"
+          },
+          "content": {
+            "type": "string",
+            "description": "Contenuto Markdown del template"
+          },
+          "fields": {
+            "description": "Definizioni dei campi",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateFieldDto"
+            }
+          },
+          "path": {
+            "type": "string",
+            "description": "Percorso GitHub opzionale per sovrascrittura"
+          }
+        },
+        "required": ["name", "content"]
+      },
+      "UpdateTemplateDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome del template",
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "description": "Descrizione del template"
+          },
+          "content": {
+            "type": "string",
+            "description": "Contenuto Markdown del template"
+          },
+          "fields": {
+            "description": "Definizioni dei campi",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateFieldDto"
+            }
+          },
+          "path": {
+            "type": "string",
+            "description": "Percorso GitHub opzionale per sovrascrittura"
+          }
+        }
+      },
+      "ValidateMarkdownDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "example": "# {{titolo}}\n\nCliente: {{cliente}}"
+          }
+        },
+        "required": ["content"]
+      },
+      "GeneratePdfDto": {
+        "type": "object",
+        "properties": {
+          "fieldValues": {
+            "type": "object",
+            "description": "Valori dei campi per la sostituzione dei placeholder",
+            "example": {
+              "nome_cliente": "Acme SpA",
+              "importo": 5000,
+              "righe": [
+                {
+                  "descrizione": "Servizio",
+                  "quantita": 2,
+                  "prezzo": 100
+                }
+              ]
+            }
+          }
+        }
       }
     }
   }
