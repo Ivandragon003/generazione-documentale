@@ -275,12 +275,9 @@ export default function App() {
 
   const handleSaveTemplate = useCallback(async () => {
     if (!markdown.trim()) {
-      setSnack({
-        open: true,
-        msg: "Il contenuto del template e vuoto.",
-        severity: "error",
-      });
-      return;
+      const msg = "Il contenuto del template e vuoto.";
+      setSnack({ open: true, msg, severity: "error" });
+      throw new Error(msg);
     }
 
     setAppStatus("saving");
@@ -329,12 +326,11 @@ export default function App() {
         ...current,
       }));
       setSnack({ open: true, msg: "Template salvato.", severity: "success" });
+      return saved;
     } catch (err) {
-      setSnack({
-        open: true,
-        msg: `Errore salvataggio template: ${String(err)}`,
-        severity: "error",
-      });
+      const msg = `Errore salvataggio template: ${String(err)}`;
+      setSnack({ open: true, msg, severity: "error" });
+      throw err;
     } finally {
       setAppStatus("ready");
     }
@@ -349,7 +345,9 @@ export default function App() {
   }, []);
 
   const handleGeneratePdf = useCallback(async () => {
-    if (!template) {
+    let currentTemplate = template;
+
+    if (!currentTemplate) {
       setSnack({
         open: true,
         msg: "Seleziona un template prima di generare il PDF.",
@@ -359,12 +357,11 @@ export default function App() {
     }
 
     if (hasUnsavedChanges) {
-      setSnack({
-        open: true,
-        msg: "Hai modifiche non salvate. Salva il template prima di generare il PDF.",
-        severity: "error",
-      });
-      return;
+      try {
+        currentTemplate = await handleSaveTemplate();
+      } catch {
+        return; // handleSaveTemplate already shows a snackbar
+      }
     }
 
     const errors = validateFieldValues(visibleFields, fieldValues);
@@ -384,7 +381,7 @@ export default function App() {
     pollingAbort.current = abort;
 
     try {
-      const job = await triggerPdfGeneration(template.id, fieldValues);
+      const job = await triggerPdfGeneration(currentTemplate.id, fieldValues);
       setPdfJobs((current) => [
         job,
         ...current.filter((item) => item.id !== job.id),

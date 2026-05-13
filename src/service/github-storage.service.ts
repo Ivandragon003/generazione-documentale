@@ -95,7 +95,7 @@ export class GitHubStorageService {
     ];
   }
 
-  private filePath(templateId: string): string {
+  filePath(templateId: string): string {
     return `${this.config.templatesDir}/${this.normalizeTemplateId(templateId)}.md`;
   }
 
@@ -210,7 +210,7 @@ export class GitHubStorageService {
     return files.flat();
   }
 
-  private templateMetaFromPath(path: string) {
+  templateMetaFromPath(path: string) {
     const relativePath = path.startsWith(`${this.config.templatesDir}/`)
       ? path.slice(this.config.templatesDir.length + 1)
       : path;
