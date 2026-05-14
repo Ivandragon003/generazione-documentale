@@ -1,17 +1,21 @@
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/api`;
 
 export type FieldType =
+  | "string"
   | "text"
   | "textarea"
   | "number"
+  | "integer"
   | "date"
   | "boolean"
+  | "phone"
   | "checkbox"
   | "email"
   | "url"
   | "tel"
   | "select"
   | "currency"
+  | "percentage"
   | "table"
   | "subtable"
   | "list"
@@ -43,7 +47,6 @@ export type ApiTemplateField = {
 export type TemplateDto = {
   id: string;
   name: string;
-  description: string | null;
   content: string;
   githubPath?: string;
   category?: string | null;
@@ -153,4 +156,34 @@ export function getLatestPdfDownloadUrl(
   fieldValues: FieldValueMap,
 ): string {
   return `${BASE}/templates/${segment(templateId)}/pdf/latest?fieldValues=${encodeURIComponent(JSON.stringify(fieldValues))}`;
+}
+
+export function validateTemplateMarkdown(content: string): Promise<{
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}> {
+  return api(`${BASE}/templates/validate`, {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function generateDocxBlob(
+  templateId: string,
+  fieldValues: FieldValueMap = {},
+): Promise<Blob> {
+  const res = await fetch(`${BASE}/templates/${segment(templateId)}/docx`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-user": "frontend",
+    },
+    body: JSON.stringify({ fieldValues }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`[${res.status}] ${text}`);
+  }
+  return res.blob();
 }

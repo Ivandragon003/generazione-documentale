@@ -6,8 +6,7 @@ import type {
   FieldValueMap,
 } from "../data/api";
 
-export const PLACEHOLDER_REGEX =
-  /\{\{\s*([a-zA-Z0-9_]+)(?::([a-zA-Z0-9_]+))?\s*\}\}/g;
+export const PLACEHOLDER_REGEX = /\{\{(?:([a-z]+):)?([a-z_][a-z0-9_]*)\}\}/g;
 
 export type NormalizedField = Required<
   Pick<
@@ -21,11 +20,14 @@ export type NormalizedField = Required<
   >;
 
 const supportedTypes = new Set<FieldType>([
+  "string",
   "text",
   "textarea",
   "number",
+  "integer",
   "date",
   "boolean",
+  "phone",
   "checkbox",
   "email",
   "url",
@@ -48,14 +50,14 @@ export function labelFromName(name: string): string {
 
 export function extractPlaceholders(markdown: string): string[] {
   const matches = markdown.matchAll(PLACEHOLDER_REGEX);
-  return [...new Set([...matches].map((match) => match[1]).filter(Boolean))];
+  return [...new Set([...matches].map((match) => match[2]).filter(Boolean))];
 }
 
 function extractInlineFieldTypes(markdown: string): Map<string, FieldType> {
   const result = new Map<string, FieldType>();
   for (const match of markdown.matchAll(PLACEHOLDER_REGEX)) {
-    const name = match[1];
-    const type = match[2];
+    const type = match[1];
+    const name = match[2];
     if (!name) continue;
     result.set(
       name,
@@ -73,7 +75,7 @@ export function normalizeFieldDefinitions(
   const inlineTypes = extractInlineFieldTypes(markdown);
   return extractPlaceholders(markdown).map((name) => {
     const source = byName.get(name);
-    const type = source?.type ?? inlineTypes.get(name) ?? "text";
+    const type = inlineTypes.get(name) ?? source?.type ?? "text";
     return {
       ...source,
       name,
@@ -94,6 +96,9 @@ function defaultValueForField(field: ApiTemplateField): FieldValue {
     return field.defaultValue === "true";
   }
   if (type === "number") {
+    return field.defaultValue ? Number(field.defaultValue) : "";
+  }
+  if (type === "integer") {
     return field.defaultValue ? Number(field.defaultValue) : "";
   }
   if (
@@ -125,8 +130,22 @@ export function validateFieldValues(
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const field of fields) {
-    if (field.required !== false && isMissing(values[field.name])) {
+    const currentValue = values[field.name];
+    if (field.required !== false && isMissing(currentValue)) {
       errors[field.name] = "Required field";
+      continue;
+    }
+    if (
+      ((field.type ?? "text") === "number" ||
+        (field.type ?? "text") === "integer" ||
+        (field.type ?? "text") === "currency" ||
+        (field.type ?? "text") === "percentage") &&
+      currentValue !== "" &&
+      currentValue !== null &&
+      currentValue !== undefined &&
+      (typeof currentValue !== "number" || !Number.isFinite(currentValue))
+    ) {
+      errors[field.name] = "Invalid number";
     }
   }
   return errors;

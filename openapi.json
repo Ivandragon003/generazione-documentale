@@ -199,6 +199,19 @@
         "tags": ["templates"]
       }
     },
+    "/api/templates/validate": {
+      "post": {
+        "operationId": "TemplatesController_validateTemplate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Validate template markdown syntax and placeholders",
+        "tags": ["templates"]
+      }
+    },
     "/api/templates/{id}/pdf": {
       "post": {
         "operationId": "TemplatesController_generatePdf",
@@ -238,6 +251,39 @@
           }
         },
         "summary": "Start PDF generation from template",
+        "tags": ["templates"]
+      }
+    },
+    "/api/templates/{id}/docx": {
+      "post": {
+        "operationId": "TemplatesController_generateDocx",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Template UUID or github:<path>",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneratePdfDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Generate DOCX from template and download it",
         "tags": ["templates"]
       }
     },
@@ -399,17 +445,21 @@
           "type": {
             "type": "string",
             "enum": [
+              "string",
               "text",
-              "textarea",
               "number",
+              "integer",
               "date",
+              "currency",
+              "percentage",
               "boolean",
-              "checkbox",
               "email",
+              "phone",
+              "textarea",
+              "checkbox",
               "url",
               "tel",
               "select",
-              "currency",
               "table",
               "subtable",
               "list",
@@ -459,17 +509,21 @@
           "type": {
             "type": "string",
             "enum": [
+              "string",
               "text",
-              "textarea",
               "number",
+              "integer",
               "date",
+              "currency",
+              "percentage",
               "boolean",
-              "checkbox",
               "email",
+              "phone",
+              "textarea",
+              "checkbox",
               "url",
               "tel",
               "select",
-              "currency",
               "table",
               "subtable",
               "list",

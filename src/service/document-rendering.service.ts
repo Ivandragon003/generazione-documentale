@@ -54,7 +54,8 @@ export class DocumentRenderingService {
     const result = content.replace(
       /\{\{([^}]+)\}\}/g,
       (match, rawKey: string) => {
-        const key = rawKey.split(":")[0].trim();
+        const parts = rawKey.split(":").map((part) => part.trim());
+        const key = parts.length === 2 ? parts[1] : parts[0];
         const value = fieldValues[key];
         const rendered = scalarToString(value);
         if (rendered.length === 0) {

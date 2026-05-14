@@ -12,57 +12,44 @@ export interface MarkdownValidationResult {
   fields: FieldDefinition[];
 }
 
-// Keep regex inside the function to avoid shared lastIndex state
-// when using the global flag with exec/test across calls.
-export const extractFieldNames = (content: string): string[] => {
-  const placeholderRegex = /\{\{(\w+)(?::\w+)?\}\}/g;
-  const fields = new Set<string>();
-  for (const match of content.matchAll(placeholderRegex)) {
-    const fieldName = match[1];
-    if (fieldName) {
-      fields.add(fieldName);
-    }
-  }
-  return [...fields];
-};
+export interface ParsedTemplatePlaceholder {
+  raw: string;
+  type: FieldType;
+  name: string;
+}
 
-export const extractFieldsWithTypes = (
-  content: string,
-): Map<string, FieldType> => {
-  const placeholderRegex = /\{\{(\w+)(?::(\w+))?\}\}/g;
-  const fields = new Map<string, FieldType>();
-  for (const match of content.matchAll(placeholderRegex)) {
-    const fieldName = match[1];
-    const fieldType = match[2] as FieldType;
-    if (fieldName) {
-      // If multiple placeholders share the same name, the latest type wins
-      // or an explicitly declared type when present.
-      if (fieldType || !fields.has(fieldName)) {
-        fields.set(fieldName, fieldType || "text");
-      }
-    }
-  }
-  return fields;
-};
+const TEMPLATE_PLACEHOLDER_TOKEN_REGEX = /\{\{[^{}\n]*\}\}/g;
+const STRICT_TYPED_PLACEHOLDER_REGEX = /^\{\{([a-z]+):([a-z_][a-z0-9_]*)\}\}$/;
+const GENERIC_TYPED_PLACEHOLDER_REGEX = /^\{\{([^:\s{}]+):([^{}\s]*)\}\}$/;
+const LEGACY_UNTYPED_PLACEHOLDER_REGEX = /^\{\{([a-z_][a-z0-9_]*)\}\}$/;
+
+export const allowedTemplateFieldTypes = [
+  "string",
+  "text",
+  "number",
+  "integer",
+  "date",
+  "currency",
+  "percentage",
+  "boolean",
+  "email",
+  "phone",
+] as const satisfies readonly FieldType[];
 
 export const allowedFieldTypes: FieldType[] = [
-  "text",
+  ...allowedTemplateFieldTypes,
   "textarea",
-  "number",
-  "date",
-  "boolean",
   "checkbox",
-  "email",
   "url",
   "tel",
   "select",
-  "currency",
   "table",
   "subtable",
   "list",
   "repeater",
 ];
 
+const allowedTemplateTypeSet = new Set<string>(allowedTemplateFieldTypes);
 const allowedFieldTypeSet = new Set<string>(allowedFieldTypes);
 
 export const isFieldType = (value: string | undefined): value is FieldType =>
@@ -86,26 +73,158 @@ export interface PartialFieldDefinition {
   columns?: FieldColumnDefinition[];
 }
 
+function validatePlaceholderToken(token: string): {
+  valid: boolean;
+  type?: FieldType;
+  name?: string;
+  legacyUntyped?: boolean;
+  error?: string;
+} {
+  if (/\s/.test(token)) {
+    return {
+      valid: false,
+      error: `Invalid placeholder ${token}: spaces are not allowed`,
+    };
+  }
+
+  const strictMatch = token.match(STRICT_TYPED_PLACEHOLDER_REGEX);
+  if (strictMatch) {
+    const type = strictMatch[1];
+    const name = strictMatch[2];
+    if (!allowedTemplateTypeSet.has(type)) {
+      return {
+        valid: false,
+        error: `Invalid placeholder ${token}: unsupported type "${type}"`,
+      };
+    }
+    return { valid: true, type: type as FieldType, name };
+  }
+
+  const legacyMatch = token.match(LEGACY_UNTYPED_PLACEHOLDER_REGEX);
+  if (legacyMatch) {
+    const name = legacyMatch[1];
+    return {
+      valid: true,
+      type: "string",
+      name,
+      legacyUntyped: true,
+    };
+  }
+
+  const genericMatch = token.match(GENERIC_TYPED_PLACEHOLDER_REGEX);
+  if (genericMatch) {
+    const rawType = genericMatch[1] ?? "";
+    const rawName = genericMatch[2] ?? "";
+    if (!/^[a-z]+$/.test(rawType)) {
+      return {
+        valid: false,
+        error: `Invalid placeholder ${token}: type must be lowercase`,
+      };
+    }
+    if (!allowedTemplateTypeSet.has(rawType)) {
+      return {
+        valid: false,
+        error: `Invalid placeholder ${token}: unsupported type "${rawType}"`,
+      };
+    }
+    if (!/^[a-z_][a-z0-9_]*$/.test(rawName)) {
+      return {
+        valid: false,
+        error: `Invalid placeholder ${token}: field_name must be snake_case and cannot start with a number`,
+      };
+    }
+    return { valid: true, type: rawType as FieldType, name: rawName };
+  }
+
+  return {
+    valid: false,
+    error: `Invalid placeholder ${token}: expected format {{type:field_name}}`,
+  };
+}
+
+export function parseTemplatePlaceholders(content: string): {
+  fields: ParsedTemplatePlaceholder[];
+  errors: string[];
+  legacyUntypedNames: string[];
+} {
+  const errors: string[] = [];
+  const fields: ParsedTemplatePlaceholder[] = [];
+  const legacyUntypedNames: string[] = [];
+  const byName = new Map<string, FieldType>();
+  const tokens = content.match(TEMPLATE_PLACEHOLDER_TOKEN_REGEX) ?? [];
+
+  for (const token of tokens) {
+    const validation = validatePlaceholderToken(token);
+    if (!validation.valid || !validation.type || !validation.name) {
+      if (validation.error) errors.push(validation.error);
+      continue;
+    }
+
+    const existingType = byName.get(validation.name);
+    if (validation.legacyUntyped) {
+      if (!existingType) {
+        byName.set(validation.name, "string");
+        fields.push({
+          raw: token,
+          type: "string",
+          name: validation.name,
+        });
+      }
+      legacyUntypedNames.push(validation.name);
+      continue;
+    }
+
+    if (!existingType) {
+      byName.set(validation.name, validation.type);
+      fields.push({
+        raw: token,
+        type: validation.type,
+        name: validation.name,
+      });
+      continue;
+    }
+
+    if (existingType !== validation.type) {
+      errors.push(
+        `Conflicting placeholder types for field "${validation.name}": "${existingType}" and "${validation.type}"`,
+      );
+    }
+  }
+
+  return { fields, errors, legacyUntypedNames };
+}
+
+export const extractFieldNames = (content: string): string[] => {
+  const { fields } = parseTemplatePlaceholders(content);
+  return fields.map((field) => field.name);
+};
+
+export const extractFieldsWithTypes = (
+  content: string,
+): Map<string, FieldType> => {
+  const { fields } = parseTemplatePlaceholders(content);
+  return new Map(fields.map((field) => [field.name, field.type]));
+};
+
 export const normalizeFieldDefinitions = (
   content: string,
   inputFields: PartialFieldDefinition[] = [],
 ): FieldDefinition[] => {
-  const placeholders = extractFieldNames(content);
-  const inlineTypes = extractFieldsWithTypes(content);
+  const placeholders = parseTemplatePlaceholders(content).fields;
   const providedByName = new Map(
     inputFields.map((field) => [field.name, field]),
   );
 
   return placeholders.map((placeholder) => {
-    const provided = providedByName.get(placeholder);
-    const inlineType = inlineTypes.get(placeholder);
+    const provided = providedByName.get(placeholder.name);
 
     return {
-      name: placeholder,
-      label: provided?.label ?? labelFromName(placeholder),
-      type: provided?.type ?? inlineType ?? "text",
+      name: placeholder.name,
+      label: provided?.label ?? labelFromName(placeholder.name),
+      type: placeholder.type,
       required: provided?.required ?? true,
       defaultValue: provided?.defaultValue ?? "",
+      source: "template",
       placeholder: provided?.placeholder,
       options: provided?.options,
       columns: provided?.columns,
@@ -120,7 +239,6 @@ export const validateMarkdownContent = (
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Validate that content is present and is a string
   if (!content || typeof content !== "string" || content.trim().length === 0) {
     return {
       valid: false,
@@ -140,30 +258,11 @@ export const validateMarkdownContent = (
     errors.push("Unbalanced placeholder braces detected: check {{ and }}");
   }
 
-  // Internal {1,100} limit prevents super-linear backtracking
-  // (ReDoS) for inputs with many unclosed {{ sequences. Real-world field names
-  // do not exceed 100 chars, avoiding false negatives.
-  const invalidPlaceholders = (
-    content.match(/\{\{[^}\n]{1,100}\}\}/g) ?? []
-  ).filter((placeholder) => !/^\{\{\w+(?::\w+)?\}\}$/.test(placeholder));
-  if (invalidPlaceholders.length > 0) {
-    errors.push(
-      `Invalid placeholders: ${[...new Set(invalidPlaceholders)].join(", ")}`,
-    );
-  }
-
-  const invalidTypes = [...extractFieldsWithTypes(content).entries()]
-    .filter(([, type]) => !isFieldType(type))
-    .map(([name, type]) => `${name}:${type}`);
-  if (invalidTypes.length > 0) {
-    errors.push(`Invalid field types: ${invalidTypes.join(", ")}`);
-  }
+  const parsed = parseTemplatePlaceholders(content);
+  errors.push(...parsed.errors);
 
   const blockedPatterns: Array<{ pattern: RegExp; label: string }> = [
     {
-      // input/include/write18 require a separator after the command name
-      // openout/read may be followed by digits (e.g. \openout5, \read0),
-      // so any non-letter character is accepted after the name
       pattern:
         /\\(?:input|include|write18)(?=\s|[^a-zA-Z]|$)|\\(?:openout|read)(?=[^a-zA-Z]|$)/i,
       label: "LaTeX input/output commands",
@@ -182,14 +281,22 @@ export const validateMarkdownContent = (
   }
 
   const fields = normalizeFieldDefinitions(content);
+  if (parsed.legacyUntypedNames.length > 0) {
+    const uniqueLegacyNames = [...new Set(parsed.legacyUntypedNames)];
+    warnings.push(
+      `Legacy placeholders without explicit type detected: ${uniqueLegacyNames.join(", ")}. They are treated as {{string:field_name}}.`,
+    );
+  }
   if (fields.length === 0) {
     warnings.push(
-      "No dynamic fields found. Use placeholders such as {{title}}",
+      "No dynamic fields found. Use placeholders such as {{string:title}}",
     );
   }
 
   if (!/^#\s+.+/m.test(content)) {
-    warnings.push("No Markdown H1 title found. Add a line like # {{title}}");
+    warnings.push(
+      "No Markdown H1 title found. Add a line like # {{string:title}}",
+    );
   }
 
   return {

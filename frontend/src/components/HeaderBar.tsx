@@ -1,3 +1,4 @@
+import DescriptionIcon from "@mui/icons-material/Description";
 import HistoryIcon from "@mui/icons-material/History";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import SaveIcon from "@mui/icons-material/Save";
@@ -13,14 +14,15 @@ import {
 import type { PdfJobDto, TemplateDto } from "../data/api";
 
 interface HeaderBarProps {
-  template: TemplateDto | null;
-  isSaving: boolean;
-  onSave: () => void;
-  onGeneratePdf: () => void;
-  pdfJobs: PdfJobDto[];
-  canGeneratePdf?: boolean;
+  readonly template: TemplateDto | null;
+  readonly isSaving: boolean;
+  readonly onSave: () => void;
+  readonly onGeneratePdf: () => void;
+  readonly onGenerateDocx: () => void;
+  readonly pdfJobs: PdfJobDto[];
+  readonly canGeneratePdf?: boolean;
   /** Show the "Save Template" button only when the Template tab is active */
-  showSaveTemplate?: boolean;
+  readonly showSaveTemplate?: boolean;
 }
 
 export function HeaderBar({
@@ -28,6 +30,7 @@ export function HeaderBar({
   isSaving,
   onSave,
   onGeneratePdf,
+  onGenerateDocx,
   pdfJobs,
   canGeneratePdf = false,
   showSaveTemplate = true,
@@ -81,6 +84,20 @@ export function HeaderBar({
                 disabled={!canGeneratePdf || isSaving}
               >
                 Generate PDF
+              </Button>
+            </span>
+          </Tooltip>
+          <Tooltip
+            title={canGeneratePdf ? "Generate DOCX" : "Select a template"}
+          >
+            <span>
+              <Button
+                variant="outlined"
+                startIcon={<DescriptionIcon />}
+                onClick={onGenerateDocx}
+                disabled={!canGeneratePdf || isSaving}
+              >
+                Generate DOCX
               </Button>
             </span>
           </Tooltip>

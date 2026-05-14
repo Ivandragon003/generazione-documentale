@@ -78,8 +78,43 @@ function valueForInput(value: FieldValue | undefined): string {
   return "";
 }
 
+function resolveHtmlInputType(type: ApiTemplateField["type"]): string {
+  switch (type) {
+    case "number":
+    case "integer":
+    case "currency":
+    case "percentage":
+      return "number";
+    case "date":
+      return "date";
+    case "email":
+      return "email";
+    case "url":
+      return "url";
+    case "tel":
+    case "phone":
+      return "tel";
+    default:
+      return "text";
+  }
+}
+
+function parseNumberOrEmpty(raw: string): number | "" {
+  if (raw.trim() === "") return "";
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : "";
+}
+
 function isChecked(value: FieldValue | undefined): boolean {
   return value === true || value === "true";
+}
+
+function formatDateForPreview(value: FieldValue | undefined): string {
+  if (typeof value !== "string") return "";
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return value;
+  const [, year, month, day] = match;
+  return `${day}/${month}/${year}`;
 }
 
 function renderReadOnlyField(field: ApiTemplateField, value: FieldValue) {
@@ -95,7 +130,9 @@ function renderReadOnlyField(field: ApiTemplateField, value: FieldValue) {
   }
   return (
     <Box component="span" className="inline-value">
-      {stringifyFieldValue(value) || `{{${field.name}}}`}
+      {(field.type === "date"
+        ? formatDateForPreview(value)
+        : stringifyFieldValue(value)) || `{{${field.name}}}`}
     </Box>
   );
 }
@@ -158,14 +195,8 @@ function EditableScalarField({
   }
 
   const multiline = type === "textarea";
-  const htmlType =
-    type === "number" ||
-    type === "date" ||
-    type === "email" ||
-    type === "url" ||
-    type === "tel"
-      ? type
-      : "text";
+  const htmlType = resolveHtmlInputType(type);
+  const dateField = htmlType === "date";
 
   return (
     <TextField
@@ -176,15 +207,29 @@ function EditableScalarField({
       type={htmlType}
       multiline={multiline}
       minRows={multiline ? 3 : undefined}
-      label={field.label ?? labelFromName(field.name)}
-      placeholder={field.placeholder}
+      label={dateField ? undefined : (field.label ?? labelFromName(field.name))}
+      placeholder={dateField ? undefined : field.placeholder}
+      InputLabelProps={dateField ? { shrink: true } : undefined}
       value={valueForInput(value)}
       error={Boolean(error)}
       helperText={error}
       onChange={(event) =>
         onChange(
-          type === "number" ? Number(event.target.value) : event.target.value,
+          type === "number" ||
+            type === "integer" ||
+            type === "currency" ||
+            type === "percentage"
+            ? parseNumberOrEmpty(event.target.value)
+            : event.target.value,
         )
+      }
+      inputProps={
+        type === "number" ||
+        type === "integer" ||
+        type === "currency" ||
+        type === "percentage"
+          ? { inputMode: "decimal", step: "any" }
+          : {}
       }
     />
   );
@@ -302,15 +347,55 @@ function InlineContent({
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
 
+  function renderInlineMarkdown(rawText: string, keyPrefix: string) {
+    const nodes: React.ReactNode[] = [];
+    const inlineRegex = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
+    let cursor = 0;
+    let tokenIndex = 0;
+    for (const token of rawText.matchAll(inlineRegex)) {
+      const matched = token[0];
+      const index = token.index ?? 0;
+      if (index > cursor) {
+        nodes.push(rawText.slice(cursor, index));
+      }
+      if (matched.startsWith("**") && matched.endsWith("**")) {
+        nodes.push(
+          <strong key={`${keyPrefix}-b-${tokenIndex}`}>
+            {matched.slice(2, -2)}
+          </strong>,
+        );
+      } else if (matched.startsWith("*") && matched.endsWith("*")) {
+        nodes.push(
+          <em key={`${keyPrefix}-i-${tokenIndex}`}>{matched.slice(1, -1)}</em>,
+        );
+      } else {
+        nodes.push(matched);
+      }
+      cursor = index + matched.length;
+      tokenIndex += 1;
+    }
+    if (cursor < rawText.length) {
+      nodes.push(rawText.slice(cursor));
+    }
+    return nodes;
+  }
+
   for (const match of text.matchAll(PLACEHOLDER_REGEX)) {
-    const [raw, name, inlineType] = match;
+    const [raw, inlineType, name] = match;
     const index = match.index ?? 0;
-    if (index > lastIndex) parts.push(text.slice(lastIndex, index));
+    if (index > lastIndex) {
+      parts.push(
+        ...renderInlineMarkdown(
+          text.slice(lastIndex, index),
+          `${name}-${index}-${lastIndex}`,
+        ),
+      );
+    }
 
     const field = byName.get(name) ?? {
       name,
       label: labelFromName(name),
-      type: (inlineType ?? "text") as ApiTemplateField["type"],
+      type: (inlineType ?? "string") as ApiTemplateField["type"],
       required: true,
       defaultValue: "",
     };
@@ -343,11 +428,24 @@ function InlineContent({
     lastIndex = index + raw.length;
   }
 
-  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  if (lastIndex < text.length) {
+    parts.push(
+      ...renderInlineMarkdown(text.slice(lastIndex), `tail-${lastIndex}`),
+    );
+  }
   return <>{parts}</>;
 }
 
 function renderLine(line: string, index: number, props: Props) {
+  const quote = /^\s*>\s+(.+)$/.exec(line);
+  if (quote) {
+    return (
+      <Box key={index} className="doc-quote">
+        <InlineContent {...props} text={quote[1]} />
+      </Box>
+    );
+  }
+
   const heading = /^(#{1,6})\s+(.+)$/.exec(line);
   if (heading) {
     const level = Math.min(heading[1].length, 6);

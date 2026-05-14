@@ -1,13 +1,21 @@
 import AddIcon from "@mui/icons-material/Add";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import {
   Alert,
+  Box,
   Button,
   Chip,
+  FormControl,
+  InputLabel,
+  MenuItem,
   Paper,
+  Select,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import { useMemo, useState } from "react";
+import type { FieldType } from "../data/api";
 
 type Props = {
   markdown: string;
@@ -24,32 +32,55 @@ export function TemplateEditor({
   added,
   removed,
 }: Props) {
-  function handleCreateField() {
-    const fieldName = window.prompt("Field name (e.g. customer_name):");
-    if (!fieldName) return;
+  const [fieldNameInput, setFieldNameInput] = useState("");
+  const [fieldTypeInput, setFieldTypeInput] = useState<FieldType>("text");
+  const [fieldNameError, setFieldNameError] = useState<string | null>(null);
 
-    const normalized = fieldName
+  const fieldTypeOptions: FieldType[] = [
+    "string",
+    "text",
+    "number",
+    "integer",
+    "date",
+    "currency",
+    "percentage",
+    "boolean",
+    "email",
+    "phone",
+  ];
+
+  const detectedPlaceholders = useMemo(() => {
+    const regex = /\{\{(?:([a-z]+):)?([a-z_][a-z0-9_]*)\}\}/g;
+    const found = new Map<string, string>();
+    for (const match of markdown.matchAll(regex)) {
+      const type = match[1] ?? "string";
+      const name = match[2];
+      if (!found.has(name)) found.set(name, type);
+    }
+    return Array.from(found.entries()).map(([name, type]) => ({ name, type }));
+  }, [markdown]);
+
+  function normalizeFieldName(raw: string): string {
+    return raw
       .trim()
       .toLowerCase()
       .replace(/\s+/g, "_")
       .replace(/[^a-z0-9_]/g, "");
+  }
 
+  function confirmCreateField(): void {
+    const normalized = normalizeFieldName(fieldNameInput);
     if (!normalized) {
-      alert("Invalid field name.");
+      setFieldNameError("Enter a valid variable name (e.g. customer_name).");
       return;
     }
 
-    const type = window.prompt(
-      "Field type (text, textarea, date, number, boolean, select, table, list):",
-      "text",
-    );
-
     const separator = markdown.length > 0 ? "\n" : "";
-    const placeholder =
-      type && type !== "text"
-        ? `{{${normalized}:${type}}}`
-        : `{{${normalized}}}`;
+    const placeholder = `{{${fieldTypeInput}:${normalized}}}`;
     onChange(`${markdown}${separator}${placeholder}`);
+    setFieldNameInput("");
+    setFieldTypeInput("text");
+    setFieldNameError(null);
   }
 
   return (
@@ -76,10 +107,49 @@ export function TemplateEditor({
             size="small"
             variant="outlined"
             startIcon={<AddIcon />}
-            onClick={handleCreateField}
+            onClick={confirmCreateField}
           >
-            Create field
+            Insert field
           </Button>
+        </Stack>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          gap={2}
+          sx={{ mt: 1.5 }}
+          alignItems={{ xs: "stretch", sm: "flex-start" }}
+        >
+          <TextField
+            fullWidth
+            label="Variable"
+            placeholder="customer_name"
+            value={fieldNameInput}
+            error={Boolean(fieldNameError)}
+            helperText={
+              fieldNameError ??
+              "Letters, numbers and underscore. Spaces become underscore."
+            }
+            onChange={(event) => {
+              setFieldNameInput(event.target.value);
+              setFieldNameError(null);
+            }}
+          />
+          <FormControl fullWidth>
+            <InputLabel id="field-type-label">Value type</InputLabel>
+            <Select
+              labelId="field-type-label"
+              value={fieldTypeInput}
+              label="Value type"
+              onChange={(event) =>
+                setFieldTypeInput(event.target.value as FieldType)
+              }
+            >
+              {fieldTypeOptions.map((type) => (
+                <MenuItem key={type} value={type}>
+                  {type}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Stack>
       </Paper>
 
@@ -100,19 +170,42 @@ export function TemplateEditor({
         <Typography variant="subtitle1" gutterBottom>
           Detected placeholders
         </Typography>
-        <Stack direction="row" gap={1} flexWrap="wrap">
+        <Stack gap={1}>
           {placeholders.length === 0 && (
             <Typography variant="body2" color="text.secondary">
               {"No {{field}} placeholder found"}
             </Typography>
           )}
-          {placeholders.map((field) => (
-            <Chip
-              key={field}
-              label={`{{${field}}}`}
-              color="primary"
-              variant="outlined"
-            />
+          {detectedPlaceholders.map((entry) => (
+            <Box
+              key={entry.name}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+                px: 1,
+                py: 0.5,
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 1,
+                backgroundColor: "background.paper",
+              }}
+            >
+              <Chip
+                label={`{{${entry.name}}}`}
+                color="primary"
+                variant="outlined"
+                sx={{ fontFamily: "monospace" }}
+              />
+              <Chip
+                size="small"
+                label={entry.type}
+                color="default"
+                icon={<InfoOutlinedIcon />}
+                sx={{ textTransform: "lowercase" }}
+              />
+            </Box>
           ))}
         </Stack>
         {(added.length > 0 || removed.length > 0) && (

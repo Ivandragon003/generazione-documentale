@@ -1,15 +1,19 @@
 export type FieldType =
+  | "string"
   | "text"
   | "textarea"
   | "number"
+  | "integer"
   | "date"
   | "boolean"
+  | "phone"
   | "checkbox"
   | "email"
   | "url"
   | "tel"
   | "select"
   | "currency"
+  | "percentage"
   | "table"
   | "subtable"
   | "list"
@@ -37,6 +41,7 @@ export interface FieldDefinition {
   type: FieldType;
   required: boolean;
   defaultValue: string;
+  source?: "template";
   placeholder?: string;
   options?: FieldOption[];
   columns?: FieldColumnDefinition[];

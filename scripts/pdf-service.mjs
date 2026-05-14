@@ -19,7 +19,7 @@ function readBody(request) {
     request.on("data", (chunk) => {
       body += chunk;
       if (body.length > 2_000_000) {
-        reject(new Error("Payload troppo grande"));
+        reject(new Error("Payload too large"));
         request.destroy();
       }
     });
@@ -28,14 +28,13 @@ function readBody(request) {
   });
 }
 
-function metadata(options, title, author) {
+function metadata(options, title, author, format) {
   return [
     "--from",
     "markdown+smart+pipe_tables",
     "--to",
-    "pdf",
-    "--pdf-engine",
-    options.engine ?? "xelatex",
+    format,
+    ...(format === "pdf" ? ["--pdf-engine", options.engine ?? "xelatex"] : []),
     `--metadata=title:${title}`,
     `--metadata=author:${author}`,
     "--metadata=lang:it",
@@ -58,17 +57,17 @@ function metadata(options, title, author) {
   ];
 }
 
-function runPandoc(markdown, outputPath, options, title, author) {
+function runPandoc(markdown, outputPath, options, title, author, format) {
   return new Promise((resolve, reject) => {
     const process = spawn(
       pandocPath,
-      [...metadata(options, title, author), "--output", outputPath],
+      [...metadata(options, title, author, format), "--output", outputPath],
       { stdio: ["pipe", "ignore", "pipe"] },
     );
     let stderr = "";
     const timer = setTimeout(() => {
       process.kill("SIGKILL");
-      reject(new Error(`Pandoc timeout dopo ${timeoutMs}ms`));
+      reject(new Error(`Pandoc timeout after ${timeoutMs}ms`));
     }, timeoutMs);
 
     process.stderr.on("data", (chunk) => {
@@ -79,13 +78,13 @@ function runPandoc(markdown, outputPath, options, title, author) {
       if (error?.code === "ENOENT") {
         reject(
           new Error(
-            `Pandoc non trovato al percorso: ${pandocPath}. Verifica PANDOC_PATH e l'installazione nel container pdf-service.`,
+            `Pandoc not found at path: ${pandocPath}. Verify PANDOC_PATH and installation inside pdf-service container.`,
           ),
         );
         return;
       }
       reject(
-        new Error(`Errore avvio Pandoc (${pandocPath}): ${error.message}`),
+        new Error(`Pandoc startup error (${pandocPath}): ${error.message}`),
       );
     });
     process.on("close", (code) => {
@@ -115,8 +114,8 @@ function pandocVersion() {
         ok: false,
         error:
           error?.code === "ENOENT"
-            ? `Pandoc non trovato al percorso: ${pandocPath}`
-            : `Errore avvio Pandoc (${pandocPath}): ${error.message}`,
+            ? `Pandoc not found at path: ${pandocPath}`
+            : `Pandoc startup error (${pandocPath}): ${error.message}`,
       });
     });
     process.on("close", (code) => {
@@ -129,7 +128,7 @@ function pandocVersion() {
       }
       resolve({
         ok: false,
-        error: `Pandoc health check fallito (${pandocPath}): exit ${code} ${stderr.slice(0, 300)}`,
+        error: `Pandoc health check failed (${pandocPath}): exit ${code} ${stderr.slice(0, 300)}`,
       });
     });
   });
@@ -151,29 +150,39 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  const filename = `${randomUUID()}.pdf`;
-  const outputPath = join(workdir, filename);
+  let finalOutputPath = "";
   try {
     const payload = JSON.parse(await readBody(request));
+    const format = payload?.format === "docx" ? "docx" : "pdf";
+    const filename = `${randomUUID()}.${format}`;
+    finalOutputPath = join(workdir, filename);
     if (!payload.markdown || typeof payload.markdown !== "string") {
-      throw new Error("markdown mancante");
+      throw new Error("markdown is required");
     }
     await mkdir(workdir, { recursive: true });
     await runPandoc(
       payload.markdown,
-      outputPath,
+      finalOutputPath,
       payload.options ?? {},
-      payload.title ?? "Documento",
+      payload.title ?? "Document",
       payload.author ?? "MAC Documents",
+      format,
     );
 
-    response.writeHead(200, { "Content-Type": "application/pdf" });
-    createReadStream(outputPath).pipe(response);
+    response.writeHead(200, {
+      "Content-Type":
+        format === "docx"
+          ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          : "application/pdf",
+    });
+    createReadStream(finalOutputPath).pipe(response);
     response.on("finish", () => {
-      void rm(outputPath, { force: true });
+      void rm(finalOutputPath, { force: true });
     });
   } catch (error) {
-    await rm(outputPath, { force: true }).catch(() => undefined);
+    if (finalOutputPath) {
+      await rm(finalOutputPath, { force: true }).catch(() => undefined);
+    }
     response.writeHead(500, { "Content-Type": "application/json" });
     response.end(
       JSON.stringify({

@@ -17,6 +17,7 @@ export interface PdfGenerationInput {
   fieldValues: FieldValueMap;
   strict: boolean;
 }
+export type DocumentFormat = "pdf" | "docx";
 
 // STORAGE_PATH should be resolved at request time, not module load
 // to allow proper dependency injection and configuration
@@ -95,14 +96,16 @@ export class PdfGenerationService {
     outputPath: string,
     title: string,
     author: string,
+    format: DocumentFormat,
   ): string[] {
     return [
       "--from",
       "markdown+smart+pipe_tables",
       "--to",
-      "pdf",
-      "--pdf-engine",
-      pdfConfig.engine,
+      format,
+      ...(format === "pdf"
+        ? (["--pdf-engine", pdfConfig.engine] as const)
+        : []),
       "--output",
       outputPath,
       `--metadata=title:${title}`,
@@ -286,6 +289,7 @@ export class PdfGenerationService {
     title: string;
     author: string;
     outputPath: string;
+    format: DocumentFormat;
   }): Promise<void> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), pdfConfig.timeoutMs);
@@ -313,6 +317,7 @@ export class PdfGenerationService {
               colorLinks: pdfConfig.colorLinks,
               linkColor: pdfConfig.linkColor,
             },
+            format: input.format,
           }),
           signal: controller.signal,
         },
@@ -331,7 +336,10 @@ export class PdfGenerationService {
     }
   }
 
-  async generatePdf(document: PdfGenerationInput): Promise<{
+  private async generateDocument(
+    document: PdfGenerationInput,
+    format: DocumentFormat,
+  ): Promise<{
     filename: string;
     unresolvedFields?: string[];
     renderedContentHash: string;
@@ -357,9 +365,9 @@ export class PdfGenerationService {
     const renderedContentHash = sha256Signature(interpolated);
 
     await mkdir(this.getStoragePath(), { recursive: true });
-    const filename = `${randomUUID()}.pdf`;
+    const filename = `${randomUUID()}.${format}`;
     const outputPath = join(this.getStoragePath(), filename);
-    const args = this.buildPandocArgs(outputPath, title, author);
+    const args = this.buildPandocArgs(outputPath, title, author, format);
 
     if (this.resolvePdfMode() === "remote") {
       await this.runRemotePdfService({
@@ -367,6 +375,7 @@ export class PdfGenerationService {
         title,
         author,
         outputPath,
+        format,
       });
       return { filename, unresolvedFields: unresolved, renderedContentHash };
     }
@@ -382,10 +391,26 @@ export class PdfGenerationService {
       }
     }
 
-    throw lastError ?? new Error("PDF generation error");
+    throw lastError ?? new Error(`${format.toUpperCase()} generation error`);
   }
 
-  async getPdfStream(filename: string): Promise<ReadStream> {
+  async generatePdf(document: PdfGenerationInput): Promise<{
+    filename: string;
+    unresolvedFields?: string[];
+    renderedContentHash: string;
+  }> {
+    return this.generateDocument(document, "pdf");
+  }
+
+  async generateDocx(document: PdfGenerationInput): Promise<{
+    filename: string;
+    unresolvedFields?: string[];
+    renderedContentHash: string;
+  }> {
+    return this.generateDocument(document, "docx");
+  }
+
+  async getFileStream(filename: string): Promise<ReadStream> {
     const filepath = join(this.getStoragePath(), filename);
     try {
       await access(filepath);
@@ -393,6 +418,10 @@ export class PdfGenerationService {
       throw new Error(`PDF file not found: ${filename}`);
     }
     return createReadStream(filepath);
+  }
+
+  async getPdfStream(filename: string): Promise<ReadStream> {
+    return this.getFileStream(filename);
   }
 
   async deletePdf(filename: string): Promise<void> {

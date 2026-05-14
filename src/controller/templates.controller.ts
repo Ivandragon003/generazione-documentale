@@ -29,6 +29,8 @@ import {
   getActor,
   parsePagination,
 } from "../common/utils/http.utils";
+import { validateMarkdownContent } from "../common/utils/markdown.utils";
+import { appConfig } from "../config/app.config";
 // biome-ignore lint/style/useImportType: Nest uses DTO classes for runtime validation metadata.
 import { CreateTemplateDto } from "../dto/create-template.dto";
 // biome-ignore lint/style/useImportType: Nest uses DTO classes for runtime validation metadata.
@@ -38,6 +40,7 @@ import { TemplateQueryDto } from "../dto/template-query.dto";
 // biome-ignore lint/style/useImportType: Nest uses DTO classes for runtime validation metadata.
 import { UpdateTemplateDto } from "../dto/update-template.dto";
 import type { FieldValueMap } from "../service/document-rendering.service";
+import { PdfGenerationService } from "../service/pdf-generation.service";
 import { PdfJobsService } from "../service/pdf-jobs.service";
 import { TemplatesService } from "../service/templates.service";
 
@@ -139,6 +142,8 @@ export class TemplatesController {
     private readonly templatesService: TemplatesService,
     @Inject(PdfJobsService)
     private readonly pdfJobsService: PdfJobsService,
+    @Inject(PdfGenerationService)
+    private readonly pdfGenerationService: PdfGenerationService,
   ) {}
 
   @Get()
@@ -202,6 +207,17 @@ export class TemplatesController {
     return this.templatesService.delete(id);
   }
 
+  @Post("validate")
+  @ApiOperation({
+    summary: "Validate template markdown syntax and placeholders",
+  })
+  validateTemplate(@Body() body: { content: string }) {
+    return validateMarkdownContent(
+      body?.content ?? "",
+      appConfig.maxTemplateContentBytes,
+    );
+  }
+
   @Post(":id/pdf")
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Start PDF generation from template" })
@@ -219,6 +235,51 @@ export class TemplatesController {
       getActor(request),
     );
     return toPdfJobResponse(job);
+  }
+
+  @Post(":id/docx")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Generate DOCX from template and download it" })
+  @ApiParam({ name: "id", description: "Template UUID or github:<path>" })
+  async generateDocx(
+    @Param("id") id: string,
+    @Body() body: GeneratePdfDto,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    assertTemplatePathParam(id);
+    const templateId = await this.templatesService.resolveTemplateIdForPdfJob(
+      id,
+      getActor(request),
+      true,
+    );
+    if (!templateId) throw makeError("Template not found", 404);
+    const template = await this.templatesService.findOne(templateId);
+    if (!template) throw makeError("Template not found", 404);
+
+    const generated = await this.pdfGenerationService.generateDocx({
+      title: template.name,
+      content: template.content,
+      fieldValues: resolveFieldValues(body, request),
+      strict: false,
+    });
+    const stream = await this.pdfGenerationService.getFileStream(
+      generated.filename,
+    );
+    response.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+    response.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${template.name || "document"}.docx"`,
+    );
+    await new Promise<void>((resolve, reject) => {
+      stream.on("error", reject);
+      response.on("error", reject);
+      response.on("finish", resolve);
+      stream.pipe(response as unknown as NodeJS.WritableStream);
+    });
   }
 
   @Get(":id/pdf/jobs")

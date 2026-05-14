@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import type { Response } from "express";
 import { makeError } from "../common/utils/errors";
+import { validateMarkdownContent } from "../common/utils/markdown.utils";
 import { sha256Signature } from "../common/utils/signature.utils";
 import { appConfig } from "../config/app.config";
 import { PdfJobsRepository } from "../repository/pdf-jobs.repository";
@@ -18,13 +19,14 @@ const QUEUE_RECOVERY_RETRY_MS = appConfig.pdfQueueRecoveryRetryMs;
 const PDF_JOBS_RETENTION_DAYS = appConfig.pdfJobsRetentionDays;
 const PDF_FAILED_JOBS_RETENTION_DAYS = appConfig.pdfFailedJobsRetentionDays;
 const PDF_RETENTION_RUN_EVERY_MS = appConfig.pdfRetentionRunEveryMs;
+const MAX_TEMPLATE_CONTENT_BYTES = appConfig.maxTemplateContentBytes;
 
 function pipeToResponse(readable: Readable, response: Response): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     readable.on("error", reject);
     response.on("error", reject);
     response.on("finish", resolve);
-    readable.pipe(response as unknown as NodeJS.WritableStream);
+    readable.pipe(response);
   });
 }
 
@@ -115,14 +117,17 @@ export class PdfJobsService implements OnModuleDestroy {
     this.queueRecoveryStarted = true;
     try {
       await this.triggerQueueProcessor();
-    } catch (_error) {
+    } catch (error) {
       this.queueRecoveryStarted = false;
-      if (!this.queueRecoveryTimer) {
-        this.queueRecoveryTimer = setTimeout(() => {
-          this.queueRecoveryTimer = null;
-          this.ensureQueueRecovery().catch(() => undefined);
-        }, QUEUE_RECOVERY_RETRY_MS);
-      }
+      this.logger.warn(
+        `Queue recovery failed, retry scheduled in ${QUEUE_RECOVERY_RETRY_MS}ms: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      this.queueRecoveryTimer ??= setTimeout(() => {
+        this.queueRecoveryTimer = null;
+        this.ensureQueueRecovery().catch(() => undefined);
+      }, QUEUE_RECOVERY_RETRY_MS);
     }
   }
 
@@ -181,9 +186,18 @@ export class PdfJobsService implements OnModuleDestroy {
       const template = await this.templatesService.findOne(job.template_id);
       if (!template) throw new Error("Template not found");
 
-      if (!template.content || template.content.trim().length === 0) {
+      if (!template.content?.trim()) {
         throw new Error(
           "Template content is unavailable. Verify that the Markdown file exists on GitHub.",
+        );
+      }
+      const validation = validateMarkdownContent(
+        template.content,
+        MAX_TEMPLATE_CONTENT_BYTES,
+      );
+      if (!validation.valid) {
+        throw new Error(
+          `Template validation failed before PDF rendering: ${validation.errors.join("; ")}`,
         );
       }
 

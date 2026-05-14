@@ -1,5 +1,6 @@
 import type { Response } from "express";
 import { TemplatesController } from "../src/controller/templates.controller";
+import type { PdfGenerationService } from "../src/service/pdf-generation.service";
 import type { PdfJobsService } from "../src/service/pdf-jobs.service";
 import type { TemplatesService } from "../src/service/templates.service";
 
@@ -8,8 +9,13 @@ describe("TemplatesController", () => {
   const pdfJobsService = {
     streamLatest: jest.fn(),
   } as unknown as PdfJobsService;
+  const pdfGenerationService = {} as PdfGenerationService;
 
-  const controller = new TemplatesController(templatesService, pdfJobsService);
+  const controller = new TemplatesController(
+    templatesService,
+    pdfJobsService,
+    pdfGenerationService,
+  );
 
   it("ritorna 400 con fieldValues query malformato su /pdf/latest", async () => {
     const response = {} as Response;

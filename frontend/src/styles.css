@@ -142,6 +142,20 @@ body {
 
 .doc-paragraph {
   margin: 0.6rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  word-break: break-word;
+}
+
+.doc-quote {
+  margin: 0.8rem 0;
+  padding: 0.5rem 0.8rem;
+  border-left: 3px solid rgba(37, 99, 235, 0.55);
+  background: rgba(37, 99, 235, 0.06);
+  border-radius: 6px;
+  color: #1e3a8a;
 }
 
 .doc-rule {
@@ -155,14 +169,16 @@ body {
 
 .inline-field {
   min-width: 180px;
-  margin: 0 4px 4px;
+  max-width: 100%;
+  margin: 0;
   vertical-align: middle;
+  flex: 1 1 240px;
 }
 
 .inline-field-textarea {
-  display: block;
-  max-width: 720px;
-  margin: 8px 0;
+  flex-basis: 100%;
+  max-width: 100%;
+  margin: 4px 0;
 }
 
 .inline-checkbox {
@@ -172,8 +188,11 @@ body {
 .inline-value {
   display: inline-block;
   min-width: 80px;
-  padding: 0 4px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.24);
+  padding: 1px 6px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.45);
+  color: #0f172a;
+  background: #f8fafc;
+  border-radius: 4px;
 }
 
 .markdown-table,

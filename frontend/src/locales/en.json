@@ -1,0 +1,46 @@
+{
+  "brand": {
+    "pm3Logo": "PM3 Logo"
+  },
+  "common": {
+    "create": "CREATE",
+    "search": "Search"
+  },
+  "home": {
+    "title": "Home"
+  },
+  "navbar": {
+    "collapseSidebar": "Collapse sidebar",
+    "openSidebar": "Open sidebar",
+    "projectNameLabel": "Project name",
+    "projectNamePlaceholder": "Project Name",
+    "settings": "Settings",
+    "userProfile": "User profile"
+  },
+  "sidebar": {
+    "actions": {
+      "filterResults": "Filter results",
+      "joinWorkspace": "Join workspace",
+      "previewSidebar": "Preview sidebar"
+    },
+    "sections": {
+      "activities": "Activities",
+      "join": "Join",
+      "portfolio": "Portfolio",
+      "programs": "Programs",
+      "projects": "Projects",
+      "template": "Template"
+    },
+    "top": {
+      "all": "All",
+      "favorites": "Favorites",
+      "forYou": "For you",
+      "recent": "Recent"
+    }
+  },
+  "stories": {
+    "sidebar": {
+      "nestedSectionContent": "Nested section content"
+    }
+  }
+}
