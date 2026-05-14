@@ -39,7 +39,6 @@ import {
   validateTemplateMarkdown,
 } from "../../data/api";
 import {
-  comparePlaceholderSets,
   extractPlaceholders,
   initialFieldValues,
   normalizeFieldDefinitions,
@@ -196,17 +195,6 @@ export function TemplatesWorkspace() {
   const visibleFields = useMemo(
     () => normalizeFieldDefinitions(markdown, template?.fields ?? []),
     [markdown, template],
-  );
-
-  const currentPlaceholders = useMemo(
-    () => extractPlaceholders(markdown),
-    [markdown],
-  );
-
-  const diff = useMemo(
-    () =>
-      comparePlaceholderSets(originalPlaceholders.current, currentPlaceholders),
-    [currentPlaceholders],
   );
 
   useEffect(() => {
@@ -556,13 +544,7 @@ export function TemplatesWorkspace() {
 
             <Box className="workspace-body">
               {activeTab === 0 && (
-                <TemplateEditor
-                  markdown={markdown}
-                  onChange={setMarkdown}
-                  placeholders={currentPlaceholders}
-                  added={diff.added}
-                  removed={diff.removed}
-                />
+                <TemplateEditor markdown={markdown} onChange={setMarkdown} />
               )}
 
               {activeTab === 1 && (
@@ -605,15 +587,6 @@ export function TemplatesWorkspace() {
             PDF.
           </Alert>
         )}
-
-        <Paper className="architecture-note" sx={{ mt: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            MAC Document Editor
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Template GitHub, document rendering and PDF generation via API REST.
-          </Typography>
-        </Paper>
       </Container>
 
       <Snackbar

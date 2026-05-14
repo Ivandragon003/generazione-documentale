@@ -1,10 +1,6 @@
 import AddIcon from "@mui/icons-material/Add";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import {
-  Alert,
-  Box,
   Button,
-  Chip,
   FormControl,
   InputLabel,
   MenuItem,
@@ -12,26 +8,16 @@ import {
   Select,
   Stack,
   TextField,
-  Typography,
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { FieldType } from "../data/api";
 
 type Props = {
   markdown: string;
   onChange: (value: string) => void;
-  placeholders: string[];
-  added: string[];
-  removed: string[];
 };
 
-export function TemplateEditor({
-  markdown,
-  onChange,
-  placeholders,
-  added,
-  removed,
-}: Props) {
+export function TemplateEditor({ markdown, onChange }: Props) {
   const [fieldNameInput, setFieldNameInput] = useState("");
   const [fieldTypeInput, setFieldTypeInput] = useState<FieldType>("text");
   const [fieldNameError, setFieldNameError] = useState<string | null>(null);
@@ -48,17 +34,6 @@ export function TemplateEditor({
     "email",
     "phone",
   ];
-
-  const detectedPlaceholders = useMemo(() => {
-    const regex = /\{\{(?:([a-z]+):)?([a-z_][a-z0-9_]*)\}\}/g;
-    const found = new Map<string, string>();
-    for (const match of markdown.matchAll(regex)) {
-      const type = match[1] ?? "string";
-      const name = match[2];
-      if (!found.has(name)) found.set(name, type);
-    }
-    return Array.from(found.entries()).map(([name, type]) => ({ name, type }));
-  }, [markdown]);
 
   function normalizeFieldName(raw: string): string {
     return raw
@@ -164,58 +139,6 @@ export function TemplateEditor({
           InputProps={{ disableUnderline: true, className: "editor-input" }}
           placeholder="Write Markdown template or select a GitHub template"
         />
-      </Paper>
-
-      <Paper className="panel-shell">
-        <Typography variant="subtitle1" gutterBottom>
-          Detected placeholders
-        </Typography>
-        <Stack gap={1}>
-          {placeholders.length === 0 && (
-            <Typography variant="body2" color="text.secondary">
-              {"No {{field}} placeholder found"}
-            </Typography>
-          )}
-          {detectedPlaceholders.map((entry) => (
-            <Box
-              key={entry.name}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 2,
-                px: 1,
-                py: 0.5,
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 1,
-                backgroundColor: "background.paper",
-              }}
-            >
-              <Chip
-                label={`{{${entry.name}}}`}
-                color="primary"
-                variant="outlined"
-                sx={{ fontFamily: "monospace" }}
-              />
-              <Chip
-                size="small"
-                label={entry.type}
-                color="default"
-                icon={<InfoOutlinedIcon />}
-                sx={{ textTransform: "lowercase" }}
-              />
-            </Box>
-          ))}
-        </Stack>
-        {(added.length > 0 || removed.length > 0) && (
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            Structure changed: added{" "}
-            <strong>{added.join(", ") || "none"}</strong>, removed{" "}
-            <strong>{removed.join(", ") || "none"}</strong>. On save, a new
-            template will be created.
-          </Alert>
-        )}
       </Paper>
     </Stack>
   );
