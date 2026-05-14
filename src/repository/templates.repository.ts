@@ -12,7 +12,6 @@ interface FindAllOptions {
 interface InsertTemplatePayload {
   id: string;
   name: string;
-  description?: string;
   contentPath: string;
   fields: FieldDefinition[];
   createdBy: string;
@@ -21,7 +20,6 @@ interface InsertTemplatePayload {
 interface UpdateTemplatePayload {
   id: string;
   name: string;
-  description: string | null;
   contentPath: string;
   fields: FieldDefinition[];
 }
@@ -67,6 +65,12 @@ export class TemplatesRepository {
     });
   }
 
+  async findByContentPath(contentPath: string): Promise<TemplateEntity | null> {
+    return this.templateRepository.findOne({
+      where: { content_path: contentPath },
+    });
+  }
+
   async insertTemplate(
     manager: EntityManager,
     payload: InsertTemplatePayload,
@@ -74,7 +78,6 @@ export class TemplatesRepository {
     const template = manager.create(TemplateEntity, {
       id: payload.id,
       name: payload.name,
-      description: payload.description ?? null,
       content_path: payload.contentPath,
       fields: payload.fields,
       created_by: payload.createdBy,
@@ -91,7 +94,6 @@ export class TemplatesRepository {
       { id: payload.id },
       {
         name: payload.name,
-        description: payload.description,
         content_path: payload.contentPath,
         fields: payload.fields,
       },
@@ -99,7 +101,7 @@ export class TemplatesRepository {
     const updated = await manager.findOne(TemplateEntity, {
       where: { id: payload.id },
     });
-    if (!updated) throw new Error("Template non trovato dopo update");
+    if (!updated) throw new Error("Template not found after update");
     return updated;
   }
 

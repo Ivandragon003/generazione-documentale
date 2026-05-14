@@ -44,7 +44,7 @@ import {
   validateFieldValues,
 } from "./utils/template";
 
-const tabLabels = ["Template", "Documento", "PDF"];
+const tabLabels = ["Template", "Document", "PDF"];
 
 type AppStatus = "loading" | "ready" | "saving" | "error";
 
@@ -88,14 +88,11 @@ async function pollJobUntilDone(
         return;
       }
     } catch (error) {
-      console.warn(
-        "Polling job PDF fallito, nuovo tentativo al prossimo tick",
-        {
-          templateId,
-          jobId,
-          error,
-        },
-      );
+      console.warn("PDF job polling failed, retrying on next tick", {
+        templateId,
+        jobId,
+        error,
+      });
     }
   }
 }
@@ -129,7 +126,7 @@ function ProjectStructure({
       <Divider />
       {groupedTemplates.length === 0 ? (
         <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-          Nessun template disponibile
+          No templates available
         </Typography>
       ) : (
         groupedTemplates.map(([groupName, items]) => (
@@ -246,7 +243,7 @@ export default function App() {
           setAppStatus("error");
           setSnack({
             open: true,
-            msg: "Impossibile connettersi al backend.",
+            msg: "Unable to connect to backend.",
             severity: "error",
           });
         }
@@ -280,10 +277,10 @@ export default function App() {
         .catch((error) => {
           setSnack({
             open: true,
-            msg: "Impossibile caricare lo storico PDF del template selezionato.",
+            msg: "Unable to load PDF history for selected template.",
             severity: "error",
           });
-          console.error("Errore caricamento job PDF", error);
+          console.error("PDF job loading error", error);
         });
     },
     [applyTemplate],
@@ -291,7 +288,7 @@ export default function App() {
 
   const handleSaveTemplate = useCallback(async () => {
     if (!markdown.trim()) {
-      const msg = "Il contenuto del template e vuoto.";
+      const msg = "Template content is empty.";
       setSnack({ open: true, msg, severity: "error" });
       throw new Error(msg);
     }
@@ -322,7 +319,7 @@ export default function App() {
       const saved = template
         ? await updateTemplate(template.id, { content: markdown, fields })
         : await createTemplate({
-            name: "Nuovo Template",
+            name: "New Template",
             content: markdown,
             fields,
           });
@@ -341,10 +338,10 @@ export default function App() {
         ),
         ...current,
       }));
-      setSnack({ open: true, msg: "Template salvato.", severity: "success" });
+      setSnack({ open: true, msg: "Template saved.", severity: "success" });
       return saved;
     } catch (err) {
-      const msg = `Errore salvataggio template: ${String(err)}`;
+      const msg = `Template save error: ${String(err)}`;
       setSnack({ open: true, msg, severity: "error" });
       throw err;
     } finally {
@@ -366,7 +363,7 @@ export default function App() {
     if (!currentTemplate) {
       setSnack({
         open: true,
-        msg: "Seleziona un template prima di generare il PDF.",
+        msg: "Select a template before generating the PDF.",
         severity: "error",
       });
       return;
@@ -426,7 +423,7 @@ export default function App() {
         if (updated.status === "failed") {
           setSnack({
             open: true,
-            msg: `Generazione PDF fallita: ${updated.errorMessage ?? "errore sconosciuto"}`,
+            msg: `PDF generation failed: ${updated.errorMessage ?? "unknown error"}`,
             severity: "error",
           });
         }
@@ -434,7 +431,7 @@ export default function App() {
     } catch (err) {
       setSnack({
         open: true,
-        msg: `Errore PDF: ${String(err)}`,
+        msg: `PDF error: ${String(err)}`,
         severity: "error",
       });
     }
@@ -555,7 +552,7 @@ export default function App() {
 
         {hasUnsavedChanges && appStatus === "ready" && (
           <Alert severity="info" sx={{ mt: 2 }}>
-            Hai modifiche non salvate. Salva il template prima di generare il
+            You have unsaved changes. Save the template before generating the
             PDF.
           </Alert>
         )}
@@ -565,8 +562,7 @@ export default function App() {
             MAC Document Editor
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Template GitHub, compilazione documento e generazione PDF via API
-            REST.
+            Template GitHub, document rendering and PDF generation via API REST.
           </Typography>
         </Paper>
       </Container>

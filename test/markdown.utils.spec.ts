@@ -49,7 +49,7 @@ describe("Markdown Utilities", () => {
       expect(names).toEqual(["campo1", "campo2", "campo123"]);
     });
 
-    it("deve ignorare placeholder non validi", () => {
+    it("deve ignorare placeholder Invalid placeholders", () => {
       const content =
         "Valido: {{campo}} | Invalido: {{}} | Spazio: {{ campo }}";
 
@@ -188,18 +188,14 @@ describe("Markdown Utilities", () => {
       const result = validateMarkdownContent("", 100000);
 
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain(
-        "Il contenuto del template non puo essere vuoto",
-      );
+      expect(result.errors).toContain("Template content cannot be empty");
     });
 
     it("deve rifiutare contenuto con solo whitespace", () => {
       const result = validateMarkdownContent("   \n\n  ", 100000);
 
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain(
-        "Il contenuto del template non puo essere vuoto",
-      );
+      expect(result.errors).toContain("Template content cannot be empty");
     });
 
     it("deve verificare limite di dimensione", () => {
@@ -208,18 +204,18 @@ describe("Markdown Utilities", () => {
       const result = validateMarkdownContent(content, 1000);
 
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes("troppo grande"))).toBe(true);
+      expect(result.errors.some((e) => e.includes("too large"))).toBe(true);
     });
 
-    it("deve rilevare parentesi non bilanciate", () => {
+    it("deve rilevare parentesi Unbalanced placeholder braces", () => {
       const content = "Test {{ aperto e {{chiuso}}";
 
       const result = validateMarkdownContent(content, 100000);
 
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes("non bilanciate"))).toBe(
-        true,
-      );
+      expect(
+        result.errors.some((e) => e.includes("Unbalanced placeholder braces")),
+      ).toBe(true);
     });
 
     it("deve rilevare placeholder con spazi interni", () => {
@@ -228,7 +224,9 @@ describe("Markdown Utilities", () => {
       const result = validateMarkdownContent(content, 100000);
 
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes("non validi"))).toBe(true);
+      expect(
+        result.errors.some((e) => e.includes("Invalid placeholders")),
+      ).toBe(true);
     });
 
     it("deve rilevare placeholder con caratteri speciali", () => {
@@ -300,7 +298,7 @@ describe("Markdown Utilities", () => {
       const result = validateMarkdownContent(content, byteLength - 1);
 
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes("troppo grande"))).toBe(true);
+      expect(result.errors.some((e) => e.includes("too large"))).toBe(true);
     });
 
     it("deve gestire parentesi in testo normale", () => {
@@ -311,13 +309,13 @@ describe("Markdown Utilities", () => {
       expect(result.valid).toBe(true);
     });
 
-    it("deve gestire placeholder annidati non validi", () => {
+    it("deve gestire placeholder annidati Invalid placeholders", () => {
       const content = "{{{{interno}}}}";
 
       const result = validateMarkdownContent(content, 100000);
 
       // Il primo {{ apre, {{ chiude (conteggio non bilancia)
-      // O il parsing potrebbe considerarlo non valido
+      // O il parsing potrebbe considerarlo invalid
       expect(result.valid).toBe(false);
     });
   });

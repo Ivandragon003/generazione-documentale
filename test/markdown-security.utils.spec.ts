@@ -10,19 +10,19 @@ import {
  * - ReDoS: input con molte {{ non chiuse (garantisce che la regex non blocchi)
  * - Blocco comandi LaTeX pericolosi (\include, \write18, \openout, \read)
  * - Blocco <script> e <iframe> con varianti maiuscole/miste
- * - extractFieldNames con nomi lunghissimi (>100 caratteri) — limite interno della regex
- * - normalizeFieldDefinitions — preserva tutti i tipi disponibili
- * - validateMarkdownContent — contenuto esattamente al limite in byte
+ * - extractFieldNames con nomi lunghissimi (>100 caratteri) â€” limite interno della regex
+ * - normalizeFieldDefinitions â€” preserva tutti i tipi disponibili
+ * - validateMarkdownContent â€” contenuto esattamente al limite in byte
  */
 
-// ── Helper ────────────────────────────────────────────────────────────────────
+// â”€â”€ Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const validate = (content: string, maxBytes = 200_000) =>
   validateMarkdownContent(content, maxBytes);
 
-// ── ReDoS / sicurezza regex ───────────────────────────────────────────────────
+// â”€â”€ ReDoS / sicurezza regex â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-describe("markdown.utils — sicurezza regex e ReDoS", () => {
+describe("markdown.utils â€” sicurezza regex e ReDoS", () => {
   it("non va in timeout con 10.000 `{{` non chiuse consecutive", () => {
     const malicious = "{{".repeat(10_000);
     const start = Date.now();
@@ -97,9 +97,9 @@ describe("markdown.utils — sicurezza regex e ReDoS", () => {
   });
 });
 
-// ── extractFieldNames — nomi al limite della regex (100 chars) ────────────────
+// â”€â”€ extractFieldNames â€” nomi al limite della regex (100 chars) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-describe("extractFieldNames — nomi lunghi", () => {
+describe("extractFieldNames â€” nomi lunghi", () => {
   it("estrae un nome di esattamente 100 caratteri", () => {
     const longName = "a".repeat(100);
     const content = `{{${longName}}}`;
@@ -123,7 +123,7 @@ describe("extractFieldNames — nomi lunghi", () => {
     expect(names).toContain("campo_02_extra");
   });
 
-  it("non estrae placeholder con spazi interni (nome non valido per \\w+)", () => {
+  it("non estrae placeholder con spazi interni (nome invalid per \\w+)", () => {
     const content = "{{nome con spazi}}";
     const names = extractFieldNames(content);
     expect(names).not.toContain("nome con spazi");
@@ -140,9 +140,9 @@ describe("extractFieldNames — nomi lunghi", () => {
   });
 });
 
-// ── normalizeFieldDefinitions — tutti i tipi FieldType ────────────────────────
+// â”€â”€ normalizeFieldDefinitions â€” tutti i tipi FieldType â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-describe("normalizeFieldDefinitions — tutti i tipi", () => {
+describe("normalizeFieldDefinitions â€” tutti i tipi", () => {
   it("preserva il tipo 'number' fornito dall'input", () => {
     const fields = normalizeFieldDefinitions("{{importo}}", [
       { name: "importo", type: "number" },
@@ -194,9 +194,9 @@ describe("normalizeFieldDefinitions — tutti i tipi", () => {
   });
 });
 
-// ── validateMarkdownContent — limiti di byte precisi ─────────────────────────
+// â”€â”€ validateMarkdownContent â€” limiti di byte precisi â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-describe("validateMarkdownContent — limiti di byte precisi", () => {
+describe("validateMarkdownContent â€” limiti di byte precisi", () => {
   it("accetta contenuto di esattamente maxBytes byte (al limite incluso)", () => {
     const maxBytes = 500;
     const content = "A".repeat(maxBytes);
@@ -204,7 +204,7 @@ describe("validateMarkdownContent — limiti di byte precisi", () => {
 
     const result = validate(content, maxBytes);
     // Nessun errore di dimensione (potrebbe avere warning su mancanza H1 o placeholder)
-    expect(result.errors.some((e) => e.includes("troppo grande"))).toBe(false);
+    expect(result.errors.some((e) => e.includes("too large"))).toBe(false);
   });
 
   it("rifiuta contenuto di maxBytes+1 byte", () => {
@@ -212,19 +212,19 @@ describe("validateMarkdownContent — limiti di byte precisi", () => {
     const content = "A".repeat(maxBytes + 1);
     const result = validate(content, maxBytes);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("troppo grande"))).toBe(true);
+    expect(result.errors.some((e) => e.includes("too large"))).toBe(true);
   });
 
   it("calcola i byte UTF-8 correttamente per caratteri multibyte (€ = 3 byte)", () => {
-    const maxBytes = 9; // 3 caratteri € = 9 byte
-    const content = "€€€"; // 9 byte
+    const maxBytes = 9; // 3 characters € = 9 bytes
+    const content = "\u20AC\u20AC\u20AC"; // 9 bytes
     expect(Buffer.byteLength(content, "utf8")).toBe(9);
 
     const result = validate(content, maxBytes);
-    expect(result.errors.some((e) => e.includes("troppo grande"))).toBe(false);
+    expect(result.errors.some((e) => e.includes("too large"))).toBe(false);
 
-    const result2 = validate("€€€€", maxBytes); // 12 byte > 9
-    expect(result2.errors.some((e) => e.includes("troppo grande"))).toBe(true);
+    const result2 = validate("\u20AC\u20AC\u20AC\u20AC", maxBytes); // 12 bytes > 9
+    expect(result2.errors.some((e) => e.includes("too large"))).toBe(true);
   });
 
   it("avvisa se manca un H1 Markdown", () => {
@@ -232,7 +232,7 @@ describe("validateMarkdownContent — limiti di byte precisi", () => {
     expect(result.warnings.some((w) => w.includes("H1"))).toBe(true);
   });
 
-  it("non avvisa mancanza H1 se H1 è presente", () => {
+  it("non avvisa mancanza H1 se H1 Ã¨ presente", () => {
     const result = validate("# Titolo\n\n{{campo}}");
     expect(result.warnings.some((w) => w.includes("H1"))).toBe(false);
   });
@@ -243,20 +243,18 @@ describe("validateMarkdownContent — limiti di byte precisi", () => {
   });
 });
 
-// ── validateMarkdownContent — parentesi bilanciate edge ───────────────────────
+// â”€â”€ validateMarkdownContent â€” parentesi bilanciate edge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-describe("validateMarkdownContent — parentesi {{ }} bilanciate", () => {
-  it("segnala errore con una {{ in più", () => {
+describe("validateMarkdownContent â€” parentesi {{ }} bilanciate", () => {
+  it("segnala errore con una {{ in piÃ¹", () => {
     const result = validate("# t\n{{campo}} {{extra");
     expect(result.valid).toBe(false);
     expect(
-      result.errors.some(
-        (e) => e.includes("bilanciati") || e.includes("bilanciate"),
-      ),
+      result.errors.some((e) => e.includes("Unbalanced placeholder braces")),
     ).toBe(true);
   });
 
-  it("segnala errore con una }} in più", () => {
+  it("segnala errore con una }} in piÃ¹", () => {
     const result = validate("# t\n{{campo}} testo}} qui");
     expect(result.valid).toBe(false);
   });
@@ -269,7 +267,9 @@ describe("validateMarkdownContent — parentesi {{ }} bilanciate", () => {
   it("segnala errore per placeholder con trattino (non \\w)", () => {
     const result = validate("# t\n{{campo-invalido}}");
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("non validi"))).toBe(true);
+    expect(result.errors.some((e) => e.includes("Invalid placeholders"))).toBe(
+      true,
+    );
   });
 
   it("segnala errore per placeholder con @", () => {

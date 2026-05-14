@@ -19,7 +19,7 @@ interface HeaderBarProps {
   onGeneratePdf: () => void;
   pdfJobs: PdfJobDto[];
   canGeneratePdf?: boolean;
-  /** Mostra il pulsante "Salva Template" solo quando si è nella tab Template */
+  /** Show the "Save Template" button only when the Template tab is active */
   showSaveTemplate?: boolean;
 }
 
@@ -34,7 +34,7 @@ export function HeaderBar({
 }: HeaderBarProps) {
   const latestJob = pdfJobs[0];
 
-  const pdfTooltip = canGeneratePdf ? "Genera PDF" : "Seleziona un template";
+  const pdfTooltip = canGeneratePdf ? "Generate PDF" : "Select a template";
 
   return (
     <Box className="header-bar">
@@ -48,7 +48,7 @@ export function HeaderBar({
           <Box className="doc-icon">DOC</Box>
           <Box>
             <Typography variant="h5">
-              {template?.name ?? "Nessun documento"}
+              {template?.name ?? "No document"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {template?.updatedAt
@@ -80,7 +80,7 @@ export function HeaderBar({
                 onClick={onGeneratePdf}
                 disabled={!canGeneratePdf || isSaving}
               >
-                Genera PDF
+                Generate PDF
               </Button>
             </span>
           </Tooltip>
@@ -98,7 +98,7 @@ export function HeaderBar({
               onClick={onSave}
               disabled={isSaving}
             >
-              {isSaving ? "Salvataggio\u2026" : "Salva Template"}
+              {isSaving ? "Salvataggio\u2026" : "Save Template"}
             </Button>
           )}
         </Stack>

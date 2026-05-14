@@ -21,5 +21,5 @@ export default new DataSource({
   database: requireEnv("DB_NAME"),
   entities: [TemplateEntity, PdfJobEntity],
   migrations: ["src/migrations/*.ts"],
-  synchronize: false,
+  synchronize: (process.env.DB_SYNCHRONIZE ?? "").toLowerCase() === "true",
 });

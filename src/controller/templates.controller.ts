@@ -56,7 +56,7 @@ function parseRawFieldValues(request: Request): FieldValueMap | null {
   };
   if (parsed.fieldValues === undefined) return {};
   if (!isFieldValueMap(parsed.fieldValues)) {
-    throw makeError("fieldValues deve essere un oggetto", 400);
+    throw makeError("fieldValues must be an object", 400);
   }
   return parsed.fieldValues;
 }
@@ -72,7 +72,7 @@ function resolveFieldValues(
 
 function assertTemplatePathParam(id: string): void {
   if (!id || id.trim().length === 0) {
-    throw makeError("id template non valido", 400);
+    throw makeError("invalid template id", 400);
   }
 }
 
@@ -81,7 +81,7 @@ function parseFieldValuesQuery(raw: string | undefined): FieldValueMap {
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!isFieldValueMap(parsed)) {
-      throw makeError("fieldValues query deve essere un oggetto JSON", 400);
+      throw makeError("fieldValues query must be a JSON object", 400);
     }
     return parsed;
   } catch (error) {
@@ -93,7 +93,7 @@ function parseFieldValuesQuery(raw: string | undefined): FieldValueMap {
     ) {
       throw error;
     }
-    throw makeError("fieldValues query non valido: JSON malformato", 400);
+    throw makeError("invalid fieldValues query: malformed JSON", 400);
   }
 }
 
@@ -142,7 +142,7 @@ export class TemplatesController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: "Lista template" })
+  @ApiOperation({ summary: "List templates" })
   @ApiQuery({ name: "limit", required: false, type: Number, example: 20 })
   @ApiQuery({ name: "offset", required: false, type: Number, example: 0 })
   findAll(@Query() query: TemplateQueryDto) {
@@ -154,51 +154,49 @@ export class TemplatesController {
   }
 
   @Get(":id")
-  @ApiOperation({ summary: "Dettaglio template" })
-  @ApiParam({ name: "id", description: "UUID template" })
-  @ApiResponse({ status: 404, description: "Template non trovato" })
+  @ApiOperation({ summary: "Template details" })
+  @ApiParam({ name: "id", description: "Template UUID" })
+  @ApiResponse({ status: 404, description: "Template not found" })
   async findOne(@Param("id") id: string) {
     const template = await this.templatesService.findOne(id);
-    if (!template) throw makeError("Template non trovato", 404);
+    if (!template) throw makeError("Template not found", 404);
     return toTemplateResponse(template);
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: "Crea template" })
+  @ApiOperation({ summary: "Create template" })
   @ApiHeader({ name: "x-user", required: false, example: "ivan" })
   async create(@Body() body: CreateTemplateDto, @Req() request: Request) {
     const template = await this.templatesService.create({
       name: body.name,
-      description: body.description,
       content: body.content,
       fields: body.fields,
       created_by: getActor(request),
       path: body.path,
     });
-    if (!template) throw makeError("Template non trovato", 404);
+    if (!template) throw makeError("Template not found", 404);
     return toTemplateResponse(template);
   }
 
   @Put(":id")
-  @ApiOperation({ summary: "Aggiorna template" })
-  @ApiParam({ name: "id", description: "UUID template" })
+  @ApiOperation({ summary: "Update template" })
+  @ApiParam({ name: "id", description: "Template UUID" })
   @ApiHeader({ name: "x-user", required: false, example: "ivan" })
   async update(@Param("id") id: string, @Body() body: UpdateTemplateDto) {
     const template = await this.templatesService.update(id, {
       name: body.name,
-      description: body.description,
       content: body.content,
       fields: body.fields,
     });
-    if (!template) throw makeError("Template non trovato", 404);
+    if (!template) throw makeError("Template not found", 404);
     return toTemplateResponse(template);
   }
 
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: "Elimina template" })
-  @ApiParam({ name: "id", description: "UUID template" })
+  @ApiOperation({ summary: "Delete template" })
+  @ApiParam({ name: "id", description: "Template UUID" })
   @ApiHeader({ name: "x-user", required: false, example: "ivan" })
   delete(@Param("id") id: string) {
     return this.templatesService.delete(id);
@@ -206,8 +204,8 @@ export class TemplatesController {
 
   @Post(":id/pdf")
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: "Avvia generazione PDF da template" })
-  @ApiParam({ name: "id", description: "UUID template" })
+  @ApiOperation({ summary: "Start PDF generation from template" })
+  @ApiParam({ name: "id", description: "Template UUID" })
   @ApiHeader({ name: "x-user", required: false, example: "ivan" })
   async generatePdf(
     @Param("id") id: string,
@@ -224,8 +222,8 @@ export class TemplatesController {
   }
 
   @Get(":id/pdf/jobs")
-  @ApiOperation({ summary: "Lista job PDF del template" })
-  @ApiParam({ name: "id", description: "UUID template" })
+  @ApiOperation({ summary: "List template PDF jobs" })
+  @ApiParam({ name: "id", description: "Template UUID" })
   async getPdfJobs(@Param("id") id: string) {
     assertTemplatePathParam(id);
     const jobs = await this.pdfJobsService.getJobs(id);
@@ -233,9 +231,9 @@ export class TemplatesController {
   }
 
   @Get(":id/pdf/jobs/:jobId")
-  @ApiOperation({ summary: "Dettaglio job PDF" })
-  @ApiParam({ name: "id", description: "UUID template" })
-  @ApiParam({ name: "jobId", description: "UUID job" })
+  @ApiOperation({ summary: "PDF job details" })
+  @ApiParam({ name: "id", description: "Template UUID" })
+  @ApiParam({ name: "jobId", description: "Job UUID" })
   async getPdfJob(@Param("id") id: string, @Param("jobId") jobId: string) {
     assertTemplatePathParam(id);
     assertUuid(jobId, "jobId");
@@ -243,9 +241,9 @@ export class TemplatesController {
   }
 
   @Get(":id/pdf/jobs/:jobId/download")
-  @ApiOperation({ summary: "Scarica PDF da job specifico" })
-  @ApiParam({ name: "id", description: "UUID template" })
-  @ApiParam({ name: "jobId", description: "UUID job" })
+  @ApiOperation({ summary: "Download PDF from specific job" })
+  @ApiParam({ name: "id", description: "Template UUID" })
+  @ApiParam({ name: "jobId", description: "Job UUID" })
   async downloadPdfJob(
     @Param("id") id: string,
     @Param("jobId") jobId: string,
@@ -257,8 +255,8 @@ export class TemplatesController {
   }
 
   @Get(":id/pdf/latest")
-  @ApiOperation({ summary: "Scarica l'ultimo PDF completato" })
-  @ApiParam({ name: "id", description: "UUID template" })
+  @ApiOperation({ summary: "Download latest completed PDF" })
+  @ApiParam({ name: "id", description: "Template UUID" })
   async downloadLatestPdf(
     @Param("id") id: string,
     @Query("fieldValues") fieldValuesRaw: string | undefined,

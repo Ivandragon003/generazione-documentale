@@ -18,7 +18,6 @@ import { GitHubStorageService } from "./github-storage.service";
 
 export interface CreateTemplateInput {
   name: string;
-  description?: string;
   content: string;
   fields?: PartialFieldDefinition[];
   created_by?: string;
@@ -27,7 +26,6 @@ export interface CreateTemplateInput {
 
 export interface UpdateTemplateInput {
   name?: string;
-  description?: string;
   content?: string;
   fields?: PartialFieldDefinition[];
 }
@@ -95,7 +93,6 @@ export class TemplatesService {
     return {
       id: metadata?.id ?? template.id,
       name: metadata?.name ?? template.name,
-      description: metadata?.description ?? template.description,
       content_path: metadata?.content_path ?? template.content_path,
       fields: metadata?.fields ?? template.fields,
       created_by: metadata?.created_by ?? template.created_by,
@@ -113,7 +110,7 @@ export class TemplatesService {
   ): Promise<TemplateWithContent> {
     if (!row.content_path) {
       throw makeError(
-        "Template legacy senza content_path GitHub: escluso dalla sorgente template",
+        "Legacy template without GitHub content_path: excluded from template source",
         404,
       );
     }
@@ -122,20 +119,20 @@ export class TemplatesService {
     const githubTemplate = await this.githubStorage.getTemplate(templateId);
     if (!githubTemplate) {
       this.logger.warn(
-        `Template DB ${row.id} escluso: content_path ${row.content_path} non esiste su GitHub`,
+        `DB template ${row.id} excluded: content_path ${row.content_path} does not exist on GitHub`,
       );
-      throw makeError("Template non trovato su GitHub", 404);
+      throw makeError("Template not found on GitHub", 404);
     }
 
     this.logger.debug(
-      `Template ${row.id} idratato da GitHub (${githubTemplate.githubPath})`,
+      `Template ${row.id} hydrated from GitHub (${githubTemplate.githubPath})`,
     );
     return this.mergeGitHubTemplate(githubTemplate, row);
   }
 
   private async findOneOrThrow(id: string): Promise<TemplateWithContent> {
     const template = await this.findOne(id);
-    if (!template) throw makeError("Template non trovato", 404);
+    if (!template) throw makeError("Template not found", 404);
     return template;
   }
 
@@ -155,7 +152,7 @@ export class TemplatesService {
     if (!createIfGitHubVirtual) return null;
 
     const githubTemplate = await this.githubStorage.getTemplate(normalized);
-    if (!githubTemplate) throw makeError("Template non trovato su GitHub", 404);
+    if (!githubTemplate) throw makeError("Template not found on GitHub", 404);
 
     const saved = await this.importGitHubTemplateToDb(githubTemplate, actor);
     return saved.id;
@@ -184,7 +181,7 @@ export class TemplatesService {
     );
 
     this.logger.log(
-      `Lista template servita da GitHub: ${merged.length}/${githubTemplates.length} template visibili, ${metadataRows.length} record DB usati solo come metadata`,
+      `Template list served from GitHub: ${merged.length}/${githubTemplates.length} visible templates, ${metadataRows.length} DB records used only as metadata`,
     );
 
     return {
@@ -202,7 +199,7 @@ export class TemplatesService {
       const githubTemplate = await this.githubStorage.getTemplate(normalized);
       if (!githubTemplate) return null;
 
-      this.logger.log(`Template ${normalized} servito da GitHub`);
+      this.logger.log(`Template ${normalized} served from GitHub`);
       return this.mergeGitHubTemplate(githubTemplate, metadata ?? undefined);
     }
 
@@ -214,20 +211,19 @@ export class TemplatesService {
 
   async create({
     name,
-    description,
     content,
     fields,
     created_by = "system",
     path,
   }: CreateTemplateInput) {
     if (!name || name.trim().length === 0) {
-      throw makeError("Il nome del template e obbligatorio", 400);
+      throw makeError("Template name is required", 400);
     }
 
     if (content === undefined || content === null) {
       throw makeError(
-        "Il campo 'content' manca nel body della richiesta. " +
-          "Per aggiornare un template esistente usa PUT /api/templates/:id",
+        "The 'content' field is missing from request body. " +
+          "Use PUT /api/templates/:id to update an existing template",
         400,
       );
     }
@@ -236,6 +232,11 @@ export class TemplatesService {
 
     const id = randomUUID();
     const contentPath = this.normalizeTemplateId(path ?? id);
+    const existingForPath =
+      await this.templatesRepository.findByContentPath(contentPath);
+    if (existingForPath) {
+      throw makeError("Template content path already exists", 409);
+    }
     const normalizedFields: FieldDefinition[] = normalizeFieldDefinitions(
       content,
       fields,
@@ -248,7 +249,6 @@ export class TemplatesService {
         this.templatesRepository.insertTemplate(manager, {
           id,
           name: name.trim(),
-          description,
           contentPath,
           fields: normalizedFields,
           createdBy: created_by,
@@ -265,7 +265,6 @@ export class TemplatesService {
           githubPath: path,
           category: meta.category,
           section: meta.section,
-          description: dbRow.description,
           fields: dbRow.fields,
           created_by: dbRow.created_by,
           created_at: dbRow.created_at,
@@ -276,13 +275,13 @@ export class TemplatesService {
       );
     } catch (error) {
       this.logger.error(
-        `Transazione DB fallita per template ${id}, tentativo rollback GitHub`,
+        `DB transaction failed for template ${id}, attempting GitHub rollback`,
       );
       await this.githubStorage
         .deleteTemplate(contentPath)
         .catch((deleteError) => {
           this.logger.error(
-            `Rollback GitHub fallito per template ${contentPath}:`,
+            `GitHub rollback failed for template ${contentPath}:`,
             deleteError instanceof Error
               ? deleteError.message
               : String(deleteError),
@@ -292,14 +291,11 @@ export class TemplatesService {
     }
   }
 
-  async update(
-    id: string,
-    { name, description, content, fields }: UpdateTemplateInput,
-  ) {
+  async update(id: string, { name, content, fields }: UpdateTemplateInput) {
     const persistedId = id.startsWith("github:")
       ? await this.resolveTemplateIdForPdfJob(id, "system", true)
       : id;
-    if (!persistedId) throw makeError("Template non trovato", 404);
+    if (!persistedId) throw makeError("Template not found", 404);
 
     const existing = await this.findOneOrThrow(persistedId);
     const nextContent = content ?? existing.content;
@@ -312,6 +308,11 @@ export class TemplatesService {
     const templateId = this.normalizeTemplateId(
       existing.content_path ?? persistedId,
     );
+    const existingForPath =
+      await this.templatesRepository.findByContentPath(templateId);
+    if (existingForPath && existingForPath.id !== persistedId) {
+      throw makeError("Template content path already exists", 409);
+    }
 
     await this.githubStorage.writeTemplate(templateId, nextContent);
 
@@ -320,7 +321,6 @@ export class TemplatesService {
         this.templatesRepository.updateTemplate(manager, {
           id: persistedId,
           name: name?.trim() || existing.name,
-          description: description ?? existing.description,
           contentPath: templateId,
           fields: nextFields,
         }),
@@ -336,7 +336,6 @@ export class TemplatesService {
           githubPath: path,
           category: meta.category,
           section: meta.section,
-          description: dbRow.description,
           fields: dbRow.fields,
           created_by: dbRow.created_by,
           created_at: dbRow.created_at,
@@ -347,7 +346,7 @@ export class TemplatesService {
       );
     } catch (error) {
       this.logger.error(
-        `CRITICO: GitHub aggiornato ma DB fallito per template ${persistedId}. Verificare manualmente.`,
+        `CRITICAL: GitHub updated but DB failed for template ${persistedId}. Manual verification required.`,
       );
       throw error;
     }
@@ -376,7 +375,6 @@ export class TemplatesService {
       this.templatesRepository.insertTemplate(manager, {
         id,
         name: template.name,
-        description: template.description ?? undefined,
         contentPath,
         fields: normalizedFields,
         createdBy: actor,
@@ -384,7 +382,7 @@ export class TemplatesService {
     );
 
     this.logger.log(
-      `Template GitHub "${template.name}" collegato al DB con id ${id} (content_path: ${contentPath})`,
+      `Template GitHub "${template.name}" linked to DB with id ${id} (content_path: ${contentPath})`,
     );
 
     return saved;
@@ -399,7 +397,7 @@ export class TemplatesService {
           await this.templatesRepository.countActiveDocuments(metadata.id);
         if (activeDocuments > 0) {
           throw makeError(
-            "Impossibile eliminare: esistono job PDF basati su questo template",
+            "Cannot delete: PDF jobs exist for this template",
             409,
           );
         }
@@ -411,15 +409,12 @@ export class TemplatesService {
 
     assertUuid(id);
     const template = await this.templatesRepository.findById(id);
-    if (!template) throw makeError("Template non trovato", 404);
+    if (!template) throw makeError("Template not found", 404);
 
     const activeDocuments =
       await this.templatesRepository.countActiveDocuments(id);
     if (activeDocuments > 0) {
-      throw makeError(
-        "Impossibile eliminare: esistono job PDF basati su questo template",
-        409,
-      );
+      throw makeError("Cannot delete: PDF jobs exist for this template", 409);
     }
 
     await this.templatesRepository.deleteTemplate(id);
@@ -428,7 +423,7 @@ export class TemplatesService {
       const templateId = this.normalizeTemplateId(template.content_path);
       await this.githubStorage.deleteTemplate(templateId).catch((error) => {
         this.logger.error(
-          `Impossibile eliminare template ${id} da GitHub (DB gia aggiornato):`,
+          `Unable to delete template ${id} from GitHub (DB already updated):`,
           error instanceof Error ? error.message : String(error),
         );
       });

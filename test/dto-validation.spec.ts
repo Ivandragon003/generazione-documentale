@@ -158,7 +158,7 @@ describe("DTO Validation", () => {
       ).toEqual([]);
     });
 
-    it("deve rifiutare dati non validi", async () => {
+    it("deve rifiutare dati Invalid placeholders", async () => {
       const invalids = [
         { content: "solo content senza name" },
         { name: 123, content: "test" },

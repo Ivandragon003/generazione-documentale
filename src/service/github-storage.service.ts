@@ -1,8 +1,8 @@
 /**
- * Storage GitHub per i contenuti Markdown dei template.
+ * GitHub storage for template Markdown content.
  *
- * GitHub e l'unica sorgente dei template: nessuna lettura/scrittura locale,
- * nessun seed legacy e nessun fallback silenzioso.
+ * GitHub is the single source of truth for templates: no local reads/writes,
+ * no legacy seed and no silent fallback.
  */
 
 import { Injectable, Logger } from "@nestjs/common";
@@ -36,7 +36,6 @@ export interface GitHubTemplateFile {
   githubPath: string;
   category: string | null;
   section: string | null;
-  description: string | null;
   fields: FieldDefinition[];
   created_by: string;
   created_at: Date;
@@ -61,7 +60,7 @@ export class GitHubStorageService {
 
     if (!token || !owner || !repo) {
       this.logger.warn(
-        "GITHUB_TOKEN, GITHUB_OWNER o GITHUB_REPO non configurati. I template richiedono GitHub.",
+        "GITHUB_TOKEN, GITHUB_OWNER, or GITHUB_REPO are not configured. Templates require GitHub.",
       );
     }
 
@@ -119,27 +118,27 @@ export class GitHubStorageService {
   private assertConfigured(operation: string): void {
     if (!this.isConfigured()) {
       throw makeError(
-        `GitHub storage non configurato: impossibile ${operation} template`,
+        `GitHub storage is not configured: cannot ${operation} template`,
         503,
       );
     }
   }
 
   private gitHubFailureMessage(
-    operation: "leggere" | "scrivere" | "eliminare",
+    operation: "read" | "write" | "delete",
     path: string,
     status: number,
     body: string,
   ): string {
     if (status === 404) {
       return (
-        `GitHub storage: impossibile ${operation} ${path}. ` +
+        `GitHub storage: cannot ${operation} ${path}. ` +
         `Repository, branch, directory o permessi non validi per ` +
         `${this.config.owner}/${this.config.repo}@${this.config.branch}. ` +
         "Verifica GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH e i permessi contents."
       );
     }
-    return `GitHub storage: impossibile ${operation} ${path}: ${body}`;
+    return `GitHub storage: cannot ${operation} ${path}: ${body}`;
   }
 
   private async getFileMeta(
@@ -154,7 +153,7 @@ export class GitHubStorageService {
       const body = await response.text();
       this.logger.error(`GitHub GET ${path} -> ${response.status}: ${body}`);
       throw makeError(
-        this.gitHubFailureMessage("leggere", path, response.status, body),
+        this.gitHubFailureMessage("read", path, response.status, body),
         502,
       );
     }
@@ -180,7 +179,7 @@ export class GitHubStorageService {
         return [];
       }
       throw makeError(
-        this.gitHubFailureMessage("leggere", path, response.status, body),
+        this.gitHubFailureMessage("read", path, response.status, body),
         502,
       );
     }
@@ -228,16 +227,16 @@ export class GitHubStorageService {
   }
 
   async readTemplate(templateId: string): Promise<string | null> {
-    this.assertConfigured("leggere");
+    this.assertConfigured("read");
 
     const normalized = this.normalizeTemplateId(templateId);
     const path = this.filePath(normalized);
     const meta = await this.getFileMeta(path);
     if (!meta) {
-      this.logger.warn(`Template ${normalized} assente su GitHub (${path})`);
+      this.logger.warn(`Template ${normalized} missing on GitHub (${path})`);
       return null;
     }
-    this.logger.debug(`Template ${normalized} letto da GitHub (${path})`);
+    this.logger.debug(`Template ${normalized} read from GitHub (${path})`);
     return meta.content;
   }
 
@@ -256,7 +255,6 @@ export class GitHubStorageService {
       githubPath: path,
       category: meta.category,
       section: meta.section,
-      description: null,
       fields: [],
       created_by: "github",
       created_at: now,
@@ -280,7 +278,7 @@ export class GitHubStorageService {
         const fileMeta = await this.getFileMeta(file.path);
         if (!fileMeta?.content?.trim()) {
           this.logger.warn(
-            `Template GitHub escluso per contenuto vuoto o non leggibile: ${file.path}`,
+            `Template GitHub excluded due to empty or unreadable content: ${file.path}`,
           );
           return null;
         }
@@ -293,7 +291,6 @@ export class GitHubStorageService {
           githubPath: file.path,
           category: meta.category,
           section: meta.section,
-          description: null,
           fields: [] as FieldDefinition[],
           created_by: "github",
           created_at: now,
@@ -308,7 +305,7 @@ export class GitHubStorageService {
     );
     this.listCache = { expiresAt: nowMs + 30_000, templates };
     this.logger.log(
-      `Template caricati da GitHub: ${templates.length} file da ${this.config.owner}/${this.config.repo}@${this.config.branch}/${this.config.templatesDir}`,
+      `Templates loaded from GitHub: ${templates.length} file da ${this.config.owner}/${this.config.repo}@${this.config.branch}/${this.config.templatesDir}`,
     );
     return templates;
   }
@@ -343,31 +340,26 @@ export class GitHubStorageService {
         `GitHub PUT ${path} -> ${response.status}: ${responseBody}`,
       );
       throw makeError(
-        this.gitHubFailureMessage(
-          "scrivere",
-          path,
-          response.status,
-          responseBody,
-        ),
+        this.gitHubFailureMessage("write", path, response.status, responseBody),
         502,
       );
     }
 
     this.listCache = null;
     this.logger.log(
-      `Template ${normalized} ${existing ? "aggiornato" : "creato"} su GitHub (${this.config.owner}/${this.config.repo}/${path})`,
+      `Template ${normalized} ${existing ? "updated" : "created"} on GitHub (${this.config.owner}/${this.config.repo}/${path})`,
     );
   }
 
   async deleteTemplate(templateId: string): Promise<void> {
-    this.assertConfigured("eliminare");
+    this.assertConfigured("delete");
 
     const normalized = this.normalizeTemplateId(templateId);
     const path = this.filePath(normalized);
     const existing = await this.getFileMeta(path);
     if (!existing) {
       this.logger.warn(
-        `Template ${normalized} non trovato su GitHub, skip delete`,
+        `Template ${normalized} not found on GitHub, skipping delete`,
       );
       return;
     }
@@ -389,7 +381,7 @@ export class GitHubStorageService {
       );
       throw makeError(
         this.gitHubFailureMessage(
-          "eliminare",
+          "delete",
           path,
           response.status,
           responseBody,
@@ -399,7 +391,7 @@ export class GitHubStorageService {
     }
 
     this.listCache = null;
-    this.logger.log(`Template ${normalized} eliminato da GitHub`);
+    this.logger.log(`Template ${normalized} deleted from GitHub`);
   }
 
   private isConfigured(): boolean {

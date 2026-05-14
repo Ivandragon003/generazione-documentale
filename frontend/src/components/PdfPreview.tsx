@@ -41,7 +41,7 @@ function jobStatusColor(
 
 function jobStatusLabel(status: PdfJobDto["status"]): string {
   if (status === "completed") return "Completato";
-  if (status === "failed") return "Fallito";
+  if (status === "failed") return "Failed";
   if (status === "running") return "In corso...";
   return "In coda";
 }
@@ -89,7 +89,7 @@ export function PdfPreview({
           <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
             {pdfJobs.length === 0 && (
               <Typography variant="body2" color="text.secondary">
-                Nessun PDF generato
+                No generated PDF
               </Typography>
             )}
 
@@ -109,7 +109,7 @@ export function PdfPreview({
                 key={job.id}
                 title={
                   job.errorMessage
-                    ? `Errore: ${job.errorMessage}`
+                    ? `Error: ${job.errorMessage}`
                     : `${new Date(job.createdAt).toLocaleString("it-IT")}`
                 }
               >
@@ -123,9 +123,7 @@ export function PdfPreview({
           </Stack>
 
           <Stack direction="row" gap={1}>
-            <Tooltip
-              title={downloadUrl ? "Stampa PDF" : "Nessun PDF disponibile"}
-            >
+            <Tooltip title={downloadUrl ? "Print PDF" : "No PDF available"}>
               <span>
                 <Button
                   variant="outlined"
@@ -145,9 +143,7 @@ export function PdfPreview({
               </span>
             </Tooltip>
 
-            <Tooltip
-              title={downloadUrl ? "Scarica PDF" : "Nessun PDF disponibile"}
-            >
+            <Tooltip title={downloadUrl ? "Download PDF" : "No PDF available"}>
               <span>
                 <Button
                   variant="contained"
@@ -157,13 +153,13 @@ export function PdfPreview({
                     if (!downloadUrl) return;
                     const a = document.createElement("a");
                     a.href = downloadUrl;
-                    a.download = `${documentName ?? "documento"}.pdf`;
+                    a.download = `${documentName ?? "document"}.pdf`;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
                   }}
                 >
-                  Scarica PDF
+                  Download PDF
                 </Button>
               </span>
             </Tooltip>
@@ -177,7 +173,7 @@ export function PdfPreview({
         )}
         {!downloadUrl && pdfJobs.some((job) => job.status === "completed") && (
           <Alert severity="info" sx={{ mt: 2 }}>
-            PDF non ancora generato per questa versione del template e questi
+            PDF not generated yet per questa versione del template e questi
             campi.
           </Alert>
         )}
@@ -197,12 +193,12 @@ export function PdfPreview({
           </Box>
           <Box textAlign="right">
             <Typography variant="body2">
-              Documento: <strong>{documentName ?? "Document Editor"}</strong>
+              Document: <strong>{documentName ?? "Document Editor"}</strong>
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {latestCompleted
                 ? `PDF generato: ${new Date(latestCompleted.createdAt).toLocaleDateString("it-IT")}`
-                : "PDF non ancora generato"}
+                : "PDF not generated yet"}
             </Typography>
           </Box>
         </Stack>

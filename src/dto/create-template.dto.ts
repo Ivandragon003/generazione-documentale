@@ -11,18 +11,13 @@ import {
 import { TemplateFieldDto } from "./template-field.dto";
 
 export class CreateTemplateDto {
-  @ApiProperty({ description: "Nome del template", maxLength: 255 })
+  @ApiProperty({ description: "Template name", maxLength: 255 })
   @IsNotEmpty()
   @IsString()
   @MaxLength(255)
   name!: string;
 
-  @ApiPropertyOptional({ description: "Descrizione del template" })
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @ApiProperty({ description: "Contenuto Markdown del template" })
+  @ApiProperty({ description: "Template Markdown content" })
   @IsNotEmpty()
   @IsString()
   content!: string;

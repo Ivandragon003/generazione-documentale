@@ -30,7 +30,6 @@ describe("TemplatesRepository", () => {
     ({
       id: "tpl-1",
       name: "Template Test",
-      description: "Desc",
       content_path: "/storage/tpl-1.md",
       fields: [],
       created_by: "user1",
@@ -166,7 +165,6 @@ describe("TemplatesRepository", () => {
         {
           id: "tpl-1",
           name: "Updated",
-          description: null,
           contentPath: "/x",
           fields: [],
         },
@@ -174,7 +172,7 @@ describe("TemplatesRepository", () => {
       expect(result).toEqual(tpl);
     });
 
-    it("deve lanciare errore se template non trovato dopo update", async () => {
+    it("deve lanciare errore se template not found after update", async () => {
       const manager = {
         update: jest.fn().mockResolvedValue(undefined),
         findOne: jest.fn().mockResolvedValue(null),
@@ -187,12 +185,11 @@ describe("TemplatesRepository", () => {
           {
             id: "x",
             name: "T",
-            description: null,
             contentPath: "/x",
             fields: [],
           },
         ),
-      ).rejects.toThrow(/non trovato dopo update/);
+      ).rejects.toThrow(/not found after update/);
     });
   });
 

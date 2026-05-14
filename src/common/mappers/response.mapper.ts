@@ -3,7 +3,7 @@ import { sha256Signature } from "../utils/signature.utils";
 
 type TemplateResponseSource = Pick<
   TemplateEntity,
-  "id" | "name" | "description" | "fields" | "created_at" | "updated_at"
+  "id" | "name" | "fields" | "created_at" | "updated_at"
 > & {
   content: string;
   githubPath?: string;
@@ -14,7 +14,6 @@ type TemplateResponseSource = Pick<
 export interface TemplateResponseDto {
   id: string;
   name: string;
-  description: string | null;
   content: string;
   githubPath?: string;
   category?: string | null;
@@ -30,7 +29,6 @@ export const toTemplateResponse = (
 ): TemplateResponseDto => ({
   id: template.id,
   name: template.name,
-  description: template.description,
   content: template.content,
   githubPath: template.githubPath,
   category: template.category,

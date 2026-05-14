@@ -12,8 +12,8 @@ export interface MarkdownValidationResult {
   fields: FieldDefinition[];
 }
 
-// La regex e definita DENTRO la funzione per evitare che il lastIndex condiviso
-// del flag 'g' causi bug se qualcuno usasse .exec() o .test() direttamente
+// Keep regex inside the function to avoid shared lastIndex state
+// when using the global flag with exec/test across calls.
 export const extractFieldNames = (content: string): string[] => {
   const placeholderRegex = /\{\{(\w+)(?::\w+)?\}\}/g;
   const fields = new Set<string>();
@@ -35,8 +35,8 @@ export const extractFieldsWithTypes = (
     const fieldName = match[1];
     const fieldType = match[2] as FieldType;
     if (fieldName) {
-      // Se troviamo più placeholder con lo stesso nome, l'ultimo tipo vince
-      // o preferiamo quello esplicitamente dichiarato se presente.
+      // If multiple placeholders share the same name, the latest type wins
+      // or an explicitly declared type when present.
       if (fieldType || !fields.has(fieldName)) {
         fields.set(fieldName, fieldType || "text");
       }
@@ -120,37 +120,35 @@ export const validateMarkdownContent = (
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Valida che content sia definito e sia una stringa
+  // Validate that content is present and is a string
   if (!content || typeof content !== "string" || content.trim().length === 0) {
     return {
       valid: false,
-      errors: ["Il contenuto del template non puo essere vuoto"],
+      errors: ["Template content cannot be empty"],
       warnings,
       fields: [],
     };
   }
 
   if (Buffer.byteLength(content, "utf8") > maxBytes) {
-    errors.push(`Template troppo grande. Limite: ${maxBytes} byte`);
+    errors.push(`Template too large. Limit: ${maxBytes} byte`);
   }
 
   const openCount = (content.match(/\{\{/g) ?? []).length;
   const closeCount = (content.match(/\}\}/g) ?? []).length;
   if (openCount !== closeCount) {
-    errors.push(
-      "Ci sono parentesi placeholder non bilanciate: controlla {{ e }}",
-    );
+    errors.push("Unbalanced placeholder braces detected: check {{ and }}");
   }
 
-  // Limite {1,100} sul contenuto interno: impedisce backtracking super-lineare
-  // (ReDoS) su input con molti {{ non chiusi. I nomi campo realistici non
-  // superano mai 100 caratteri, quindi nessun falso negativo.
+  // Internal {1,100} limit prevents super-linear backtracking
+  // (ReDoS) for inputs with many unclosed {{ sequences. Real-world field names
+  // do not exceed 100 chars, avoiding false negatives.
   const invalidPlaceholders = (
     content.match(/\{\{[^}\n]{1,100}\}\}/g) ?? []
   ).filter((placeholder) => !/^\{\{\w+(?::\w+)?\}\}$/.test(placeholder));
   if (invalidPlaceholders.length > 0) {
     errors.push(
-      `Placeholder non validi: ${[...new Set(invalidPlaceholders)].join(", ")}`,
+      `Invalid placeholders: ${[...new Set(invalidPlaceholders)].join(", ")}`,
     );
   }
 
@@ -158,20 +156,20 @@ export const validateMarkdownContent = (
     .filter(([, type]) => !isFieldType(type))
     .map(([name, type]) => `${name}:${type}`);
   if (invalidTypes.length > 0) {
-    errors.push(`Tipi campo non validi: ${invalidTypes.join(", ")}`);
+    errors.push(`Invalid field types: ${invalidTypes.join(", ")}`);
   }
 
   const blockedPatterns: Array<{ pattern: RegExp; label: string }> = [
     {
-      // input/include/write18: richiedono separatore dopo il nome del comando
-      // openout/read: possono essere seguiti da cifre (es. \openout5, \read0),
-      // quindi accettiamo qualsiasi carattere non-lettera dopo il nome
+      // input/include/write18 require a separator after the command name
+      // openout/read may be followed by digits (e.g. \openout5, \read0),
+      // so any non-letter character is accepted after the name
       pattern:
         /\\(?:input|include|write18)(?=\s|[^a-zA-Z]|$)|\\(?:openout|read)(?=[^a-zA-Z]|$)/i,
-      label: "comandi LaTeX di input/output",
+      label: "LaTeX input/output commands",
     },
-    { pattern: /<script\b/i, label: "tag script HTML" },
-    { pattern: /<iframe\b/i, label: "tag iframe HTML" },
+    { pattern: /<script\b/i, label: "HTML script tag" },
+    { pattern: /<iframe\b/i, label: "HTML iframe tag" },
   ];
   const blockedMatches = blockedPatterns
     .filter((candidate) => candidate.pattern.test(content))
@@ -179,21 +177,19 @@ export const validateMarkdownContent = (
 
   if (blockedMatches.length > 0) {
     errors.push(
-      `Contenuto non consentito per sicurezza: ${blockedMatches.join(", ")}`,
+      `Security blocked content detected: ${blockedMatches.join(", ")}`,
     );
   }
 
   const fields = normalizeFieldDefinitions(content);
   if (fields.length === 0) {
     warnings.push(
-      "Nessun campo dinamico trovato. Usa placeholder come {{titolo}}",
+      "No dynamic fields found. Use placeholders such as {{title}}",
     );
   }
 
   if (!/^#\s+.+/m.test(content)) {
-    warnings.push(
-      "Nessun titolo Markdown H1 trovato. Aggiungi una riga tipo # {{titolo}}",
-    );
+    warnings.push("No Markdown H1 title found. Add a line like # {{title}}");
   }
 
   return {

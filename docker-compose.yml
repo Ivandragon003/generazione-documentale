@@ -19,7 +19,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_HOST_PORT:-5433}:5432"
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
@@ -52,19 +52,32 @@ services:
         condition: service_healthy
 
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-development}
 
       PORT: ${PORT:-3000}
 
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-mac_documents}
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
 
-      STORAGE_PATH: /app/storage/pdf
-      PDF_SERVICE_URL: http://pdf-service:3100
-      ENABLE_LOCAL_PDF_FALLBACK: "false"
+      STORAGE_PATH: ${STORAGE_PATH:-/app/storage/pdf}
+      PDF_SERVICE_URL: ${PDF_SERVICE_URL:-http://pdf-service:3100}
+      ENABLE_LOCAL_PDF_FALLBACK: ${ENABLE_LOCAL_PDF_FALLBACK:-false}
+      MAX_TEMPLATE_CONTENT_BYTES: ${MAX_TEMPLATE_CONTENT_BYTES:-200000}
+      MAX_PDF_MARKDOWN_BYTES: ${MAX_PDF_MARKDOWN_BYTES:-300000}
+      PDF_QUEUE_RECOVERY_RETRY_MS: ${PDF_QUEUE_RECOVERY_RETRY_MS:-10000}
+      PDF_JOBS_RETENTION_DAYS: ${PDF_JOBS_RETENTION_DAYS:-30}
+      PDF_FAILED_JOBS_RETENTION_DAYS: ${PDF_FAILED_JOBS_RETENTION_DAYS:-7}
+      PDF_RETENTION_RUN_EVERY_MS: ${PDF_RETENTION_RUN_EVERY_MS:-3600000}
+
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      GITHUB_OWNER: ${GITHUB_OWNER}
+      GITHUB_REPO: ${GITHUB_REPO}
+      GITHUB_BRANCH: ${GITHUB_BRANCH:-main}
+      GITHUB_TEMPLATES_DIR: ${GITHUB_TEMPLATES_DIR:-templates}
 
     volumes:
       - pdf_storage:/app/storage/pdf

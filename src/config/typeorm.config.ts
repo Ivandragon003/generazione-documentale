@@ -7,6 +7,9 @@ import { TemplateEntity } from "../entities/template.entity";
 export const buildTypeOrmOptions = (
   configService: ConfigService,
 ): TypeOrmModuleOptions => {
+  const synchronize =
+    (configService.get<string>("DB_SYNCHRONIZE") ?? "").toLowerCase() ===
+    "true";
   return {
     type: "postgres",
     host: configService.getOrThrow<string>("DB_HOST"),
@@ -15,8 +18,8 @@ export const buildTypeOrmOptions = (
     password: configService.getOrThrow<string>("DB_PASSWORD"),
     database: configService.getOrThrow<string>("DB_NAME"),
     entities: [TemplateEntity, PdfJobEntity],
-    synchronize: false,
-    migrationsRun: true,
+    synchronize,
+    migrationsRun: false,
     migrations: ["dist/migrations/*.js"],
     autoLoadEntities: false,
   };

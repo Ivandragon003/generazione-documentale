@@ -1,5 +1,10 @@
 import type { Readable } from "node:stream";
-import { Inject, Injectable, type OnModuleDestroy } from "@nestjs/common";
+import {
+  Inject,
+  Injectable,
+  Logger,
+  type OnModuleDestroy,
+} from "@nestjs/common";
 import type { Response } from "express";
 import { makeError } from "../common/utils/errors";
 import { sha256Signature } from "../common/utils/signature.utils";
@@ -10,6 +15,9 @@ import { PdfGenerationService } from "./pdf-generation.service";
 import { TemplatesService } from "./templates.service";
 
 const QUEUE_RECOVERY_RETRY_MS = appConfig.pdfQueueRecoveryRetryMs;
+const PDF_JOBS_RETENTION_DAYS = appConfig.pdfJobsRetentionDays;
+const PDF_FAILED_JOBS_RETENTION_DAYS = appConfig.pdfFailedJobsRetentionDays;
+const PDF_RETENTION_RUN_EVERY_MS = appConfig.pdfRetentionRunEveryMs;
 
 function pipeToResponse(readable: Readable, response: Response): Promise<void> {
   return new Promise<void>((resolve, reject) => {
@@ -22,8 +30,11 @@ function pipeToResponse(readable: Readable, response: Response): Promise<void> {
 
 @Injectable()
 export class PdfJobsService implements OnModuleDestroy {
+  private readonly logger = new Logger(PdfJobsService.name);
   private queueRecoveryStarted = false;
   private queueRecoveryTimer: NodeJS.Timeout | null = null;
+  private retentionTimer: NodeJS.Timeout | null = null;
+  private retentionRunning = false;
   private processorRunning = false;
 
   constructor(
@@ -37,12 +48,65 @@ export class PdfJobsService implements OnModuleDestroy {
     setImmediate(() => {
       this.ensureQueueRecovery().catch(() => undefined);
     });
+    this.scheduleRetention();
   }
 
   onModuleDestroy(): void {
     if (this.queueRecoveryTimer) {
       clearTimeout(this.queueRecoveryTimer);
       this.queueRecoveryTimer = null;
+    }
+    if (this.retentionTimer) {
+      clearTimeout(this.retentionTimer);
+      this.retentionTimer = null;
+    }
+  }
+
+  private scheduleRetention(): void {
+    if (this.retentionTimer) return;
+    this.retentionTimer = setTimeout(() => {
+      this.retentionTimer = null;
+      this.runRetention().catch(() => undefined);
+    }, PDF_RETENTION_RUN_EVERY_MS);
+  }
+
+  private async runRetention(): Promise<void> {
+    if (this.retentionRunning) return;
+    this.retentionRunning = true;
+    try {
+      const now = Date.now();
+      const completedCutoff = new Date(
+        now - PDF_JOBS_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+      );
+      const failedCutoff = new Date(
+        now - PDF_FAILED_JOBS_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+      );
+
+      const completed =
+        await this.pdfJobsRepository.findCompletedBefore(completedCutoff);
+      for (const job of completed) {
+        if (job.filename) {
+          await this.pdfGenerationService.deletePdf(job.filename);
+        }
+      }
+      const completedDeleted = await this.pdfJobsRepository.deleteByIds(
+        completed.map((job) => job.id),
+      );
+
+      const failed =
+        await this.pdfJobsRepository.findFailedBefore(failedCutoff);
+      const failedDeleted = await this.pdfJobsRepository.deleteByIds(
+        failed.map((job) => job.id),
+      );
+
+      if (completedDeleted > 0 || failedDeleted > 0) {
+        this.logger.log(
+          `PDF retention deleted jobs: completed=${completedDeleted}, failed=${failedDeleted}`,
+        );
+      }
+    } finally {
+      this.retentionRunning = false;
+      this.scheduleRetention();
     }
   }
 
@@ -88,10 +152,10 @@ export class PdfJobsService implements OnModuleDestroy {
         actor,
         true,
       );
-    if (!persistedTemplateId) throw makeError("Template non trovato", 404);
+    if (!persistedTemplateId) throw makeError("Template not found", 404);
 
     const template = await this.templatesService.findOne(persistedTemplateId);
-    if (!template) throw makeError("Template non trovato", 404);
+    if (!template) throw makeError("Template not found", 404);
 
     const templateContentHash = sha256Signature(template.content);
     const fieldValuesHash = sha256Signature(fieldValues ?? {});
@@ -115,11 +179,11 @@ export class PdfJobsService implements OnModuleDestroy {
 
     try {
       const template = await this.templatesService.findOne(job.template_id);
-      if (!template) throw new Error("Template non trovato");
+      if (!template) throw new Error("Template not found");
 
       if (!template.content || template.content.trim().length === 0) {
         throw new Error(
-          "Contenuto del template non disponibile. Verifica che il file Markdown esista su GitHub.",
+          "Template content is unavailable. Verify that the Markdown file exists on GitHub.",
         );
       }
 
@@ -141,7 +205,7 @@ export class PdfJobsService implements OnModuleDestroy {
       );
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Errore generazione PDF";
+        error instanceof Error ? error.message : "PDF generation error";
       await this.pdfJobsRepository.markFailed(jobId, message);
     }
   }
@@ -149,11 +213,11 @@ export class PdfJobsService implements OnModuleDestroy {
   async getJob(templateId: string, jobId: string) {
     const persistedTemplateId =
       await this.templatesService.resolveTemplateIdForPdfJob(templateId);
-    if (!persistedTemplateId) throw makeError("Job PDF non trovato", 404);
+    if (!persistedTemplateId) throw makeError("PDF job not found", 404);
 
     const job = await this.pdfJobsRepository.findById(jobId);
     if (!job || job.template_id !== persistedTemplateId) {
-      throw makeError("Job PDF non trovato", 404);
+      throw makeError("PDF job not found", 404);
     }
     return job;
   }
@@ -168,16 +232,16 @@ export class PdfJobsService implements OnModuleDestroy {
   private async getCompletedJob(templateId: string, jobId: string) {
     const job = await this.getJob(templateId, jobId);
     if (job.status === "failed") {
-      throw makeError(job.error_message || "Generazione PDF fallita", 422);
+      throw makeError(job.error_message || "PDF generation failed", 422);
     }
     if (job.status !== "completed" || !job.filename) {
-      throw makeError("PDF non ancora disponibile", 409);
+      throw makeError("PDF not available yet", 409);
     }
     return job;
   }
 
   private requirePdfFilename(job: { filename: string | null }): string {
-    if (!job.filename) throw makeError("PDF non ancora disponibile", 409);
+    if (!job.filename) throw makeError("PDF not available yet", 409);
     return job.filename;
   }
 
@@ -185,11 +249,11 @@ export class PdfJobsService implements OnModuleDestroy {
     const persistedTemplateId =
       await this.templatesService.resolveTemplateIdForPdfJob(templateId);
     if (!persistedTemplateId) {
-      throw makeError("Nessun PDF completato per questo template", 404);
+      throw makeError("No completed PDF found for this template", 404);
     }
 
     const template = await this.templatesService.findOne(persistedTemplateId);
-    if (!template) throw makeError("Template non trovato", 404);
+    if (!template) throw makeError("Template not found", 404);
 
     const job = await this.pdfJobsRepository.findLatestCompleted(
       persistedTemplateId,
@@ -198,11 +262,11 @@ export class PdfJobsService implements OnModuleDestroy {
     );
     if (!job) {
       throw makeError(
-        "PDF non ancora generato per questa versione del template e questi campi",
+        "PDF not generated yet for this template version and these fields",
         404,
       );
     }
-    if (!job.filename) throw makeError("PDF non ancora disponibile", 409);
+    if (!job.filename) throw makeError("PDF not available yet", 409);
     return job;
   }
 

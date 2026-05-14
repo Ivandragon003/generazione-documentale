@@ -1,30 +1,30 @@
-/**
+﻿/**
  * pdf.config.ts
  *
- * Layer di configurazione centralizzato per la generazione PDF.
- * Tutte le variabili env vengono lette, validate e normalizzate qui.
- * Il service non legge mai process.env direttamente.
+ * Centralized configuration layer for PDF generation.
+ * All env variables are read, validated, and normalized here.
+ * The service never reads process.env directly.
  *
- * Variabili supportate:
- *   PDF_ENGINE           motore pandoc (default: xelatex) — override per debug/test
- *   PDF_PAPER            formato carta: a4, letter, a3 (default: a4)
- *   PDF_FONT_SIZE        dimensione font: 10pt, 11pt, 12pt (default: 11pt)
- *   PDF_MARGIN_TOP       margine superiore (default: 2.5cm)
- *   PDF_MARGIN_BOTTOM    margine inferiore (default: 2.5cm)
- *   PDF_MARGIN_LEFT      margine sinistro (default: 2.5cm)
- *   PDF_MARGIN_RIGHT     margine destro (default: 2.5cm)
- *   PDF_MAIN_FONT        font corpo (default: Liberation Serif)
- *   PDF_SANS_FONT        font sans (default: Liberation Sans)
- *   PDF_MONO_FONT        font mono (default: Liberation Mono)
- *   PDF_LINE_STRETCH     interlinea 1.0–2.0 (default: 1.25)
- *   PDF_COLOR_LINKS      abilita link colorati: true|false (default: true)
- *   PDF_LINK_COLOR       colore link pandoc (default: teal)
- *   PANDOC_PATH          percorso binario pandoc (default: pandoc)
- *   STORAGE_PATH         cartella output PDF (default: ./storage/pdf)
- *   PDF_GENERATION_TIMEOUT_MS   timeout job (default: 120000)
- *   PDF_GENERATION_RETRIES      tentativi retry (default: 2)
- *   PDF_GENERATION_RETRY_DELAY_MS delay retry (default: 1000)
- *   MAX_PDF_MARKDOWN_BYTES      limite dimensione input (default: 300000)
+ * Supported variables:
+ *   PDF_ENGINE           pandoc engine (default: xelatex) â€” override for debug/test
+ *   PDF_PAPER            paper format: a4, letter, a3 (default: a4)
+ *   PDF_FONT_SIZE        font size: 10pt, 11pt, 12pt (default: 11pt)
+ *   PDF_MARGIN_TOP       top margin (default: 2.5cm)
+ *   PDF_MARGIN_BOTTOM    bottom margin (default: 2.5cm)
+ *   PDF_MARGIN_LEFT      left margin (default: 2.5cm)
+ *   PDF_MARGIN_RIGHT     right margin (default: 2.5cm)
+ *   PDF_MAIN_FONT        body font (default: Liberation Serif)
+ *   PDF_SANS_FONT        sans font (default: Liberation Sans)
+ *   PDF_MONO_FONT        mono font (default: Liberation Mono)
+ *   PDF_LINE_STRETCH     line stretch 1.0â€“2.0 (default: 1.25)
+ *   PDF_COLOR_LINKS      enable colored links: true|false (default: true)
+ *   PDF_LINK_COLOR       pandoc link color (default: teal)
+ *   PANDOC_PATH          pandoc binary path (default: pandoc)
+ *   STORAGE_PATH         PDF output folder (default: ./storage/pdf)
+ *   PDF_GENERATION_TIMEOUT_MS   job timeout (default: 120000)
+ *   PDF_GENERATION_RETRIES      retry attempts (default: 2)
+ *   PDF_GENERATION_RETRY_DELAY_MS retry delay (default: 1000)
+ *   MAX_PDF_MARKDOWN_BYTES      input size limit (default: 300000)
  */
 
 import { Logger } from "@nestjs/common";
@@ -51,8 +51,6 @@ export interface PdfConfig {
   maxMarkdownBytes: number;
 }
 
-// ─── Validatori ──────────────────────────────────────────────────────────
-
 const ALLOWED_ENGINES = ["xelatex", "lualatex", "pdflatex"] as const;
 const ALLOWED_PAPERS = ["a4", "a3", "a5", "letter", "legal"] as const;
 const ALLOWED_FONT_SIZES = ["9pt", "10pt", "11pt", "12pt", "14pt"] as const;
@@ -73,7 +71,7 @@ const validateEnum = <T extends string>(
   }
   return {
     value: fallback,
-    error: `${varName}="${value}" non valido (accettati: ${allowed.join(", ")}), uso default "${fallback}"`,
+    error: `${varName}="${value}" invalid (allowed: ${allowed.join(", ")}), using default "${fallback}"`,
   };
 };
 
@@ -86,7 +84,7 @@ const validateMargin = (
   if (MARGIN_PATTERN.test(v)) return { value: v };
   return {
     value: fallback,
-    error: `${varName}="${v}" non valido (es: 2.5cm, 20mm, 1in), uso default "${fallback}"`,
+    error: `${varName}="${v}" invalid (example: 2.5cm, 20mm, 1in), using default "${fallback}"`,
   };
 };
 
@@ -100,7 +98,7 @@ const validatePositiveInt = (
   if (Number.isInteger(parsed) && parsed >= min) return { value: parsed };
   return {
     value: fallback,
-    error: `${varName}="${raw}" non valido (intero >= ${min}), uso default ${fallback}`,
+    error: `${varName}="${raw}" invalid (integer >= ${min}), using default ${fallback}`,
   };
 };
 
@@ -117,11 +115,11 @@ const validateLineStretch = (
   }
   return {
     value: 1.25,
-    error: `PDF_LINE_STRETCH="${raw}" non valido (1.0–2.0), uso default 1.25`,
+    error: `PDF_LINE_STRETCH="${raw}" invalid (1.0â€“2.0), using default 1.25`,
   };
 };
 
-// ─── Builder ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const buildPdfConfig = (): PdfConfig => {
   const logger = new Logger("pdf.config");
@@ -213,7 +211,7 @@ const buildPdfConfig = (): PdfConfig => {
 
   if (warnings.length > 0) {
     logger.warn(
-      `Avvisi configurazione PDF:\n${warnings.map((w) => `  ${w}`).join("\n")}`,
+      `PDF configuration warnings:\n${warnings.map((w) => `  ${w}`).join("\n")}`,
     );
   }
 
@@ -241,8 +239,8 @@ const buildPdfConfig = (): PdfConfig => {
 };
 
 /**
- * Singleton: la config viene letta e validata una sola volta all'avvio.
- * Eventuali valori invalidi vengono loggati come warning e sostituiti
- * con i default — il servizio non crasha mai per una env mal configurata.
+ * Singleton: config is read and validated once at startup.
+ * Invalid values are logged as warnings and replaced
+ * with defaults; the service does not crash for misconfigured env values.
  */
 export const pdfConfig: PdfConfig = buildPdfConfig();

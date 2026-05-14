@@ -53,14 +53,14 @@ export class PdfGenerationService {
     if (this.pdfServiceUrl.length > 0) return "remote";
     if (this.isProduction()) {
       throw new Error(
-        "PDF_SERVICE_URL obbligatoria in produzione. " +
-          "Configura il pdf-service o abilita esplicitamente ENABLE_LOCAL_PDF_FALLBACK=true solo per debug controllato.",
+        "PDF_SERVICE_URL is required in production. " +
+          "Configure pdf-service or explicitly enable ENABLE_LOCAL_PDF_FALLBACK=true only for controlled debugging.",
       );
     }
     if (!this.isLocalFallbackEnabled()) {
       throw new Error(
-        "PDF_SERVICE_URL non configurata e fallback locale disabilitato. " +
-          "Imposta ENABLE_LOCAL_PDF_FALLBACK=true in sviluppo oppure configura PDF_SERVICE_URL.",
+        "PDF_SERVICE_URL is not configured and local fallback is disabled. " +
+          "Set ENABLE_LOCAL_PDF_FALLBACK=true in development or configure PDF_SERVICE_URL.",
       );
     }
     return "local";
@@ -74,7 +74,7 @@ export class PdfGenerationService {
       );
       const health = await this.checkHealth();
       if (!health.ok) {
-        throw new Error(health.error ?? "PDF service non disponibile");
+        throw new Error(health.error ?? "PDF service unavailable");
       }
     } else {
       this.logger.log(
@@ -82,7 +82,7 @@ export class PdfGenerationService {
       );
       const health = await this.checkHealth();
       if (!health.ok) {
-        throw new Error(health.error ?? "Pandoc non disponibile");
+        throw new Error(health.error ?? "Pandoc unavailable");
       }
     }
   }
@@ -144,7 +144,7 @@ export class PdfGenerationService {
       const timer = setTimeout(() => {
         timedOut = true;
         process.kill("SIGKILL");
-        rejectRun(new Error(`Pandoc timeout dopo ${timeoutMs}ms`));
+        rejectRun(new Error(`Pandoc timeout after ${timeoutMs}ms`));
       }, timeoutMs);
 
       process.stderr.on("data", (chunk: Buffer) => {
@@ -166,14 +166,14 @@ export class PdfGenerationService {
         if (error.code === "ENOENT") {
           rejectRun(
             new Error(
-              `Pandoc non trovato al percorso: ${pdfConfig.pandocPath}. ` +
-                "Assicurati che Pandoc sia installato nel sistema o nel container Docker.",
+              `Pandoc not found at path: ${pdfConfig.pandocPath}. ` +
+                "Ensure Pandoc is installed on the system or in the Docker container.",
             ),
           );
         } else {
           rejectRun(
             new Error(
-              `Errore avvio Pandoc (${pdfConfig.pandocPath}): ${error.message}`,
+              `Pandoc startup error (${pdfConfig.pandocPath}): ${error.message}`,
             ),
           );
         }
@@ -205,13 +205,13 @@ export class PdfGenerationService {
         if (error.code === "ENOENT") {
           resolveCheck({
             ok: false,
-            error: `Pandoc non trovato al percorso: ${pdfConfig.pandocPath}`,
+            error: `Pandoc not found at path: ${pdfConfig.pandocPath}`,
           });
           return;
         }
         resolveCheck({
           ok: false,
-          error: `Errore avvio Pandoc (${pdfConfig.pandocPath}): ${error.message}`,
+          error: `Pandoc startup error (${pdfConfig.pandocPath}): ${error.message}`,
         });
       });
       process.on("close", (code) => {
@@ -224,7 +224,7 @@ export class PdfGenerationService {
         }
         resolveCheck({
           ok: false,
-          error: `Pandoc health check fallito (${pdfConfig.pandocPath}): exit ${code} ${stderr.slice(0, 300)}`,
+          error: `Pandoc health check failed (${pdfConfig.pandocPath}): exit ${code} ${stderr.slice(0, 300)}`,
         });
       });
     });
@@ -275,8 +275,8 @@ export class PdfGenerationService {
         mode: "remote",
         error:
           error instanceof Error
-            ? `PDF service non raggiungibile: ${error.message}`
-            : "PDF service non raggiungibile",
+            ? `PDF service unreachable: ${error.message}`
+            : "PDF service unreachable",
       };
     }
   }
@@ -336,7 +336,7 @@ export class PdfGenerationService {
     unresolvedFields?: string[];
     renderedContentHash: string;
   }> {
-    const title = document.title || "Documento";
+    const title = document.title || "Document";
     const author = "MAC Documents";
     const strict = document.strict ?? false;
 
@@ -344,7 +344,7 @@ export class PdfGenerationService {
       Buffer.byteLength(document.content, "utf8") > pdfConfig.maxMarkdownBytes
     ) {
       throw new Error(
-        `Documento troppo grande (max ${pdfConfig.maxMarkdownBytes} bytes)`,
+        `Document too large (max ${pdfConfig.maxMarkdownBytes} bytes)`,
       );
     }
 
@@ -382,7 +382,7 @@ export class PdfGenerationService {
       }
     }
 
-    throw lastError ?? new Error("Errore generazione PDF");
+    throw lastError ?? new Error("PDF generation error");
   }
 
   async getPdfStream(filename: string): Promise<ReadStream> {
@@ -390,7 +390,7 @@ export class PdfGenerationService {
     try {
       await access(filepath);
     } catch {
-      throw new Error(`File PDF non trovato: ${filename}`);
+      throw new Error(`PDF file not found: ${filename}`);
     }
     return createReadStream(filepath);
   }

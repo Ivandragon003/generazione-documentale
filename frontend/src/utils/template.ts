@@ -126,7 +126,7 @@ export function validateFieldValues(
   const errors: Record<string, string> = {};
   for (const field of fields) {
     if (field.required !== false && isMissing(values[field.name])) {
-      errors[field.name] = "Campo obbligatorio";
+      errors[field.name] = "Required field";
     }
   }
   return errors;

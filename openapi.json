@@ -71,7 +71,7 @@
             "description": ""
           }
         },
-        "summary": "Lista template",
+        "summary": "List templates",
         "tags": ["templates"]
       },
       "post": {
@@ -102,7 +102,7 @@
             "description": ""
           }
         },
-        "summary": "Crea template",
+        "summary": "Create template",
         "tags": ["templates"]
       }
     },
@@ -114,7 +114,7 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "UUID template",
+            "description": "Template UUID",
             "schema": {
               "type": "string"
             }
@@ -122,10 +122,10 @@
         ],
         "responses": {
           "404": {
-            "description": "Template non trovato"
+            "description": "Template not found"
           }
         },
-        "summary": "Dettaglio template",
+        "summary": "Template details",
         "tags": ["templates"]
       },
       "put": {
@@ -135,7 +135,7 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "UUID template",
+            "description": "Template UUID",
             "schema": {
               "type": "string"
             }
@@ -165,7 +165,7 @@
             "description": ""
           }
         },
-        "summary": "Aggiorna template",
+        "summary": "Update template",
         "tags": ["templates"]
       },
       "delete": {
@@ -175,7 +175,7 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "UUID template",
+            "description": "Template UUID",
             "schema": {
               "type": "string"
             }
@@ -195,7 +195,7 @@
             "description": ""
           }
         },
-        "summary": "Elimina template",
+        "summary": "Delete template",
         "tags": ["templates"]
       }
     },
@@ -207,7 +207,7 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "UUID template",
+            "description": "Template UUID",
             "schema": {
               "type": "string"
             }
@@ -237,7 +237,7 @@
             "description": ""
           }
         },
-        "summary": "Avvia generazione PDF da template",
+        "summary": "Start PDF generation from template",
         "tags": ["templates"]
       }
     },
@@ -249,7 +249,7 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "UUID template",
+            "description": "Template UUID",
             "schema": {
               "type": "string"
             }
@@ -260,7 +260,7 @@
             "description": ""
           }
         },
-        "summary": "Lista job PDF del template",
+        "summary": "List template PDF jobs",
         "tags": ["templates"]
       }
     },
@@ -272,7 +272,7 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "UUID template",
+            "description": "Template UUID",
             "schema": {
               "type": "string"
             }
@@ -281,7 +281,7 @@
             "name": "jobId",
             "required": true,
             "in": "path",
-            "description": "UUID job",
+            "description": "Job UUID",
             "schema": {
               "type": "string"
             }
@@ -292,7 +292,7 @@
             "description": ""
           }
         },
-        "summary": "Dettaglio job PDF",
+        "summary": "PDF job details",
         "tags": ["templates"]
       }
     },
@@ -304,7 +304,7 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "UUID template",
+            "description": "Template UUID",
             "schema": {
               "type": "string"
             }
@@ -313,7 +313,7 @@
             "name": "jobId",
             "required": true,
             "in": "path",
-            "description": "UUID job",
+            "description": "Job UUID",
             "schema": {
               "type": "string"
             }
@@ -324,7 +324,7 @@
             "description": ""
           }
         },
-        "summary": "Scarica PDF da job specifico",
+        "summary": "Download PDF from specific job",
         "tags": ["templates"]
       }
     },
@@ -336,7 +336,7 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "UUID template",
+            "description": "Template UUID",
             "schema": {
               "type": "string"
             }
@@ -347,25 +347,25 @@
             "description": ""
           }
         },
-        "summary": "Scarica l'ultimo PDF completato",
+        "summary": "Download latest completed PDF",
         "tags": ["templates"]
       }
     }
   },
   "info": {
     "title": "MAC Documents API",
-    "description": "API per la generazione documentale basata su template Markdown.",
+    "description": "API for document generation based on Markdown templates.",
     "version": "1.0.0",
     "contact": {}
   },
   "tags": [
     {
       "name": "health",
-      "description": "Stato applicazione"
+      "description": "Application health"
     },
     {
       "name": "templates",
-      "description": "Template GitHub, compilazione campi e PDF"
+      "description": "GitHub templates, field rendering, and PDF"
     }
   ],
   "servers": [],
@@ -510,16 +510,12 @@
         "properties": {
           "name": {
             "type": "string",
-            "description": "Nome del template",
+            "description": "Template name",
             "maxLength": 255
-          },
-          "description": {
-            "type": "string",
-            "description": "Descrizione del template"
           },
           "content": {
             "type": "string",
-            "description": "Contenuto Markdown del template"
+            "description": "Template Markdown content"
           },
           "fields": {
             "description": "Definizioni dei campi",
@@ -540,16 +536,12 @@
         "properties": {
           "name": {
             "type": "string",
-            "description": "Nome del template",
+            "description": "Template name",
             "maxLength": 255
-          },
-          "description": {
-            "type": "string",
-            "description": "Descrizione del template"
           },
           "content": {
             "type": "string",
-            "description": "Contenuto Markdown del template"
+            "description": "Template Markdown content"
           },
           "fields": {
             "description": "Definizioni dei campi",

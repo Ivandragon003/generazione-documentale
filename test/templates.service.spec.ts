@@ -15,7 +15,6 @@ const makeTemplate = (
   ({
     id: VALID_UUID,
     name: "Template di Test",
-    description: "Descrizione di test",
     content: "# {{titolo}}\n\nTesto con {{nome}}.",
     content_path: `${VALID_UUID}`,
     created_by: "system",
@@ -56,7 +55,6 @@ const makeGitHubTemplate = (
   return {
     id: `github:${id}`,
     name: parts.at(-1) ?? id,
-    description: null,
     content_path: id,
     githubPath: `templates/${id}.md`,
     category: parts.length >= 3 ? parts[0] : null,
@@ -272,7 +270,7 @@ describe("TemplatesService", () => {
       ).rejects.toMatchObject({ status: 400 });
     });
 
-    it("lancia 400 per parentesi non bilanciate", async () => {
+    it("lancia 400 per parentesi Unbalanced placeholder braces", async () => {
       await expect(
         service.create({ name: "T", content: "# {{titolo}" }),
       ).rejects.toMatchObject({ status: 400 });
@@ -338,7 +336,7 @@ describe("TemplatesService", () => {
       expect(result).toBeNull();
     });
 
-    it("lancia 400 per UUID non valido", async () => {
+    it("lancia 400 per UUID invalid", async () => {
       await expect(service.findOne("not-a-uuid")).rejects.toMatchObject({
         status: 400,
       });
@@ -437,7 +435,7 @@ describe("TemplatesService", () => {
       ).rejects.toMatchObject({ status: 404 });
     });
 
-    it("lancia 400 per UUID non valido in id", async () => {
+    it("lancia 400 per UUID invalid in id", async () => {
       await expect(
         service.update("not-a-uuid", { name: "X" }),
       ).rejects.toMatchObject({ status: 400 });
@@ -481,7 +479,7 @@ describe("TemplatesService", () => {
       });
     });
 
-    it("lancia 400 per UUID non valido", async () => {
+    it("lancia 400 per UUID invalid", async () => {
       await expect(service.delete("not-a-uuid")).rejects.toMatchObject({
         status: 400,
       });

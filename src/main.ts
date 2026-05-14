@@ -39,12 +39,10 @@ async function bootstrap(): Promise<void> {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("MAC Documents API")
-    .setDescription(
-      "API per la generazione documentale basata su template Markdown.",
-    )
+    .setDescription("API for document generation based on Markdown templates.")
     .setVersion("1.0.0")
-    .addTag("health", "Stato applicazione")
-    .addTag("templates", "Template GitHub, compilazione campi e PDF")
+    .addTag("health", "Application health")
+    .addTag("templates", "GitHub templates, field rendering, and PDF")
     .build();
 
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
@@ -69,7 +67,7 @@ async function bootstrap(): Promise<void> {
 
 bootstrap().catch((error: unknown) => {
   const message =
-    error instanceof Error ? error.message : "Errore avvio applicazione";
+    error instanceof Error ? error.message : "Application startup error";
   // eslint-disable-next-line no-console
   console.error(message);
   process.exit(1);

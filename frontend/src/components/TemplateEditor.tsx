@@ -25,7 +25,7 @@ export function TemplateEditor({
   removed,
 }: Props) {
   function handleCreateField() {
-    const fieldName = window.prompt("Nome del campo (es: nome_cliente):");
+    const fieldName = window.prompt("Field name (e.g. customer_name):");
     if (!fieldName) return;
 
     const normalized = fieldName
@@ -35,12 +35,12 @@ export function TemplateEditor({
       .replace(/[^a-z0-9_]/g, "");
 
     if (!normalized) {
-      alert("Nome campo non valido.");
+      alert("Invalid field name.");
       return;
     }
 
     const type = window.prompt(
-      "Tipo campo (text, textarea, date, number, boolean, select, table, list):",
+      "Field type (text, textarea, date, number, boolean, select, table, list):",
       "text",
     );
 
@@ -78,7 +78,7 @@ export function TemplateEditor({
             startIcon={<AddIcon />}
             onClick={handleCreateField}
           >
-            Crea campo
+            Create field
           </Button>
         </Stack>
       </Paper>
@@ -92,18 +92,18 @@ export function TemplateEditor({
           onChange={(event) => onChange(event.target.value)}
           variant="standard"
           InputProps={{ disableUnderline: true, className: "editor-input" }}
-          placeholder="Scrivi il template Markdown oppure seleziona un template GitHub"
+          placeholder="Write Markdown template or select a GitHub template"
         />
       </Paper>
 
       <Paper className="panel-shell">
         <Typography variant="subtitle1" gutterBottom>
-          Placeholder rilevati
+          Detected placeholders
         </Typography>
         <Stack direction="row" gap={1} flexWrap="wrap">
           {placeholders.length === 0 && (
             <Typography variant="body2" color="text.secondary">
-              {"Nessun placeholder {{campo}} trovato"}
+              {"No {{field}} placeholder found"}
             </Typography>
           )}
           {placeholders.map((field) => (
@@ -117,10 +117,10 @@ export function TemplateEditor({
         </Stack>
         {(added.length > 0 || removed.length > 0) && (
           <Alert severity="warning" sx={{ mt: 2 }}>
-            Struttura cambiata: nuovi{" "}
-            <strong>{added.join(", ") || "nessuno"}</strong>, rimossi{" "}
-            <strong>{removed.join(", ") || "nessuno"}</strong>. Al salvataggio
-            verra creato un nuovo template.
+            Structure changed: added{" "}
+            <strong>{added.join(", ") || "none"}</strong>, removed{" "}
+            <strong>{removed.join(", ") || "none"}</strong>. On save, a new
+            template will be created.
           </Alert>
         )}
       </Paper>

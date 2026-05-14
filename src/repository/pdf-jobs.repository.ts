@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import type { Repository } from "typeorm";
+import { LessThanOrEqual, type Repository } from "typeorm";
 import { PdfJobEntity } from "../entities/pdf-job.entity";
 import type { FieldValueMap } from "../service/document-rendering.service";
 
@@ -96,5 +96,31 @@ export class PdfJobsRepository {
       error_message: errorMessage,
       completed_at: new Date(),
     });
+  }
+
+  async findCompletedBefore(cutoff: Date): Promise<PdfJobEntity[]> {
+    return this.repo.find({
+      where: {
+        status: "completed",
+        completed_at: LessThanOrEqual(cutoff),
+      },
+      order: { completed_at: "ASC" },
+    });
+  }
+
+  async findFailedBefore(cutoff: Date): Promise<PdfJobEntity[]> {
+    return this.repo.find({
+      where: {
+        status: "failed",
+        completed_at: LessThanOrEqual(cutoff),
+      },
+      order: { completed_at: "ASC" },
+    });
+  }
+
+  async deleteByIds(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const result = await this.repo.delete(ids);
+    return result.affected ?? 0;
   }
 }

@@ -115,18 +115,18 @@ describe("PdfGenerationService", () => {
       );
     });
 
-    it("deve usare 'Documento' come titolo di default se non fornito", async () => {
+    it("deve usare 'Document' come titolo di default se non fornito", async () => {
       makeSpawnMock(0);
       await service.generatePdf({ ...baseInput, title: "" });
       const callArgs = spawnMock.mock.calls[0][1] as string[];
-      expect(callArgs.some((a: string) => a.includes("Documento"))).toBe(true);
+      expect(callArgs.some((a: string) => a.includes("Document"))).toBe(true);
     });
 
     it("deve lanciare un errore se il contenuto supera il limite massimo", async () => {
       const hugeContent = "A".repeat(600000);
       await expect(
         service.generatePdf({ ...baseInput, content: hugeContent }),
-      ).rejects.toThrow(/troppo grande/);
+      ).rejects.toThrow(/too large/);
     });
 
     it("deve lanciare errore se pandoc esce con codice non-zero", async () => {
@@ -153,7 +153,7 @@ describe("PdfGenerationService", () => {
       };
       spawnMock.mockReturnValue(proc as unknown as ChildProcess);
       await expect(service.generatePdf(baseInput)).rejects.toThrow(
-        /Pandoc non trovato/,
+        /Pandoc not found/,
       );
     });
 
@@ -176,7 +176,7 @@ describe("PdfGenerationService", () => {
     it("deve lanciare errore se il file non esiste", async () => {
       accessMock.mockRejectedValue(new Error("ENOENT"));
       await expect(service.getPdfStream("nonexistent.pdf")).rejects.toThrow(
-        /File PDF non trovato/,
+        /PDF file not found/,
       );
     });
   });

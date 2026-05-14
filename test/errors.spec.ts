@@ -214,8 +214,8 @@ describe("Error Handling and AppError", () => {
         status: 404,
       },
       {
-        situation: "Template non trovato",
-        message: "Template non trovato",
+        situation: "Template not found",
+        message: "Template not found",
         status: 404,
       },
       {
@@ -224,28 +224,28 @@ describe("Error Handling and AppError", () => {
         status: 400,
       },
       {
-        situation: "UUID non valido",
-        message: "id non valido: deve essere un UUID",
+        situation: "UUID invalid",
+        message: "id invalid: must be a UUID",
         status: 400,
       },
       {
-        situation: "Limit non valido",
-        message: "limit non valido",
+        situation: "Limit invalid",
+        message: "invalid limit",
         status: 400,
       },
       {
-        situation: "Offset non valido",
-        message: "offset non valido",
+        situation: "Offset invalid",
+        message: "invalid offset",
         status: 400,
       },
       {
         situation: "FieldValues non oggetto",
-        message: "fieldValues deve essere un oggetto",
+        message: "fieldValues must be an object",
         status: 400,
       },
       {
         situation: "Contenuto template vuoto",
-        message: "Il contenuto del template non puo essere vuoto",
+        message: "Template content cannot be empty",
         status: 400,
       },
     ];

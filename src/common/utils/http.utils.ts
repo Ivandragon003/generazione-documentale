@@ -14,7 +14,7 @@ interface PaginationOptions {
 
 export const assertUuid = (value: string, field = "id"): void => {
   if (!isUuid(value)) {
-    throw makeError(`${field} non valido: deve essere un UUID`, 400);
+    throw makeError(`${field} is invalid: must be a UUID`, 400);
   }
 };
 
@@ -40,11 +40,11 @@ export const parsePagination = (
       : Number.parseInt(String(query.offset), 10);
 
   if (!Number.isInteger(limit) || limit <= 0) {
-    throw makeError("limit non valido", 400);
+    throw makeError("invalid limit", 400);
   }
 
   if (!Number.isInteger(offset) || offset < 0) {
-    throw makeError("offset non valido", 400);
+    throw makeError("invalid offset", 400);
   }
 
   return { limit, offset };

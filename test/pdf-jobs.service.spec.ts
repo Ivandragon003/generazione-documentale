@@ -18,7 +18,6 @@ const makeTpl = (
 ): TemplateEntity & { content: string } => ({
   id: VALID_TPL_UUID,
   name: "Template Test",
-  description: "",
   content_path: "/storage/tpl.md",
   fields: [],
   created_by: "system",
@@ -498,7 +497,7 @@ describe("PdfJobsService", () => {
 
       expect(pdfJobsRepository.markFailed).toHaveBeenCalledWith(
         VALID_JOB_UUID,
-        "Errore generazione PDF",
+        "PDF generation error",
       );
     });
   });

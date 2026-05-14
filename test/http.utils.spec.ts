@@ -89,7 +89,7 @@ describe("HTTP Utilities", () => {
         expect(result.limit).toBe(1);
       });
 
-      it("deve riportare errore specifico per limit non valido", () => {
+      it("deve riportare errore specifico per invalid limit", () => {
         expect(() => parsePagination({ limit: "abc", offset: "0" })).toThrow(
           expect.objectContaining({
             message: expect.stringContaining("limit"),
@@ -97,7 +97,7 @@ describe("HTTP Utilities", () => {
         );
       });
 
-      it("deve riportare errore specifico per offset non valido", () => {
+      it("deve riportare errore specifico per invalid offset", () => {
         expect(() => parsePagination({ limit: "20", offset: "-5" })).toThrow(
           expect.objectContaining({
             message: expect.stringContaining("offset"),
@@ -193,7 +193,7 @@ describe("HTTP Utilities", () => {
       it("deve rifiutare stringa non-UUID", () => {
         expect(() => {
           assertUuid("not-a-uuid");
-        }).toThrow("non valido");
+        }).toThrow("invalid");
       });
 
       it("deve rifiutare UUID malformato", () => {
