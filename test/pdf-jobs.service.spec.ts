@@ -1,10 +1,10 @@
 import { Readable } from "node:stream";
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { Response } from "express";
+import type { FieldDefinition } from "../src/common/types/field-definition.type";
 import type { PdfJobEntity } from "../src/entities/pdf-job.entity";
-import type { TemplateEntity } from "../src/entities/template.entity";
 import { PdfJobsRepository } from "../src/repository/pdf-jobs.repository";
-import { DocumentRenderingService } from "../src/service/document-rendering.service";
+import { AuditLogsService } from "../src/service/audit-logs.service";
 import { PdfGenerationService } from "../src/service/pdf-generation.service";
 import { PdfJobsService } from "../src/service/pdf-jobs.service";
 import { TemplatesService } from "../src/service/templates.service";
@@ -13,9 +13,18 @@ import { TemplatesService } from "../src/service/templates.service";
 const VALID_TPL_UUID = "789e0123-e89b-12d3-a456-426614174002";
 const VALID_JOB_UUID = "456e7890-e89b-12d3-a456-426614174001";
 
-const makeTpl = (
-  overrides: Partial<TemplateEntity & { content: string }> = {},
-): TemplateEntity & { content: string } => ({
+type MockTemplate = {
+  id: string;
+  name: string;
+  content_path: string | null;
+  fields: FieldDefinition[];
+  created_by: string;
+  created_at: Date;
+  updated_at: Date;
+  content: string;
+};
+
+const makeTpl = (overrides: Partial<MockTemplate> = {}): MockTemplate => ({
   id: VALID_TPL_UUID,
   name: "Template Test",
   content_path: "/storage/tpl.md",
@@ -27,11 +36,12 @@ const makeTpl = (
   ...overrides,
 });
 
-const makeJob = (overrides: Partial<PdfJobEntity> = {}): PdfJobEntity =>
-  ({
+const makeJob = (overrides: Partial<PdfJobEntity> = {}): PdfJobEntity => {
+  return {
     id: VALID_JOB_UUID,
     template_id: VALID_TPL_UUID,
     field_values: { titolo: "Ciao" },
+    language: null,
     status: "queued",
     filename: null,
     template_content_hash: "template-hash",
@@ -44,7 +54,8 @@ const makeJob = (overrides: Partial<PdfJobEntity> = {}): PdfJobEntity =>
     started_at: null,
     completed_at: null,
     ...overrides,
-  }) as PdfJobEntity;
+  };
+};
 
 const makeMockResponse = (): jest.Mocked<Response> => {
   const listeners: Record<string, Array<() => void>> = {};
@@ -105,8 +116,10 @@ async function buildModule(repoOverrides: Record<string, jest.Mock> = {}) {
         },
       },
       {
-        provide: DocumentRenderingService,
-        useValue: { getMissingRequiredFields: jest.fn() },
+        provide: AuditLogsService,
+        useValue: {
+          recordSafe: jest.fn().mockResolvedValue(undefined),
+        },
       },
     ],
   }).compile();
@@ -114,34 +127,39 @@ async function buildModule(repoOverrides: Record<string, jest.Mock> = {}) {
 }
 
 describe("PdfJobsService", () => {
+  let moduleRef: TestingModule;
   let service: PdfJobsService;
   let pdfJobsRepository: jest.Mocked<PdfJobsRepository>;
   let templatesService: jest.Mocked<TemplatesService>;
   let pdfGenerationService: jest.Mocked<PdfGenerationService>;
-  let documentRenderingService: jest.Mocked<DocumentRenderingService>;
+  let auditLogsService: jest.Mocked<AuditLogsService>;
 
   beforeEach(async () => {
     jest.spyOn(console, "warn").mockImplementation(() => {});
-    const module = await buildModule();
-    service = module.get<PdfJobsService>(PdfJobsService);
-    pdfJobsRepository = module.get(
+    moduleRef = await buildModule();
+    service = moduleRef.get<PdfJobsService>(PdfJobsService);
+    pdfJobsRepository = moduleRef.get(
       PdfJobsRepository,
     ) as jest.Mocked<PdfJobsRepository>;
-    templatesService = module.get(
+    templatesService = moduleRef.get(
       TemplatesService,
     ) as jest.Mocked<TemplatesService>;
     templatesService.resolveTemplateIdForPdfJob.mockImplementation(
       async (id: string) => id,
     );
-    pdfGenerationService = module.get(
+    pdfGenerationService = moduleRef.get(
       PdfGenerationService,
     ) as jest.Mocked<PdfGenerationService>;
-    documentRenderingService = module.get(
-      DocumentRenderingService,
-    ) as jest.Mocked<DocumentRenderingService>;
+    auditLogsService = moduleRef.get(
+      AuditLogsService,
+    ) as jest.Mocked<AuditLogsService>;
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(async () => {
+    service.onModuleDestroy();
+    await moduleRef.close();
+    jest.restoreAllMocks();
+  });
 
   // ── enqueue() ─────────────────────────────────────────────────────────────
 
@@ -150,7 +168,6 @@ describe("PdfJobsService", () => {
       const tpl = makeTpl();
       const job = makeJob();
       templatesService.findOne.mockResolvedValue(tpl);
-      documentRenderingService.getMissingRequiredFields.mockReturnValue([]);
       pdfJobsRepository.insert.mockResolvedValue(job);
 
       const result = await service.enqueue(
@@ -166,12 +183,12 @@ describe("PdfJobsService", () => {
         "user1",
         "2f1c40a3f7ea636405584f51973fab5dfea9e6eb4a440afb6ba4d2a2187a520c",
         "05721cea004c25d6955738c372bc11bbd34b02bf1e522ccc7bfbb53005ff5575",
+        null,
       );
     });
 
     it("usa 'system' come actor di default", async () => {
       templatesService.findOne.mockResolvedValue(makeTpl());
-      documentRenderingService.getMissingRequiredFields.mockReturnValue([]);
       pdfJobsRepository.insert.mockResolvedValue(makeJob());
 
       await service.enqueue(VALID_TPL_UUID, {});
@@ -182,6 +199,7 @@ describe("PdfJobsService", () => {
         "system",
         "2f1c40a3f7ea636405584f51973fab5dfea9e6eb4a440afb6ba4d2a2187a520c",
         "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        null,
       );
     });
   });
@@ -209,6 +227,7 @@ describe("PdfJobsService", () => {
         "system",
         "2f1c40a3f7ea636405584f51973fab5dfea9e6eb4a440afb6ba4d2a2187a520c",
         "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        null,
       );
     });
 
@@ -224,7 +243,6 @@ describe("PdfJobsService", () => {
 
       expect(templatesService.resolveTemplateIdForPdfJob).toHaveBeenCalledWith(
         "github:category/section/name",
-        "user1",
         true,
       );
       expect(pdfJobsRepository.insert).toHaveBeenCalledWith(
@@ -233,6 +251,7 @@ describe("PdfJobsService", () => {
         "user1",
         "2f1c40a3f7ea636405584f51973fab5dfea9e6eb4a440afb6ba4d2a2187a520c",
         "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        null,
       );
     });
   });
@@ -312,6 +331,7 @@ describe("PdfJobsService", () => {
         VALID_TPL_UUID,
         "2f1c40a3f7ea636405584f51973fab5dfea9e6eb4a440afb6ba4d2a2187a520c",
         "05721cea004c25d6955738c372bc11bbd34b02bf1e522ccc7bfbb53005ff5575",
+        undefined,
       );
     });
 
@@ -331,12 +351,21 @@ describe("PdfJobsService", () => {
     it("streamma il PDF e imposta gli header corretti", async () => {
       const job = makeJob({ status: "completed", filename: "output.pdf" });
       pdfJobsRepository.findById.mockResolvedValue(job);
+      templatesService.findOne.mockResolvedValue(
+        makeTpl({ id: VALID_TPL_UUID, name: "provaerrore" }),
+      );
       const readable = new Readable({
         read() {
           this.push(null);
         },
       });
-      pdfGenerationService.getPdfStream.mockResolvedValue(readable as never);
+      pdfGenerationService.getPdfStream.mockResolvedValue(
+        readable as unknown as ReturnType<
+          PdfGenerationService["getPdfStream"]
+        > extends Promise<infer T>
+          ? T
+          : never,
+      );
       const res = makeMockResponse();
 
       await service.streamDownload(VALID_TPL_UUID, VALID_JOB_UUID, res);
@@ -350,8 +379,21 @@ describe("PdfJobsService", () => {
       );
       expect(res.setHeader).toHaveBeenCalledWith(
         "Content-Disposition",
-        `attachment; filename="output.pdf"`,
+        `attachment; filename="provaerrore.pdf"`,
       );
+      expect(auditLogsService.recordSafe).toHaveBeenCalledWith({
+        tenantUuid: VALID_TPL_UUID,
+        eventType: "pdf.job.downloaded",
+        actor: "system",
+        templateId: VALID_TPL_UUID,
+        payload: {
+          jobId: VALID_JOB_UUID,
+          filename: "output.pdf",
+          templateContentHash: "template-hash",
+          fieldValuesHash: "field-hash",
+          renderedContentHash: null,
+        },
+      });
     });
 
     it("lancia 404 se il job non esiste", async () => {
@@ -387,7 +429,13 @@ describe("PdfJobsService", () => {
           this.push(null);
         },
       });
-      pdfGenerationService.getPdfStream.mockResolvedValue(readable as never);
+      pdfGenerationService.getPdfStream.mockResolvedValue(
+        readable as unknown as ReturnType<
+          PdfGenerationService["getPdfStream"]
+        > extends Promise<infer T>
+          ? T
+          : never,
+      );
       const res = makeMockResponse();
 
       await service.streamLatest(VALID_TPL_UUID, res, { titolo: "Ciao" });
@@ -454,7 +502,7 @@ describe("PdfJobsService", () => {
         unresolvedFields: [],
         renderedContentHash:
           "e736bd17f917051ba6020c7064a1d0cbe0562201defb3b176ba0d084f513761e",
-      } as never);
+      });
 
       await service.processJob(VALID_JOB_UUID);
 
@@ -516,6 +564,7 @@ describe("PdfJobsService", () => {
       await new Promise<void>((resolve) => setImmediate(resolve));
       await Promise.resolve();
       expect(repo.findQueued).toHaveBeenCalled();
+      await mod.close();
     });
 
     it("non lancia se processJob fallisce durante recovery", async () => {

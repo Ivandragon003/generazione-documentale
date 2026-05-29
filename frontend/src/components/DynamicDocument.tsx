@@ -1,4 +1,6 @@
 import AddIcon from "@mui/icons-material/Add";
+import CancelIcon from "@mui/icons-material/Cancel";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import DeleteIcon from "@mui/icons-material/Delete";
 import {
   Box,
@@ -18,104 +20,55 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import dayjs from "dayjs";
 import type React from "react";
+import { useEffect, useState } from "react";
 import type {
   ApiTemplateField,
   FieldRow,
   FieldValue,
   FieldValueMap,
 } from "../data/api";
+import { parseMarkdownTable } from "../utils/markdownPreview";
 import {
   emptyRow,
+  fieldTypeHelperText,
+  formatFieldValueForPreview,
+  inputPlaceholderForField,
   labelFromName,
   type NormalizedField,
   PLACEHOLDER_REGEX,
-  stringifyFieldValue,
+  parsePlaceholderToken,
 } from "../utils/template";
+import {
+  asRows,
+  fieldOptions,
+  isChecked,
+  isNumericFieldType,
+  isStrictNumericInput,
+  parseNumberOrEmpty,
+  removeRow,
+  resolveHtmlInputType,
+  updateRowValue,
+  valueForInput,
+} from "./dynamicDocument/fieldHelpers";
 
 type Props = {
   markdown: string;
   fields: NormalizedField[];
   values: FieldValueMap;
   errors?: Record<string, string>;
+  showTypeHints?: boolean;
   readOnly?: boolean;
   onChange?: (name: string, value: FieldValue) => void;
 };
 
-function fieldOptions(field: ApiTemplateField) {
-  if (field.options?.length) return field.options;
-  if (!field.defaultValue) return [];
-  return field.defaultValue
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .map((value) => ({ label: value, value }));
-}
-
-function updateRowValue(
-  rows: FieldRow[],
-  rowIndex: number,
-  columnName: string,
-  value: FieldValue,
-): FieldRow[] {
-  return rows.map((row, index) =>
-    index === rowIndex ? { ...row, [columnName]: value } : row,
-  );
-}
-
-function removeRow(rows: FieldRow[], rowIndex: number): FieldRow[] {
-  return rows.filter((_, index) => index !== rowIndex);
-}
-
-function asRows(value: FieldValue | undefined): FieldRow[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function valueForInput(value: FieldValue | undefined): string {
-  if (typeof value === "string" || typeof value === "number") {
-    return String(value);
-  }
-  return "";
-}
-
-function resolveHtmlInputType(type: ApiTemplateField["type"]): string {
-  switch (type) {
-    case "number":
-    case "integer":
-    case "currency":
-    case "percentage":
-      return "number";
-    case "date":
-      return "date";
-    case "email":
-      return "email";
-    case "url":
-      return "url";
-    case "tel":
-    case "phone":
-      return "tel";
-    default:
-      return "text";
-  }
-}
-
-function parseNumberOrEmpty(raw: string): number | "" {
-  if (raw.trim() === "") return "";
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : "";
-}
-
-function isChecked(value: FieldValue | undefined): boolean {
-  return value === true || value === "true";
-}
-
-function formatDateForPreview(value: FieldValue | undefined): string {
-  if (typeof value !== "string") return "";
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
-  if (!match) return value;
-  const [, year, month, day] = match;
-  return `${day}/${month}/${year}`;
-}
+type RenderContext = Props & {
+  fieldByName: Map<string, NormalizedField>;
+};
 
 function renderReadOnlyField(field: ApiTemplateField, value: FieldValue) {
   if (Array.isArray(value)) {
@@ -128,11 +81,30 @@ function renderReadOnlyField(field: ApiTemplateField, value: FieldValue) {
       />
     );
   }
+  const displayValue = formatFieldValueForPreview(field.type, value) || "";
+  const type = field.type ?? "text";
+  if (type === "boolean" || type === "checkbox") {
+    const boolValue = value === true;
+    return (
+      <Box
+        component="span"
+        className={`inline-boolean-badge ${boolValue ? "is-true" : "is-false"}`}
+        title={boolValue ? "Yes" : "No"}
+      >
+        {boolValue ? (
+          <CheckCircleIcon fontSize="inherit" />
+        ) : (
+          <CancelIcon fontSize="inherit" />
+        )}
+      </Box>
+    );
+  }
+  if (!displayValue) {
+    return <Box component="span" className="inline-value inline-value-empty" />;
+  }
   return (
-    <Box component="span" className="inline-value">
-      {(field.type === "date"
-        ? formatDateForPreview(value)
-        : stringifyFieldValue(value)) || `{{${field.name}}}`}
+    <Box component="span" className="inline-value" title={displayValue}>
+      {displayValue}
     </Box>
   );
 }
@@ -141,19 +113,40 @@ function EditableScalarField({
   field,
   value,
   error,
+  showTypeHints = false,
   readOnly = false,
   onChange,
 }: {
   field: ApiTemplateField;
   value: FieldValue | undefined;
   error?: string;
+  showTypeHints?: boolean;
   readOnly?: boolean;
   onChange: (value: FieldValue) => void;
 }) {
   const type = field.type ?? "text";
+  const fieldTypeClass = `inline-field-${type.replace(/[^a-z0-9_-]/gi, "-")}`;
+  const numericField = isNumericFieldType(type);
+  const [draftValue, setDraftValue] = useState(valueForInput(value));
+
+  useEffect(() => {
+    setDraftValue(valueForInput(value));
+  }, [value]);
+
   if (readOnly) return renderReadOnlyField(field, value ?? null);
 
+  const normalizeIntegerDraft = (raw: string): string => {
+    let next = raw.replace(/[^\d-]/g, "");
+    if (next.includes("-")) {
+      const negative = next.startsWith("-");
+      next = next.replace(/-/g, "");
+      next = negative ? `-${next}` : next;
+    }
+    return next;
+  };
+
   if (type === "boolean" || type === "checkbox") {
+    const checkboxLabel = `${field.label ?? labelFromName(field.name)}${field.required === false ? "" : " *"}`;
     return (
       <FormControl error={Boolean(error)} component="span">
         <FormControlLabel
@@ -165,23 +158,30 @@ function EditableScalarField({
               onChange={(event) => onChange(event.target.checked)}
             />
           }
-          label={field.label ?? labelFromName(field.name)}
+          label={checkboxLabel}
         />
         {error && <FormHelperText>{error}</FormHelperText>}
       </FormControl>
     );
   }
 
-  if (type === "select") {
+  if (type === "select" || type === "list") {
     return (
-      <FormControl size="small" error={Boolean(error)} className="inline-field">
+      <FormControl
+        size="small"
+        error={Boolean(error)}
+        className={`inline-field ${fieldTypeClass}`}
+      >
         <Select
           value={valueForInput(value)}
           displayEmpty
+          inputProps={{
+            "aria-label": field.label ?? labelFromName(field.name),
+          }}
           onChange={(event) => onChange(event.target.value)}
         >
           <MenuItem value="">
-            <em>{field.placeholder ?? field.label ?? field.name}</em>
+            <em>{inputPlaceholderForField(field)}</em>
           </MenuItem>
           {fieldOptions(field).map((option) => (
             <MenuItem key={option.value} value={option.value}>
@@ -197,59 +197,197 @@ function EditableScalarField({
   const multiline = type === "textarea";
   const htmlType = resolveHtmlInputType(type);
   const dateField = htmlType === "date";
+  const requiredIndicator =
+    !readOnly && field.required !== false ? (
+      <Typography
+        component="span"
+        className="inline-required-indicator"
+        aria-hidden
+      >
+        *
+      </Typography>
+    ) : null;
+
+  if (dateField) {
+    const dateValue = typeof value === "string" && value ? dayjs(value) : null;
+    const dateTextFieldProps = {
+      className: `inline-field inline-date-field ${fieldTypeClass}`,
+      size: "small" as const,
+      error: Boolean(error),
+      helperText: error ?? fieldTypeHelperText(field, showTypeHints),
+      hiddenLabel: true,
+      autoComplete: "new-password",
+      name: `field_${field.name}`,
+      inputProps: {
+        "aria-label": field.label ?? labelFromName(field.name),
+        autoComplete: "new-password",
+        autoCorrect: "off",
+        autoCapitalize: "none",
+        spellCheck: "false",
+      },
+      placeholder: inputPlaceholderForField(field),
+    };
+    return (
+      <Box className="inline-field-with-indicator">
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DatePicker
+            value={dateValue?.isValid() ? dateValue : null}
+            format="DD/MM/YYYY"
+            onChange={(next) => onChange(next ? next.format("YYYY-MM-DD") : "")}
+            slotProps={{
+              textField: dateTextFieldProps,
+            }}
+          />
+        </LocalizationProvider>
+        {requiredIndicator}
+      </Box>
+    );
+  }
 
   return (
-    <TextField
-      className={
-        multiline ? "inline-field inline-field-textarea" : "inline-field"
-      }
-      size="small"
-      type={htmlType}
-      multiline={multiline}
-      minRows={multiline ? 3 : undefined}
-      label={dateField ? undefined : (field.label ?? labelFromName(field.name))}
-      placeholder={dateField ? undefined : field.placeholder}
-      InputLabelProps={dateField ? { shrink: true } : undefined}
-      value={valueForInput(value)}
-      error={Boolean(error)}
-      helperText={error}
-      onChange={(event) =>
-        onChange(
-          type === "number" ||
-            type === "integer" ||
+    <Box className="inline-field-with-indicator">
+      <TextField
+        className={
+          multiline
+            ? `inline-field inline-field-textarea ${fieldTypeClass}`
+            : `inline-field ${fieldTypeClass}`
+        }
+        size="small"
+        type={htmlType}
+        multiline={multiline}
+        minRows={multiline ? 3 : undefined}
+        hiddenLabel
+        autoComplete="new-password"
+        name={`field_${field.name}`}
+        placeholder={inputPlaceholderForField(field)}
+        value={numericField ? draftValue : valueForInput(value)}
+        error={Boolean(error)}
+        helperText={error ?? fieldTypeHelperText(field, showTypeHints)}
+        inputProps={{
+          ...(type === "integer"
+            ? { inputMode: "numeric", pattern: "^-?\\d*$" }
+            : numericField
+              ? { inputMode: "decimal", step: "any" }
+              : {}),
+          ...(field.maxLength && !numericField && !multiline
+            ? { maxLength: field.maxLength }
+            : {}),
+          autoComplete: "new-password",
+          autoCorrect: "off",
+          autoCapitalize: "none",
+          spellCheck: "false",
+          "aria-label": field.label ?? labelFromName(field.name),
+        }}
+        onChange={(event) => {
+          if ((event.nativeEvent as InputEvent | undefined)?.isComposing)
+            return;
+          const rawValue = event.target.value;
+          if (numericField) {
+            if (type === "integer") {
+              const normalized = normalizeIntegerDraft(rawValue);
+              setDraftValue(normalized);
+              if (normalized === "" || normalized === "-") {
+                onChange("");
+                return;
+              }
+              if (!/^-?\d+$/.test(normalized)) return;
+              onChange(Number.parseInt(normalized, 10));
+              return;
+            }
+            if (!isStrictNumericInput(rawValue, type)) return;
+            setDraftValue(rawValue);
+            onChange(parseNumberOrEmpty(rawValue.replace(",", ".")));
+            return;
+          }
+          onChange(rawValue);
+        }}
+        onBlur={() => {
+          if (!numericField) return;
+          if (type === "integer") {
+            const normalized = normalizeIntegerDraft(draftValue);
+            if (normalized === "" || normalized === "-") {
+              onChange("");
+              setDraftValue("");
+              return;
+            }
+            if (!/^-?\d+$/.test(normalized)) {
+              setDraftValue(valueForInput(value));
+              return;
+            }
+            onChange(Number.parseInt(normalized, 10));
+            setDraftValue(normalized);
+            return;
+          }
+          if (draftValue.trim() === "") {
+            onChange("");
+            return;
+          }
+          if (!isStrictNumericInput(draftValue, type)) {
+            setDraftValue(valueForInput(value));
+          }
+        }}
+        onKeyDown={(event) => {
+          if (type === "integer") {
+            if (
+              event.key === "e" ||
+              event.key === "E" ||
+              event.key === "+" ||
+              event.key === "." ||
+              event.key === ","
+            ) {
+              event.preventDefault();
+            }
+            return;
+          }
+          if (
+            type === "number" ||
             type === "currency" ||
             type === "percentage"
-            ? parseNumberOrEmpty(event.target.value)
-            : event.target.value,
-        )
-      }
-      inputProps={
-        type === "number" ||
-        type === "integer" ||
-        type === "currency" ||
-        type === "percentage"
-          ? { inputMode: "decimal", step: "any" }
-          : {}
-      }
-    />
+          ) {
+            if (event.key === "e" || event.key === "E" || event.key === "+") {
+              event.preventDefault();
+            }
+          }
+        }}
+        onPaste={(event) => {
+          if (type !== "integer") return;
+          const pasted = event.clipboardData.getData("text");
+          const normalized = normalizeIntegerDraft(pasted);
+          if (normalized !== pasted.trim()) {
+            event.preventDefault();
+            setDraftValue(normalized);
+            if (normalized === "" || normalized === "-") {
+              onChange("");
+              return;
+            }
+            if (/^-?\d+$/.test(normalized)) {
+              onChange(Number.parseInt(normalized, 10));
+            }
+          }
+        }}
+      />
+      {requiredIndicator}
+    </Box>
   );
 }
 
 function EditableTable({
   field,
   value,
+  showTypeHints = false,
   readOnly = false,
   onChange,
 }: {
   field: ApiTemplateField;
   value: FieldRow[];
+  showTypeHints?: boolean;
   readOnly?: boolean;
   onChange: (value: FieldRow[]) => void;
 }) {
   const columns =
     field.columns && field.columns.length > 0
       ? field.columns
-      : [{ name: "valore", label: "Valore", type: "text" as const }];
+      : [{ name: "value", label: "Value", type: "text" as const }];
 
   return (
     <Box className="dynamic-table">
@@ -272,7 +410,6 @@ function EditableTable({
                 const nested =
                   columnType === "table" ||
                   columnType === "subtable" ||
-                  columnType === "list" ||
                   columnType === "repeater";
                 return (
                   <TableCell key={column.name}>
@@ -280,6 +417,7 @@ function EditableTable({
                       <EditableTable
                         field={column}
                         value={asRows(row[column.name])}
+                        showTypeHints={showTypeHints}
                         readOnly={readOnly}
                         onChange={(nestedRows) =>
                           onChange(
@@ -296,6 +434,7 @@ function EditableTable({
                       <EditableScalarField
                         field={column}
                         value={row[column.name]}
+                        showTypeHints={showTypeHints}
                         readOnly={readOnly}
                         onChange={(next) =>
                           onChange(
@@ -311,7 +450,7 @@ function EditableTable({
                 <TableCell>
                   <IconButton
                     size="small"
-                    aria-label="Rimuovi riga"
+                    aria-label="Remove row"
                     onClick={() => onChange(removeRow(value, rowIndex))}
                   >
                     <DeleteIcon fontSize="small" />
@@ -328,7 +467,7 @@ function EditableTable({
           startIcon={<AddIcon />}
           onClick={() => onChange([...value, emptyRow(columns)])}
         >
-          Aggiungi riga
+          Add row
         </Button>
       )}
     </Box>
@@ -337,13 +476,13 @@ function EditableTable({
 
 function InlineContent({
   text,
-  fields,
+  fieldByName,
   values,
   errors,
+  showTypeHints,
   readOnly,
   onChange,
-}: Props & { text: string }) {
-  const byName = new Map(fields.map((field) => [field.name, field]));
+}: RenderContext & { text: string }) {
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
 
@@ -381,28 +520,55 @@ function InlineContent({
   }
 
   for (const match of text.matchAll(PLACEHOLDER_REGEX)) {
-    const [raw, inlineType, name] = match;
+    const raw = match[0];
     const index = match.index ?? 0;
     if (index > lastIndex) {
       parts.push(
         ...renderInlineMarkdown(
           text.slice(lastIndex, index),
-          `${name}-${index}-${lastIndex}`,
+          `plain-${index}-${lastIndex}`,
         ),
       );
     }
 
-    const field = byName.get(name) ?? {
+    const parsed = parsePlaceholderToken(raw);
+    if (!parsed.field) {
+      const invalidLabel =
+        raw.startsWith("{{") && raw.endsWith("}}") ? raw.slice(2, -2) : raw;
+      parts.push(
+        <Box
+          key={`invalid-${index}`}
+          component="span"
+          sx={{
+            color: "#b91c1c",
+            backgroundColor: "#fee2e2",
+            borderBottom: "1px dashed #dc2626",
+            px: 0.5,
+            borderRadius: "4px",
+            fontSize: "0.9em",
+          }}
+          title={
+            parsed.invalid?.message ?? `Invalid placeholder: ${invalidLabel}`
+          }
+        >
+          {`[Invalid placeholder: ${invalidLabel}]`}
+        </Box>,
+      );
+      lastIndex = index + raw.length;
+      continue;
+    }
+
+    const { name, type: parsedType } = parsed.field;
+    const field = fieldByName.get(name) ?? {
       name,
       label: labelFromName(name),
-      type: (inlineType ?? "string") as ApiTemplateField["type"],
+      type: parsedType as ApiTemplateField["type"],
       required: true,
       defaultValue: "",
     };
     const complex =
       field.type === "table" ||
       field.type === "subtable" ||
-      field.type === "list" ||
       field.type === "repeater";
 
     parts.push(
@@ -411,6 +577,7 @@ function InlineContent({
           key={`${name}-${index}`}
           field={field}
           value={asRows(values[name])}
+          showTypeHints={showTypeHints}
           readOnly={readOnly}
           onChange={(next) => onChange?.(name, next)}
         />
@@ -420,6 +587,7 @@ function InlineContent({
           field={field}
           value={values[name]}
           error={errors?.[name]}
+          showTypeHints={showTypeHints}
           readOnly={readOnly}
           onChange={(next) => onChange?.(name, next)}
         />
@@ -436,7 +604,7 @@ function InlineContent({
   return <>{parts}</>;
 }
 
-function renderLine(line: string, index: number, props: Props) {
+function renderLine(line: string, index: number, props: RenderContext) {
   const quote = /^\s*>\s+(.+)$/.exec(line);
   if (quote) {
     return (
@@ -483,72 +651,64 @@ function renderLine(line: string, index: number, props: Props) {
   );
 }
 
-function tryRenderMarkdownTable(lines: string[], start: number, props: Props) {
-  if (
-    !lines[start]?.includes("|") ||
-    !lines[start + 1]?.match(/^\s*\|?\s*:?-{3,}/)
-  ) {
-    return null;
-  }
-  const tableLines: string[] = [];
-  let cursor = start;
-  while (cursor < lines.length && lines[cursor].includes("|")) {
-    tableLines.push(lines[cursor]);
-    cursor += 1;
-  }
-  const rows = tableLines
-    .filter((_, index) => index !== 1)
-    .map((line) =>
-      line
-        .trim()
-        .replace(/^\|/, "")
-        .replace(/\|$/, "")
-        .split("|")
-        .map((cell) => cell.trim()),
-    );
-  const [header = [], ...body] = rows;
+function tryRenderMarkdownTable(
+  lines: string[],
+  start: number,
+  props: RenderContext,
+) {
+  const table = parseMarkdownTable(lines, start);
+  if (!table) return null;
 
   return {
-    next: cursor,
+    next: table.next,
     node: (
-      <Table key={start} size="small" className="markdown-table">
-        <TableHead>
-          <TableRow>
-            {header.map((cell) => (
-              <TableCell key={cell}>
-                <InlineContent {...props} text={cell} />
-              </TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {body.map((row) => (
-            <TableRow key={`${start}-${row.join("|")}`}>
-              {row.map((cell) => (
-                <TableCell key={`${start}-${row.join("|")}-${cell}`}>
+      <Box key={start} className="markdown-table-wrap">
+        <Table size="small" className="markdown-table">
+          <TableHead>
+            <TableRow>
+              {table.header.map((cell) => (
+                <TableCell key={cell} title={cell}>
                   <InlineContent {...props} text={cell} />
                 </TableCell>
               ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHead>
+          <TableBody>
+            {table.body.map((row) => (
+              <TableRow key={`${start}-${row.join("|")}`}>
+                {row.map((cell) => (
+                  <TableCell
+                    key={`${start}-${row.join("|")}-${cell}`}
+                    title={cell}
+                  >
+                    <InlineContent {...props} text={cell} />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Box>
     ),
   };
 }
 
 export function DynamicDocument(props: Props) {
   const lines = props.markdown.split(/\r?\n/);
+  const renderContext: RenderContext = {
+    ...props,
+    fieldByName: new Map(props.fields.map((field) => [field.name, field])),
+  };
   const nodes: React.ReactNode[] = [];
   let index = 0;
   while (index < lines.length) {
-    const table = tryRenderMarkdownTable(lines, index, props);
+    const table = tryRenderMarkdownTable(lines, index, renderContext);
     if (table) {
       nodes.push(table.node);
       index = table.next;
       continue;
     }
-    nodes.push(renderLine(lines[index], index, props));
+    nodes.push(renderLine(lines[index], index, renderContext));
     index += 1;
   }
 

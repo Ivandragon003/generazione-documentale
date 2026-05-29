@@ -3,6 +3,7 @@ import { access, mkdir, unlink } from "node:fs/promises";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { DocumentRenderingService } from "../src/service/document-rendering.service";
 import { PdfGenerationService } from "../src/service/pdf-generation.service";
+import { TemplatePlaceholderService } from "../src/service/template-placeholder.service";
 
 jest.mock("node:child_process", () => ({
   spawn: jest.fn(),
@@ -64,7 +65,11 @@ describe("PdfGenerationService", () => {
     mkdirMock.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PdfGenerationService, DocumentRenderingService],
+      providers: [
+        PdfGenerationService,
+        DocumentRenderingService,
+        TemplatePlaceholderService,
+      ],
     }).compile();
 
     service = module.get<PdfGenerationService>(PdfGenerationService);
@@ -115,11 +120,70 @@ describe("PdfGenerationService", () => {
       );
     });
 
-    it("deve usare 'Document' come titolo di default se non fornito", async () => {
+    it("non deve iniettare metadati title/author/date nel documento", async () => {
       makeSpawnMock(0);
       await service.generatePdf({ ...baseInput, title: "" });
       const callArgs = spawnMock.mock.calls[0][1] as string[];
-      expect(callArgs.some((a: string) => a.includes("Document"))).toBe(true);
+      expect(
+        callArgs.some((a: string) => a.startsWith("--metadata=title:")),
+      ).toBe(false);
+      expect(
+        callArgs.some((a: string) => a.startsWith("--metadata=author:")),
+      ).toBe(false);
+      expect(
+        callArgs.some((a: string) => a.startsWith("--metadata=date:")),
+      ).toBe(false);
+    });
+
+    it("deve usare profilo rtl per contenuto arabo", async () => {
+      makeSpawnMock(0);
+      await service.generatePdf({
+        ...baseInput,
+        content: "# عرض تجاري\n\nاسم العميل: {{titolo}}",
+      });
+      const callArgs = spawnMock.mock.calls[0][1] as string[];
+      expect(callArgs).toContain("--metadata=lang:ar");
+      expect(callArgs).toContain("--metadata=dir:rtl");
+      expect(callArgs).toContain("-V");
+      expect(callArgs).toContain("mainfont=DejaVu Sans");
+    });
+
+    it("deve usare profilo cjk per contenuto giapponese/cinese", async () => {
+      makeSpawnMock(0);
+      await service.generatePdf({
+        ...baseInput,
+        content: "# 技術会議議事録\n\n顧客名: {{titolo}}",
+      });
+      const callArgs = spawnMock.mock.calls[0][1] as string[];
+      expect(
+        callArgs.includes("--metadata=lang:ja") ||
+          callArgs.includes("--metadata=lang:zh"),
+      ).toBe(true);
+      expect(callArgs).toContain("CJKmainfont=Noto Sans CJK JP");
+      expect(callArgs).toContain("mainfont=Noto Sans");
+    });
+
+    it("deve usare fallback latin per contenuto europeo", async () => {
+      makeSpawnMock(0);
+      await service.generatePdf({
+        ...baseInput,
+        content: "# Offerta commerciale\n\nCliente: {{titolo}}",
+      });
+      const callArgs = spawnMock.mock.calls[0][1] as string[];
+      expect(callArgs).toContain("--metadata=lang:en");
+      expect(callArgs).toContain("--metadata=dir:ltr");
+      expect(callArgs).toContain("mainfont=Noto Sans");
+    });
+
+    it("usa la lingua del browser quando fornita", async () => {
+      makeSpawnMock(0);
+      await service.generatePdf({
+        ...baseInput,
+        language: "ja-JP",
+      });
+      const callArgs = spawnMock.mock.calls[0][1] as string[];
+      expect(callArgs).toContain("--metadata=lang:ja-JP");
+      expect(callArgs).toContain("CJKmainfont=Noto Sans CJK JP");
     });
 
     it("deve lanciare un errore se il contenuto supera il limite massimo", async () => {
@@ -127,6 +191,55 @@ describe("PdfGenerationService", () => {
       await expect(
         service.generatePdf({ ...baseInput, content: hugeContent }),
       ).rejects.toThrow(/too large/);
+    });
+
+    it("deve validare i valori rispetto ai tipi placeholder", async () => {
+      await expect(
+        service.generatePdf({
+          ...baseInput,
+          content: "# {{currency:importo_base}}",
+          fieldValues: { importo_base: "non numerico" },
+        }),
+      ).rejects.toThrow(/field values validation failed/);
+      expect(spawnMock).not.toHaveBeenCalled();
+    });
+
+    it("deve fallire se un placeholder typed required non e valorizzato", async () => {
+      await expect(
+        service.generatePdf({
+          ...baseInput,
+          content: "# {{string:titolo}}\n\nCliente: {{text:cliente}}",
+          fieldValues: { titolo: "Offerta" },
+          strict: false,
+        }),
+      ).rejects.toThrow(
+        /Required template fields are unresolved: cliente \(type=text, required=true, reason=missing\)/,
+      );
+      expect(spawnMock).not.toHaveBeenCalled();
+    });
+
+    it("deve includere suggerimento per required typed non risolto da typo fieldValues", async () => {
+      await expect(
+        service.generatePdf({
+          ...baseInput,
+          content: "# {{string:nome_cliente}}",
+          fieldValues: { nome_clietne: "ACME" },
+          strict: false,
+        }),
+      ).rejects.toThrow(/suggestedField=nome_cliente/);
+      expect(spawnMock).not.toHaveBeenCalled();
+    });
+
+    it("mantiene non bloccanti i placeholder legacy untyped mancanti", async () => {
+      makeSpawnMock(0);
+      const result = await service.generatePdf({
+        ...baseInput,
+        content: "# {{titolo}}\n\nCliente: {{cliente}}",
+        fieldValues: { titolo: "Offerta" },
+        strict: false,
+      });
+      expect(result.unresolvedFields).toEqual(["cliente"]);
+      expect(spawnMock).toHaveBeenCalled();
     });
 
     it("deve lanciare errore se pandoc esce con codice non-zero", async () => {

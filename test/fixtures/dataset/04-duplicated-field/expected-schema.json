@@ -1,0 +1,1 @@
+{ "fields": [{ "name": "nome_cliente", "type": "string", "required": true }] }

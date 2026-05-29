@@ -6,6 +6,7 @@ export interface AppConfig {
   pdfJobsRetentionDays: number;
   pdfFailedJobsRetentionDays: number;
   pdfRetentionRunEveryMs: number;
+  auditLogRetentionDays: number | null;
 }
 
 const logger = new Logger("app.config");
@@ -16,9 +17,32 @@ const readPositiveInt = (
   fallback: number,
   min: number,
 ): number => {
-  const parsed = Number.parseInt(rawValue ?? "", 10);
+  if (rawValue === undefined) return fallback;
+
+  const normalized = rawValue.trim();
+  const parsed = /^\d+$/.test(normalized)
+    ? Number.parseInt(normalized, 10)
+    : Number.NaN;
   if (Number.isInteger(parsed) && parsed >= min) {
     return parsed;
+  }
+  logger.warn(`${varName}="${rawValue}" invalid, using default ${fallback}`);
+  return fallback;
+};
+
+const readRetentionDays = (
+  rawValue: string | undefined,
+  varName: string,
+  fallback: number,
+): number | null => {
+  if (rawValue === undefined) return fallback;
+
+  const normalized = rawValue.trim();
+  const parsed = /^-?\d+$/.test(normalized)
+    ? Number.parseInt(normalized, 10)
+    : Number.NaN;
+  if (Number.isInteger(parsed)) {
+    return parsed <= 0 ? null : parsed;
   }
   logger.warn(`${varName}="${rawValue}" invalid, using default ${fallback}`);
   return fallback;
@@ -55,6 +79,11 @@ const buildAppConfig = (): AppConfig => {
       "PDF_RETENTION_RUN_EVERY_MS",
       3600000,
       60000,
+    ),
+    auditLogRetentionDays: readRetentionDays(
+      process.env.AUDIT_LOG_RETENTION_DAYS,
+      "AUDIT_LOG_RETENTION_DAYS",
+      180,
     ),
   };
 };

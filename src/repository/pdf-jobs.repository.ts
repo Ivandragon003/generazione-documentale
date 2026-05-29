@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { LessThanOrEqual, type Repository } from "typeorm";
+import { IsNull, LessThanOrEqual, type Repository } from "typeorm";
 import { PdfJobEntity } from "../entities/pdf-job.entity";
 import type { FieldValueMap } from "../service/document-rendering.service";
 
@@ -17,10 +17,12 @@ export class PdfJobsRepository {
     actor: string,
     templateContentHash: string,
     fieldValuesHash: string,
+    language?: string | null,
   ): Promise<PdfJobEntity> {
     const job = this.repo.create({
       template_id: templateId,
       field_values: fieldValues,
+      language: language || null,
       requested_by: actor,
       status: "queued",
       template_content_hash: templateContentHash,
@@ -51,6 +53,7 @@ export class PdfJobsRepository {
     templateId: string,
     templateContentHash: string,
     fieldValuesHash: string,
+    language?: string | null,
   ): Promise<PdfJobEntity | null> {
     return this.repo.findOne({
       where: {
@@ -58,6 +61,9 @@ export class PdfJobsRepository {
         status: "completed",
         template_content_hash: templateContentHash,
         field_values_hash: fieldValuesHash,
+        ...(language !== undefined
+          ? { language: language ? language : IsNull() }
+          : {}),
       },
       order: { completed_at: "DESC" },
     });

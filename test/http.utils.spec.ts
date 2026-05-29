@@ -132,7 +132,7 @@ describe("HTTP Utilities", () => {
     describe("Failure modes", () => {
       it("deve usare default limit quando undefined", () => {
         const result = parsePagination({
-          limit: undefined as unknown as string,
+          limit: undefined,
           offset: "0",
         });
         expect(result.limit).toBe(20);

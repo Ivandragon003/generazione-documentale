@@ -34,7 +34,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new AllExceptionsFilter());
 
   app.setGlobalPrefix("api", {
-    exclude: ["health", "health/pdf"],
+    exclude: ["health"],
   });
 
   const swaggerConfig = new DocumentBuilder()
@@ -68,7 +68,6 @@ async function bootstrap(): Promise<void> {
 bootstrap().catch((error: unknown) => {
   const message =
     error instanceof Error ? error.message : "Application startup error";
-  // eslint-disable-next-line no-console
-  console.error(message);
+  process.stderr.write(`${message}\n`);
   process.exit(1);
 });

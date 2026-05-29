@@ -1,0 +1,13 @@
+{
+  "deterministic": {
+    "errors": [
+      {
+        "code": "INVALID_PLACEHOLDER_TYPE",
+        "messageContains": "Invalid placeholder type: \"strnig\"",
+        "suggestion": "string"
+      }
+    ],
+    "warnings": []
+  },
+  "fieldValidationInvalidInput": ["Invalid placeholder type: \"strnig\""]
+}

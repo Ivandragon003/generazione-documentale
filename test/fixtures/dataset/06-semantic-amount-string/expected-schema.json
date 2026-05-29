@@ -1,0 +1,1 @@
+{ "fields": [{ "name": "importo_totale", "type": "string", "required": true }] }

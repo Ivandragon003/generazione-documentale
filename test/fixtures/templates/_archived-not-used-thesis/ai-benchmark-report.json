@@ -1,0 +1,899 @@
+{
+  "provider": "mock",
+  "model": "mock",
+  "generatedAt": "2026-05-25T09:01:46.023Z",
+  "warning": "WARNING: benchmark executed with MockAiProvider. Results are useful only for functional tests, not for thesis latency evaluation.",
+  "deterministic": {
+    "cases": [
+      {
+        "id": "01-valid",
+        "sourceFile": "01-valid.md",
+        "deterministicDurationMs": 3,
+        "deterministicErrorsCount": 2,
+        "deterministicWarningsCount": 0,
+        "inputLength": 175,
+        "expectedErrorTypes": ["INVALID_TYPE"],
+        "detectedErrorTypes": ["INVALID_TYPE"],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [
+          {
+            "raw": "{{string:nome_cliente:120:true}}",
+            "type": "string",
+            "name": "nome_cliente"
+          },
+          {
+            "raw": "{{date:data_stipula}}",
+            "type": "date",
+            "name": "data_stipula"
+          },
+          {
+            "raw": "{{currency:importo_totale}}",
+            "type": "currency",
+            "name": "importo_totale"
+          },
+          {
+            "raw": "{{percentage:sconto}}",
+            "type": "percentage",
+            "name": "sconto"
+          }
+        ],
+        "invalidDetectedPlaceholders": [
+          "{{currency:importo_totale}}",
+          "{{percentage:sconto}}"
+        ],
+        "nonExtractedInvalidPlaceholders": [],
+        "repairableErrors": [],
+        "nonRepairableErrors": ["INVALID_TYPE", "INVALID_TYPE"],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "02-malformed",
+        "sourceFile": "02-malformed.md",
+        "deterministicDurationMs": 0,
+        "deterministicErrorsCount": 1,
+        "deterministicWarningsCount": 0,
+        "inputLength": 58,
+        "expectedErrorTypes": ["UNBALANCED_PLACEHOLDER"],
+        "detectedErrorTypes": ["UNBALANCED_PLACEHOLDER"],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [],
+        "invalidDetectedPlaceholders": [],
+        "nonExtractedInvalidPlaceholders": [],
+        "repairableErrors": [],
+        "nonRepairableErrors": ["UNCLOSED_PLACEHOLDER"],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "03-invalid-type",
+        "sourceFile": "03-invalid-type.md",
+        "deterministicDurationMs": 4,
+        "deterministicErrorsCount": 1,
+        "deterministicWarningsCount": 0,
+        "inputLength": 49,
+        "expectedErrorTypes": ["INVALID_PLACEHOLDER_TYPE"],
+        "detectedErrorTypes": ["INVALID_PLACEHOLDER_TYPE"],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [],
+        "invalidDetectedPlaceholders": [],
+        "nonExtractedInvalidPlaceholders": ["{{strnig:nome_cliente}}"],
+        "repairableErrors": [],
+        "nonRepairableErrors": ["UNSUPPORTED_TYPE"],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "04-duplicated-field",
+        "sourceFile": "04-duplicated-field.md",
+        "deterministicDurationMs": 0,
+        "deterministicErrorsCount": 0,
+        "deterministicWarningsCount": 1,
+        "inputLength": 68,
+        "expectedErrorTypes": ["DUPLICATED_FIELD"],
+        "detectedErrorTypes": ["DUPLICATED_FIELD"],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [
+          {
+            "raw": "{{string:nome_cliente}}",
+            "type": "string",
+            "name": "nome_cliente"
+          }
+        ],
+        "invalidDetectedPlaceholders": [],
+        "nonExtractedInvalidPlaceholders": [],
+        "repairableErrors": [],
+        "nonRepairableErrors": [],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "05-semantic-date-string",
+        "sourceFile": "05-semantic-date-string.md",
+        "deterministicDurationMs": 0,
+        "deterministicErrorsCount": 0,
+        "deterministicWarningsCount": 0,
+        "inputLength": 80,
+        "expectedErrorTypes": [],
+        "detectedErrorTypes": [],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [
+          {
+            "raw": "{{string:data_nascita:100:true}}",
+            "type": "string",
+            "name": "data_nascita"
+          }
+        ],
+        "invalidDetectedPlaceholders": [],
+        "nonExtractedInvalidPlaceholders": [],
+        "repairableErrors": [],
+        "nonRepairableErrors": [],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "06-semantic-amount-string",
+        "sourceFile": "06-semantic-amount-string.md",
+        "deterministicDurationMs": 0,
+        "deterministicErrorsCount": 0,
+        "deterministicWarningsCount": 0,
+        "inputLength": 74,
+        "expectedErrorTypes": [],
+        "detectedErrorTypes": [],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [
+          {
+            "raw": "{{string:importo_totale:100:true}}",
+            "type": "string",
+            "name": "importo_totale"
+          }
+        ],
+        "invalidDetectedPlaceholders": [],
+        "nonExtractedInvalidPlaceholders": [],
+        "repairableErrors": [],
+        "nonRepairableErrors": [],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "07-semantic-percentage-integer",
+        "sourceFile": "07-semantic-percentage-integer.md",
+        "deterministicDurationMs": 0,
+        "deterministicErrorsCount": 0,
+        "deterministicWarningsCount": 0,
+        "inputLength": 78,
+        "expectedErrorTypes": [],
+        "detectedErrorTypes": [],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [
+          {
+            "raw": "{{integer:percentuale_sconto}}",
+            "type": "integer",
+            "name": "percentuale_sconto"
+          }
+        ],
+        "invalidDetectedPlaceholders": [],
+        "nonExtractedInvalidPlaceholders": [],
+        "repairableErrors": [],
+        "nonRepairableErrors": [],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "08-ambiguous",
+        "sourceFile": "08-ambiguous.md",
+        "deterministicDurationMs": 0,
+        "deterministicErrorsCount": 0,
+        "deterministicWarningsCount": 0,
+        "inputLength": 40,
+        "expectedErrorTypes": [],
+        "detectedErrorTypes": [],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [
+          {
+            "raw": "{{string:valore}}",
+            "type": "string",
+            "name": "valore"
+          }
+        ],
+        "invalidDetectedPlaceholders": [],
+        "nonExtractedInvalidPlaceholders": [],
+        "repairableErrors": [],
+        "nonRepairableErrors": [],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "09-semantic-contract-expiry-string",
+        "sourceFile": "09-semantic-contract-expiry-string.md",
+        "deterministicDurationMs": 1,
+        "deterministicErrorsCount": 0,
+        "deterministicWarningsCount": 0,
+        "inputLength": 88,
+        "expectedErrorTypes": [],
+        "detectedErrorTypes": [],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [
+          {
+            "raw": "{{string:data_scadenza_contratto}}",
+            "type": "string",
+            "name": "data_scadenza_contratto"
+          }
+        ],
+        "invalidDetectedPlaceholders": [],
+        "nonExtractedInvalidPlaceholders": [],
+        "repairableErrors": [],
+        "nonRepairableErrors": [],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "10-semantic-boolean-string",
+        "sourceFile": "10-semantic-boolean-string.md",
+        "deterministicDurationMs": 1,
+        "deterministicErrorsCount": 0,
+        "deterministicWarningsCount": 0,
+        "inputLength": 89,
+        "expectedErrorTypes": [],
+        "detectedErrorTypes": [],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [
+          {
+            "raw": "{{string:obbligatorio}}",
+            "type": "string",
+            "name": "obbligatorio"
+          },
+          {
+            "raw": "{{string:attivo}}",
+            "type": "string",
+            "name": "attivo"
+          }
+        ],
+        "invalidDetectedPlaceholders": [],
+        "nonExtractedInvalidPlaceholders": [],
+        "repairableErrors": [],
+        "nonRepairableErrors": [],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "11-semantic-employee-count-currency",
+        "sourceFile": "11-semantic-employee-count-currency.md",
+        "deterministicDurationMs": 1,
+        "deterministicErrorsCount": 1,
+        "deterministicWarningsCount": 0,
+        "inputLength": 83,
+        "expectedErrorTypes": ["INVALID_TYPE"],
+        "detectedErrorTypes": ["INVALID_TYPE"],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [
+          {
+            "raw": "{{currency:numero_dipendenti}}",
+            "type": "currency",
+            "name": "numero_dipendenti"
+          }
+        ],
+        "invalidDetectedPlaceholders": ["{{currency:numero_dipendenti}}"],
+        "nonExtractedInvalidPlaceholders": [],
+        "repairableErrors": [],
+        "nonRepairableErrors": ["INVALID_TYPE"],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "12-complex-accent-length-list",
+        "sourceFile": "12-complex-accent-length-list.md",
+        "deterministicDurationMs": 2,
+        "deterministicErrorsCount": 3,
+        "deterministicWarningsCount": 0,
+        "inputLength": 416,
+        "expectedErrorTypes": ["INVALID_FIELD_NAME", "INVALID_LENGTH"],
+        "detectedErrorTypes": ["INVALID_FIELD_NAME", "INVALID_LENGTH"],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [
+          {
+            "raw": "{{string:ragione_sociale:120:true}}",
+            "type": "string",
+            "name": "ragione_sociale"
+          },
+          {
+            "raw": "{{list:stato_contratto:40:true:stati_contratto:Bozza,Approvato,Sospeso}}",
+            "type": "list",
+            "name": "stato_contratto"
+          }
+        ],
+        "invalidDetectedPlaceholders": [
+          "{{string:unità_responsabile:80:true}}",
+          "{{list:canale_vendita:30:true:canale-vendita:Diretto,Partner}}"
+        ],
+        "nonExtractedInvalidPlaceholders": [
+          "{{string:unità_responsabile:80:true}}",
+          "{{string:codice_commessa:length:true}}",
+          "{{list:canale_vendita:30:true:canale-vendita:Diretto,Partner}}"
+        ],
+        "repairableErrors": [],
+        "nonRepairableErrors": [
+          "INVALID_FORMAT",
+          "EXTRA_PARAMETERS",
+          "INVALID_FORMAT"
+        ],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "13-complex-conflicting-table",
+        "sourceFile": "13-complex-conflicting-table.md",
+        "deterministicDurationMs": 0,
+        "deterministicErrorsCount": 1,
+        "deterministicWarningsCount": 1,
+        "inputLength": 389,
+        "expectedErrorTypes": ["TYPE_CONFLICT", "DUPLICATED_FIELD"],
+        "detectedErrorTypes": ["TYPE_CONFLICT", "DUPLICATED_FIELD"],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [
+          {
+            "raw": "{{string:data_chiusura}}",
+            "type": "string",
+            "name": "data_chiusura"
+          },
+          {
+            "raw": "{{integer:percentuale_completamento}}",
+            "type": "integer",
+            "name": "percentuale_completamento"
+          },
+          {
+            "raw": "{{string:nome_cliente}}",
+            "type": "string",
+            "name": "nome_cliente"
+          }
+        ],
+        "invalidDetectedPlaceholders": [],
+        "nonExtractedInvalidPlaceholders": ["{{date:data_chiusura}}"],
+        "repairableErrors": [],
+        "nonRepairableErrors": ["CONFLICTING_FIELD_TYPE"],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "14-complex-invalid-required-list-values",
+        "sourceFile": "14-complex-invalid-required-list-values.md",
+        "deterministicDurationMs": 0,
+        "deterministicErrorsCount": 2,
+        "deterministicWarningsCount": 0,
+        "inputLength": 269,
+        "expectedErrorTypes": ["INVALID_REQUIRED", "INVALID_LIST_SYNTAX"],
+        "detectedErrorTypes": ["INVALID_REQUIRED", "INVALID_LIST_SYNTAX"],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [
+          {
+            "raw": "{{email:email_referente:120:true}}",
+            "type": "email",
+            "name": "email_referente"
+          },
+          {
+            "raw": "{{text:motivazione_esito:500:true}}",
+            "type": "text",
+            "name": "motivazione_esito"
+          }
+        ],
+        "invalidDetectedPlaceholders": [
+          "{{list:esito_approvazione:30:true:esiti_approvazione:}}"
+        ],
+        "nonExtractedInvalidPlaceholders": [
+          "{{string:nome_referente:80:si}}",
+          "{{list:esito_approvazione:30:true:esiti_approvazione:}}"
+        ],
+        "repairableErrors": [],
+        "nonRepairableErrors": ["EXTRA_PARAMETERS", "EXTRA_PARAMETERS"],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "15-complex-unbalanced-mixed",
+        "sourceFile": "15-complex-unbalanced-mixed.md",
+        "deterministicDurationMs": 1,
+        "deterministicErrorsCount": 2,
+        "deterministicWarningsCount": 1,
+        "inputLength": 286,
+        "expectedErrorTypes": [
+          "UNBALANCED_PLACEHOLDER",
+          "MISSING_PLACEHOLDER_TYPE",
+          "INVALID_TYPE"
+        ],
+        "detectedErrorTypes": [
+          "UNBALANCED_PLACEHOLDER",
+          "INVALID_TYPE",
+          "MISSING_PLACEHOLDER_TYPE"
+        ],
+        "errorDetectionMatch": true,
+        "unexpectedErrors": [],
+        "missingErrors": [],
+        "validExtractedPlaceholders": [
+          {
+            "raw": "{{string:titolo_documento}}",
+            "type": "string",
+            "name": "titolo_documento"
+          },
+          {
+            "raw": "{{string:revisore_documento}}",
+            "type": "string",
+            "name": "revisore_documento"
+          },
+          {
+            "raw": "{{currency:importo_massimo:30:true}}",
+            "type": "currency",
+            "name": "importo_massimo"
+          },
+          {
+            "raw": "{{integer:durata_mesi:24:true}}",
+            "type": "integer",
+            "name": "durata_mesi"
+          },
+          {
+            "raw": "{{note_finali}}",
+            "type": "string",
+            "name": "note_finali"
+          }
+        ],
+        "invalidDetectedPlaceholders": ["{{currency:importo_massimo:30:true}}"],
+        "nonExtractedInvalidPlaceholders": [],
+        "repairableErrors": [],
+        "nonRepairableErrors": ["UNCLOSED_PLACEHOLDER", "INVALID_TYPE"],
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "16-repairable-accent-length",
+        "sourceFile": "16-repairable-accent-length.md",
+        "deterministicDurationMs": 1,
+        "deterministicErrorsCount": 2,
+        "deterministicWarningsCount": 0,
+        "inputLength": 117,
+        "expectedErrorTypes": ["INVALID_FIELD_NAME", "INVALID_LENGTH"],
+        "detectedErrorTypes": ["INVALID_FIELD_NAME"],
+        "errorDetectionMatch": false,
+        "unexpectedErrors": [],
+        "missingErrors": ["INVALID_LENGTH"],
+        "validExtractedPlaceholders": [],
+        "invalidDetectedPlaceholders": [
+          "{{string:nome_cliénte:lenght:true}}",
+          "{{string:unità_responsabile:60:true}}"
+        ],
+        "nonExtractedInvalidPlaceholders": [
+          "{{string:nome_cliénte:lenght:true}}",
+          "{{string:unità_responsabile:60:true}}"
+        ],
+        "repairableErrors": [],
+        "nonRepairableErrors": ["INVALID_FORMAT", "INVALID_FORMAT"],
+        "failed": false,
+        "error": null
+      }
+    ],
+    "summary": {
+      "casesCount": 16,
+      "avgDeterministicDurationMs": 0.88,
+      "maxDeterministicDurationMs": 4,
+      "minDeterministicDurationMs": 0,
+      "totalDeterministicErrors": 15,
+      "totalDeterministicWarnings": 3,
+      "failedCount": 0,
+      "errorDetectionMatches": 15
+    }
+  },
+  "semanticReview": {
+    "cases": [
+      {
+        "id": "semantic-correct-template",
+        "provider": "skipped",
+        "model": "mock",
+        "deterministicDurationMs": 0,
+        "aiLatencyMs": 0,
+        "warningsCount": 0,
+        "warnings": [],
+        "suggestedTypes": [],
+        "expectedWarningsCount": 0,
+        "matchedExpectedWarningsCount": 0,
+        "unexpectedWarningsCount": 0,
+        "aiInputLength": 242,
+        "aiOutputLength": 49,
+        "failed": true,
+        "error": "AI semantic review skipped: template contains blocking syntax errors."
+      },
+      {
+        "id": "semantic-date-as-string",
+        "provider": "mock",
+        "model": "mock-semantic-rules-v1",
+        "deterministicDurationMs": 0,
+        "aiLatencyMs": 1,
+        "warningsCount": 1,
+        "warnings": [
+          {
+            "fieldName": "data_stipula",
+            "currentType": "string",
+            "suggestedType": "date",
+            "confidence": 0.8,
+            "reason": "Il contesto testuale suggerisce un valore temporale (data stipula). Contesto: \"Data stipula:\""
+          }
+        ],
+        "suggestedTypes": ["date"],
+        "expectedWarningsCount": 1,
+        "matchedExpectedWarningsCount": 1,
+        "unexpectedWarningsCount": 0,
+        "aiInputLength": 95,
+        "aiOutputLength": 285,
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "semantic-amount-as-string",
+        "provider": "mock",
+        "model": "mock-semantic-rules-v1",
+        "deterministicDurationMs": 0,
+        "aiLatencyMs": 1,
+        "warningsCount": 1,
+        "warnings": [
+          {
+            "fieldName": "importo_totale",
+            "currentType": "string",
+            "suggestedType": "currency",
+            "confidence": 0.85,
+            "reason": "Il contesto testuale sembra riferirsi a un importo monetario. Contesto: \"Importo totale:\""
+          }
+        ],
+        "suggestedTypes": ["currency"],
+        "expectedWarningsCount": 1,
+        "matchedExpectedWarningsCount": 1,
+        "unexpectedWarningsCount": 0,
+        "aiInputLength": 99,
+        "aiOutputLength": 288,
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "semantic-email-as-string",
+        "provider": "mock",
+        "model": "mock-semantic-rules-v1",
+        "deterministicDurationMs": 0,
+        "aiLatencyMs": 0,
+        "warningsCount": 0,
+        "warnings": [],
+        "suggestedTypes": [],
+        "expectedWarningsCount": 1,
+        "matchedExpectedWarningsCount": 0,
+        "unexpectedWarningsCount": 0,
+        "aiInputLength": 106,
+        "aiOutputLength": 66,
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "semantic-employee-count-as-currency",
+        "provider": "skipped",
+        "model": "mock",
+        "deterministicDurationMs": 0,
+        "aiLatencyMs": 0,
+        "warningsCount": 0,
+        "warnings": [],
+        "suggestedTypes": [],
+        "expectedWarningsCount": 1,
+        "matchedExpectedWarningsCount": 0,
+        "unexpectedWarningsCount": 0,
+        "aiInputLength": 108,
+        "aiOutputLength": 49,
+        "failed": true,
+        "error": "AI semantic review skipped: template contains blocking syntax errors."
+      },
+      {
+        "id": "semantic-single-suspicious-field",
+        "provider": "skipped",
+        "model": "mock",
+        "deterministicDurationMs": 0,
+        "aiLatencyMs": 0,
+        "warningsCount": 0,
+        "warnings": [],
+        "suggestedTypes": [],
+        "expectedWarningsCount": 1,
+        "matchedExpectedWarningsCount": 0,
+        "unexpectedWarningsCount": 0,
+        "aiInputLength": 230,
+        "aiOutputLength": 49,
+        "failed": true,
+        "error": "AI semantic review skipped: template contains blocking syntax errors."
+      }
+    ],
+    "summary": {
+      "casesCount": 6,
+      "avgAiLatencyMs": 0.33,
+      "maxAiLatencyMs": 1,
+      "minAiLatencyMs": 0,
+      "failedCount": 3
+    }
+  },
+  "templateGeneration": {
+    "cases": [
+      {
+        "id": "contract-supply",
+        "provider": "mock",
+        "model": "mock-template-draft-v1",
+        "aiLatencyMs": 1,
+        "deterministicDurationMs": 0,
+        "savable": false,
+        "fieldsCount": 8,
+        "deterministicErrorsCount": 2,
+        "deterministicWarningsCount": 0,
+        "requiredFieldsPresent": 4,
+        "requiredFieldsMissing": 0,
+        "requiredFieldsMissingNames": [],
+        "correctTypes": 4,
+        "wrongTypes": 0,
+        "wrongTypeDetails": [],
+        "descriptionLength": 92,
+        "generatedMarkdownLength": 414,
+        "placeholderSyntaxSource": "pipeline",
+        "syntaxSpecIncluded": true,
+        "syntaxSpecVersion": "template-syntax-spec-v1",
+        "parserVersion": null,
+        "generationMode": "guided",
+        "syntaxErrorsCount": 2,
+        "repairableErrorsCount": 0,
+        "blockingErrorsCount": 2,
+        "finalValidable": false,
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "meeting-minutes",
+        "provider": "mock",
+        "model": "mock-template-draft-v1",
+        "aiLatencyMs": 0,
+        "deterministicDurationMs": 0,
+        "savable": true,
+        "fieldsCount": 3,
+        "deterministicErrorsCount": 0,
+        "deterministicWarningsCount": 0,
+        "requiredFieldsPresent": 3,
+        "requiredFieldsMissing": 0,
+        "requiredFieldsMissingNames": [],
+        "correctTypes": 3,
+        "wrongTypes": 0,
+        "wrongTypeDetails": [],
+        "descriptionLength": 71,
+        "generatedMarkdownLength": 134,
+        "placeholderSyntaxSource": "pipeline",
+        "syntaxSpecIncluded": true,
+        "syntaxSpecVersion": "template-syntax-spec-v1",
+        "parserVersion": null,
+        "generationMode": "guided",
+        "syntaxErrorsCount": 0,
+        "repairableErrorsCount": 0,
+        "blockingErrorsCount": 0,
+        "finalValidable": true,
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "commercial-offer",
+        "provider": "mock",
+        "model": "mock-template-draft-v1",
+        "aiLatencyMs": 0,
+        "deterministicDurationMs": 0,
+        "savable": false,
+        "fieldsCount": 3,
+        "deterministicErrorsCount": 1,
+        "deterministicWarningsCount": 0,
+        "requiredFieldsPresent": 3,
+        "requiredFieldsMissing": 0,
+        "requiredFieldsMissingNames": [],
+        "correctTypes": 3,
+        "wrongTypes": 0,
+        "wrongTypeDetails": [],
+        "descriptionLength": 90,
+        "generatedMarkdownLength": 156,
+        "placeholderSyntaxSource": "pipeline",
+        "syntaxSpecIncluded": true,
+        "syntaxSpecVersion": "template-syntax-spec-v1",
+        "parserVersion": null,
+        "generationMode": "guided",
+        "syntaxErrorsCount": 1,
+        "repairableErrorsCount": 0,
+        "blockingErrorsCount": 1,
+        "finalValidable": false,
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "customer-master-data",
+        "provider": "mock",
+        "model": "mock-template-draft-v1",
+        "aiLatencyMs": 0,
+        "deterministicDurationMs": 1,
+        "savable": false,
+        "fieldsCount": 4,
+        "deterministicErrorsCount": 1,
+        "deterministicWarningsCount": 0,
+        "requiredFieldsPresent": 4,
+        "requiredFieldsMissing": 0,
+        "requiredFieldsMissingNames": [],
+        "correctTypes": 4,
+        "wrongTypes": 0,
+        "wrongTypeDetails": [],
+        "descriptionLength": 110,
+        "generatedMarkdownLength": 249,
+        "placeholderSyntaxSource": "pipeline",
+        "syntaxSpecIncluded": true,
+        "syntaxSpecVersion": "template-syntax-spec-v1",
+        "parserVersion": null,
+        "generationMode": "guided",
+        "syntaxErrorsCount": 1,
+        "repairableErrorsCount": 0,
+        "blockingErrorsCount": 1,
+        "finalValidable": false,
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "monthly-activity-report",
+        "provider": "mock",
+        "model": "mock-template-draft-v1",
+        "aiLatencyMs": 0,
+        "deterministicDurationMs": 0,
+        "savable": false,
+        "fieldsCount": 3,
+        "deterministicErrorsCount": 1,
+        "deterministicWarningsCount": 0,
+        "requiredFieldsPresent": 3,
+        "requiredFieldsMissing": 0,
+        "requiredFieldsMissingNames": [],
+        "correctTypes": 3,
+        "wrongTypes": 0,
+        "wrongTypeDetails": [],
+        "descriptionLength": 100,
+        "generatedMarkdownLength": 196,
+        "placeholderSyntaxSource": "pipeline",
+        "syntaxSpecIncluded": true,
+        "syntaxSpecVersion": "template-syntax-spec-v1",
+        "parserVersion": null,
+        "generationMode": "guided",
+        "syntaxErrorsCount": 1,
+        "repairableErrorsCount": 0,
+        "blockingErrorsCount": 1,
+        "finalValidable": false,
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "strict-technical-placeholders",
+        "provider": "mock",
+        "model": "mock-template-draft-v1",
+        "aiLatencyMs": 0,
+        "deterministicDurationMs": 0,
+        "savable": false,
+        "fieldsCount": 4,
+        "deterministicErrorsCount": 1,
+        "deterministicWarningsCount": 0,
+        "requiredFieldsPresent": 4,
+        "requiredFieldsMissing": 1,
+        "requiredFieldsMissingNames": ["stato_cliente"],
+        "correctTypes": 4,
+        "wrongTypes": 0,
+        "wrongTypeDetails": [],
+        "descriptionLength": 140,
+        "generatedMarkdownLength": 183,
+        "placeholderSyntaxSource": "user",
+        "syntaxSpecIncluded": true,
+        "syntaxSpecVersion": "template-syntax-spec-v1",
+        "parserVersion": null,
+        "generationMode": "guided",
+        "syntaxErrorsCount": 1,
+        "repairableErrorsCount": 0,
+        "blockingErrorsCount": 1,
+        "finalValidable": false,
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "no-technical-placeholders",
+        "provider": "mock",
+        "model": "mock-template-draft-v1",
+        "aiLatencyMs": 0,
+        "deterministicDurationMs": 0,
+        "savable": false,
+        "fieldsCount": 3,
+        "deterministicErrorsCount": 0,
+        "deterministicWarningsCount": 0,
+        "requiredFieldsPresent": 0,
+        "requiredFieldsMissing": 0,
+        "requiredFieldsMissingNames": [],
+        "correctTypes": 0,
+        "wrongTypes": 0,
+        "wrongTypeDetails": [],
+        "descriptionLength": 92,
+        "generatedMarkdownLength": 128,
+        "placeholderSyntaxSource": "user",
+        "syntaxSpecIncluded": false,
+        "syntaxSpecVersion": null,
+        "parserVersion": null,
+        "generationMode": "free",
+        "syntaxErrorsCount": 0,
+        "repairableErrorsCount": 0,
+        "blockingErrorsCount": 0,
+        "finalValidable": false,
+        "failed": false,
+        "error": null
+      },
+      {
+        "id": "multi-section-governance-template",
+        "provider": "mock",
+        "model": "mock-template-draft-v1",
+        "aiLatencyMs": 0,
+        "deterministicDurationMs": 1,
+        "savable": false,
+        "fieldsCount": 4,
+        "deterministicErrorsCount": 1,
+        "deterministicWarningsCount": 0,
+        "requiredFieldsPresent": 4,
+        "requiredFieldsMissing": 2,
+        "requiredFieldsMissingNames": ["numero_dipendenti", "importo_totale"],
+        "correctTypes": 4,
+        "wrongTypes": 0,
+        "wrongTypeDetails": [],
+        "descriptionLength": 156,
+        "generatedMarkdownLength": 249,
+        "placeholderSyntaxSource": "pipeline",
+        "syntaxSpecIncluded": true,
+        "syntaxSpecVersion": "template-syntax-spec-v1",
+        "parserVersion": null,
+        "generationMode": "guided",
+        "syntaxErrorsCount": 1,
+        "repairableErrorsCount": 0,
+        "blockingErrorsCount": 1,
+        "finalValidable": false,
+        "failed": false,
+        "error": null
+      }
+    ],
+    "summary": {
+      "casesCount": 8,
+      "avgAiLatencyMs": 0.13,
+      "maxAiLatencyMs": 1,
+      "minAiLatencyMs": 0,
+      "savableRate": 12.5,
+      "failedCount": 0
+    }
+  },
+  "overallSummary": {
+    "totalCases": 30,
+    "avgAiLatencyMs": 0.21,
+    "maxAiLatencyMs": 1,
+    "minAiLatencyMs": 0,
+    "failedCount": 3
+  }
+}

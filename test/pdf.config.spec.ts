@@ -18,6 +18,7 @@ const buildWithEnv = async (env: Record<string, string | undefined>) => {
     "PDF_MAIN_FONT",
     "PDF_SANS_FONT",
     "PDF_MONO_FONT",
+    "PDF_CJK_MAIN_FONT",
     "PDF_LINE_STRETCH",
     "PANDOC_PATH",
     "STORAGE_PATH",
@@ -39,8 +40,59 @@ const buildWithEnv = async (env: Record<string, string | undefined>) => {
   return mod.pdfConfig;
 };
 
+const buildWithEnvAndWarnMock = async (
+  env: Record<string, string | undefined>,
+) => {
+  for (const key of [
+    "PDF_ENGINE",
+    "PDF_PAPER",
+    "PDF_FONT_SIZE",
+    "PDF_MARGIN_TOP",
+    "PDF_MARGIN_BOTTOM",
+    "PDF_MARGIN_LEFT",
+    "PDF_MARGIN_RIGHT",
+    "PDF_MAIN_FONT",
+    "PDF_SANS_FONT",
+    "PDF_MONO_FONT",
+    "PDF_CJK_MAIN_FONT",
+    "PDF_LINE_STRETCH",
+    "PANDOC_PATH",
+    "STORAGE_PATH",
+    "PDF_GENERATION_TIMEOUT_MS",
+    "PDF_GENERATION_RETRIES",
+    "PDF_GENERATION_RETRY_DELAY_MS",
+    "MAX_PDF_MARKDOWN_BYTES",
+  ]) {
+    delete process.env[key];
+  }
+
+  for (const [k, v] of Object.entries(env)) {
+    if (v === undefined) delete process.env[k];
+    else process.env[k] = v;
+  }
+
+  const warnMock = jest.fn();
+  resetPdfConfigModule();
+  jest.doMock("@nestjs/common", () => ({
+    Logger: class {
+      warn(message: string): void {
+        warnMock(message);
+      }
+    },
+  }));
+  const mod = await import("../src/config/pdf.config");
+  jest.dontMock("@nestjs/common");
+  return { pdfConfig: mod.pdfConfig, warnMock };
+};
+
 describe("pdf.config — buildPdfConfig()", () => {
   describe("valori di default (env non impostate)", () => {
+    it("non emette warning quando usa default per env non impostate", async () => {
+      const { warnMock } = await buildWithEnvAndWarnMock({});
+
+      expect(warnMock).not.toHaveBeenCalled();
+    });
+
     it("imposta engine = xelatex", async () => {
       const cfg = await buildWithEnv({});
       expect(cfg.engine).toBe("xelatex");
@@ -99,9 +151,9 @@ describe("pdf.config — buildPdfConfig()", () => {
       expect(cfg.maxMarkdownBytes).toBe(300000);
     });
 
-    it("imposta mainFont = Liberation Serif", async () => {
+    it("imposta mainFont = DejaVu Sans", async () => {
       const cfg = await buildWithEnv({});
-      expect(cfg.mainFont).toBe("Liberation Serif");
+      expect(cfg.mainFont).toBe("DejaVu Sans");
     });
   });
 
@@ -153,12 +205,12 @@ describe("pdf.config — buildPdfConfig()", () => {
 
     it("PDF_LINE_STRETCH=1.0 (limite inferiore incluso)", async () => {
       const cfg = await buildWithEnv({ PDF_LINE_STRETCH: "1.0" });
-      expect(cfg.lineStretch).toBe(1.0);
+      expect(cfg.lineStretch).toBe(1);
     });
 
     it("PDF_LINE_STRETCH=2.0 (limite superiore incluso)", async () => {
       const cfg = await buildWithEnv({ PDF_LINE_STRETCH: "2.0" });
-      expect(cfg.lineStretch).toBe(2.0);
+      expect(cfg.lineStretch).toBe(2);
     });
 
     it("PDF_GENERATION_TIMEOUT_MS=60000", async () => {
@@ -278,6 +330,7 @@ describe("pdf.config — buildPdfConfig()", () => {
         "mainFont",
         "sansFont",
         "monoFont",
+        "cjkMainFont",
         "lineStretch",
         "pandocPath",
         "storagePath",

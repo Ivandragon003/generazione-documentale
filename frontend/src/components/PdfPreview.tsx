@@ -2,17 +2,16 @@ import DownloadIcon from "@mui/icons-material/Download";
 import PrintIcon from "@mui/icons-material/Print";
 import {
   Alert,
-  Box,
   Button,
   Chip,
   CircularProgress,
-  Divider,
   Paper,
   Stack,
   Tooltip,
   Typography,
 } from "@mui/material";
 import {
+  type FieldValue,
   type FieldValueMap,
   getLatestPdfDownloadUrl,
   type PdfJobDto,
@@ -24,6 +23,10 @@ type Props = {
   markdown: string;
   fields: NormalizedField[];
   values: FieldValueMap;
+  errors?: Record<string, string>;
+  readOnly?: boolean;
+  showTypeHints?: boolean;
+  onChange?: (name: string, value: FieldValue) => void;
   pdfJobs?: PdfJobDto[];
   templateId?: string;
   documentName?: string;
@@ -40,21 +43,25 @@ function jobStatusColor(
 }
 
 function jobStatusLabel(status: PdfJobDto["status"]): string {
-  if (status === "completed") return "Completato";
+  if (status === "completed") return "Completed";
   if (status === "failed") return "Failed";
-  if (status === "running") return "In corso...";
-  return "In coda";
+  if (status === "running") return "Running...";
+  return "Queued";
 }
 
 export function PdfPreview({
   markdown,
   fields,
   values,
+  errors,
+  readOnly = true,
+  showTypeHints = false,
+  onChange,
   pdfJobs = [],
   templateId,
   documentName,
   templateContentHash,
-}: Props) {
+}: Readonly<Props>) {
   const currentValuesSignature = stableStringify(values);
   const latestCompleted = [...pdfJobs]
     .sort(
@@ -98,8 +105,8 @@ export function PdfPreview({
                 <CircularProgress size={16} />
                 <Typography variant="body2" color="text.secondary">
                   {latestJob.status === "running"
-                    ? "Generazione in corso..."
-                    : "In coda..."}
+                    ? "Generating..."
+                    : "Queued..."}
                 </Typography>
               </Stack>
             )}
@@ -110,7 +117,7 @@ export function PdfPreview({
                 title={
                   job.errorMessage
                     ? `Error: ${job.errorMessage}`
-                    : `${new Date(job.createdAt).toLocaleString("it-IT")}`
+                    : `${new Date(job.createdAt).toLocaleString("en-US")}`
                 }
               >
                 <Chip
@@ -138,7 +145,7 @@ export function PdfPreview({
                     iframe.onload = () => iframe.contentWindow?.print();
                   }}
                 >
-                  Stampa
+                  Print
                 </Button>
               </span>
             </Tooltip>
@@ -156,7 +163,7 @@ export function PdfPreview({
                     a.download = `${documentName ?? "document"}.pdf`;
                     document.body.appendChild(a);
                     a.click();
-                    document.body.removeChild(a);
+                    a.remove();
                   }}
                 >
                   Download PDF
@@ -168,46 +175,25 @@ export function PdfPreview({
 
         {latestJob?.status === "failed" && latestJob.errorMessage && (
           <Alert severity="error" sx={{ mt: 2 }}>
-            <strong>Generazione fallita:</strong> {latestJob.errorMessage}
+            <strong>Generation failed:</strong> {latestJob.errorMessage}
           </Alert>
         )}
         {!downloadUrl && pdfJobs.some((job) => job.status === "completed") && (
           <Alert severity="info" sx={{ mt: 2 }}>
-            PDF not generated yet per questa versione del template e questi
-            campi.
+            PDF not generated yet for this template version and field set.
           </Alert>
         )}
       </Paper>
 
       <Paper className="preview-sheet">
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="flex-start"
-        >
-          <Box>
-            <Box className="logo-box">LOGO</Box>
-            <Typography variant="caption" color="text.secondary">
-              Confidenziale - v1.0
-            </Typography>
-          </Box>
-          <Box textAlign="right">
-            <Typography variant="body2">
-              Document: <strong>{documentName ?? "Document Editor"}</strong>
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {latestCompleted
-                ? `PDF generato: ${new Date(latestCompleted.createdAt).toLocaleDateString("it-IT")}`
-                : "PDF not generated yet"}
-            </Typography>
-          </Box>
-        </Stack>
-        <Divider sx={{ my: 4 }} />
         <DynamicDocument
           markdown={markdown}
           fields={fields}
           values={values}
-          readOnly
+          errors={errors}
+          readOnly={readOnly}
+          showTypeHints={showTypeHints}
+          onChange={onChange}
         />
       </Paper>
     </Stack>

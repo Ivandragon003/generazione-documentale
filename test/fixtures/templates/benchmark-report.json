@@ -1,0 +1,583 @@
+{
+  "analyzedAt": "2026-05-25T08:40:55.177Z",
+  "provider": "mock",
+  "totalTemplates": 16,
+  "deterministicErrors": 15,
+  "deterministicWarnings": 3,
+  "aiWarnings": 6,
+  "avgDeterministicMs": 0.38,
+  "avgAiMs": 0.19,
+  "errorDetectionMatches": 15,
+  "details": [
+    {
+      "file": "01-valid.md",
+      "deterministicErrors": 2,
+      "deterministicWarnings": 0,
+      "aiWarnings": 0,
+      "aiWarningDetails": [],
+      "deterministicMs": 2,
+      "aiMs": 0,
+      "aiProvider": "skipped",
+      "expectedErrorTypes": ["INVALID_TYPE"],
+      "detectedErrorTypes": ["INVALID_TYPE"],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": false,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:nome_cliente:120:true}}",
+          "type": "string",
+          "name": "nome_cliente"
+        },
+        {
+          "raw": "{{date:data_stipula}}",
+          "type": "date",
+          "name": "data_stipula"
+        },
+        {
+          "raw": "{{currency:importo_totale}}",
+          "type": "currency",
+          "name": "importo_totale"
+        },
+        {
+          "raw": "{{percentage:sconto}}",
+          "type": "percentage",
+          "name": "sconto"
+        }
+      ],
+      "invalidDetectedPlaceholders": [
+        "{{currency:importo_totale}}",
+        "{{percentage:sconto}}"
+      ],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["INVALID_TYPE", "INVALID_TYPE"]
+    },
+    {
+      "file": "02-malformed.md",
+      "deterministicErrors": 1,
+      "deterministicWarnings": 0,
+      "aiWarnings": 0,
+      "aiWarningDetails": [],
+      "deterministicMs": 0,
+      "aiMs": 0,
+      "aiProvider": "skipped",
+      "expectedErrorTypes": ["UNBALANCED_PLACEHOLDER"],
+      "detectedErrorTypes": ["UNBALANCED_PLACEHOLDER"],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": false,
+      "validExtractedPlaceholders": [],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["UNCLOSED_PLACEHOLDER"]
+    },
+    {
+      "file": "03-invalid-type.md",
+      "deterministicErrors": 1,
+      "deterministicWarnings": 0,
+      "aiWarnings": 0,
+      "aiWarningDetails": [],
+      "deterministicMs": 2,
+      "aiMs": 0,
+      "aiProvider": "skipped",
+      "expectedErrorTypes": ["INVALID_PLACEHOLDER_TYPE"],
+      "detectedErrorTypes": ["INVALID_PLACEHOLDER_TYPE"],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": false,
+      "validExtractedPlaceholders": [],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": ["{{strnig:nome_cliente}}"],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["UNSUPPORTED_TYPE"]
+    },
+    {
+      "file": "04-duplicated-field.md",
+      "deterministicErrors": 0,
+      "deterministicWarnings": 1,
+      "aiWarnings": 0,
+      "aiWarningDetails": [],
+      "deterministicMs": 0,
+      "aiMs": 1,
+      "aiProvider": "mock",
+      "expectedErrorTypes": ["DUPLICATED_FIELD"],
+      "detectedErrorTypes": ["DUPLICATED_FIELD"],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:nome_cliente}}",
+          "type": "string",
+          "name": "nome_cliente"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "file": "05-semantic-date-string.md",
+      "deterministicErrors": 0,
+      "deterministicWarnings": 0,
+      "aiWarnings": 1,
+      "aiWarningDetails": [
+        {
+          "fieldName": "data_nascita",
+          "currentType": "string",
+          "suggestedType": "date",
+          "confidence": 0.8,
+          "reason": "Il contesto testuale suggerisce un valore temporale (data di nascita). Contesto: \"Data di nascita:\""
+        }
+      ],
+      "deterministicMs": 0,
+      "aiMs": 1,
+      "aiProvider": "mock",
+      "expectedErrorTypes": [],
+      "detectedErrorTypes": [],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:data_nascita:100:true}}",
+          "type": "string",
+          "name": "data_nascita"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "file": "06-semantic-amount-string.md",
+      "deterministicErrors": 0,
+      "deterministicWarnings": 0,
+      "aiWarnings": 1,
+      "aiWarningDetails": [
+        {
+          "fieldName": "importo_totale",
+          "currentType": "string",
+          "suggestedType": "currency",
+          "confidence": 0.85,
+          "reason": "Il contesto testuale sembra riferirsi a un importo monetario. Contesto: \"Importo totale:\""
+        }
+      ],
+      "deterministicMs": 0,
+      "aiMs": 0,
+      "aiProvider": "mock",
+      "expectedErrorTypes": [],
+      "detectedErrorTypes": [],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:importo_totale:100:true}}",
+          "type": "string",
+          "name": "importo_totale"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "file": "07-semantic-percentage-integer.md",
+      "deterministicErrors": 0,
+      "deterministicWarnings": 0,
+      "aiWarnings": 1,
+      "aiWarningDetails": [
+        {
+          "fieldName": "percentuale_sconto",
+          "currentType": "integer",
+          "suggestedType": "percentage",
+          "confidence": 0.84,
+          "reason": "Il contesto testuale sembra riferirsi a una percentuale. Contesto: \"Percentuale sconto:\""
+        }
+      ],
+      "deterministicMs": 0,
+      "aiMs": 1,
+      "aiProvider": "mock",
+      "expectedErrorTypes": [],
+      "detectedErrorTypes": [],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{integer:percentuale_sconto}}",
+          "type": "integer",
+          "name": "percentuale_sconto"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "file": "08-ambiguous.md",
+      "deterministicErrors": 0,
+      "deterministicWarnings": 0,
+      "aiWarnings": 0,
+      "aiWarningDetails": [],
+      "deterministicMs": 1,
+      "aiMs": 0,
+      "aiProvider": "mock",
+      "expectedErrorTypes": [],
+      "detectedErrorTypes": [],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:valore}}",
+          "type": "string",
+          "name": "valore"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "file": "09-semantic-contract-expiry-string.md",
+      "deterministicErrors": 0,
+      "deterministicWarnings": 0,
+      "aiWarnings": 1,
+      "aiWarningDetails": [
+        {
+          "fieldName": "data_scadenza_contratto",
+          "currentType": "string",
+          "suggestedType": "date",
+          "confidence": 0.82,
+          "reason": "Il contesto testuale suggerisce un valore temporale (data scadenza contratto). Contesto: \"Data scadenza contratto:\""
+        }
+      ],
+      "deterministicMs": 0,
+      "aiMs": 0,
+      "aiProvider": "mock",
+      "expectedErrorTypes": [],
+      "detectedErrorTypes": [],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:data_scadenza_contratto}}",
+          "type": "string",
+          "name": "data_scadenza_contratto"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "file": "10-semantic-boolean-string.md",
+      "deterministicErrors": 0,
+      "deterministicWarnings": 0,
+      "aiWarnings": 2,
+      "aiWarningDetails": [
+        {
+          "fieldName": "obbligatorio",
+          "currentType": "string",
+          "suggestedType": "boolean",
+          "confidence": 0.8,
+          "reason": "Il contesto testuale sembra esprimere uno stato booleano. Contesto: \"Obbligatorio:\""
+        },
+        {
+          "fieldName": "attivo",
+          "currentType": "string",
+          "suggestedType": "boolean",
+          "confidence": 0.8,
+          "reason": "Il contesto testuale sembra esprimere uno stato booleano. Contesto: \"Attivo:\""
+        }
+      ],
+      "deterministicMs": 0,
+      "aiMs": 0,
+      "aiProvider": "mock",
+      "expectedErrorTypes": [],
+      "detectedErrorTypes": [],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:obbligatorio}}",
+          "type": "string",
+          "name": "obbligatorio"
+        },
+        {
+          "raw": "{{string:attivo}}",
+          "type": "string",
+          "name": "attivo"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "file": "11-semantic-employee-count-currency.md",
+      "deterministicErrors": 1,
+      "deterministicWarnings": 0,
+      "aiWarnings": 0,
+      "aiWarningDetails": [],
+      "deterministicMs": 0,
+      "aiMs": 0,
+      "aiProvider": "skipped",
+      "expectedErrorTypes": ["INVALID_TYPE"],
+      "detectedErrorTypes": ["INVALID_TYPE"],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": false,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{currency:numero_dipendenti}}",
+          "type": "currency",
+          "name": "numero_dipendenti"
+        }
+      ],
+      "invalidDetectedPlaceholders": ["{{currency:numero_dipendenti}}"],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["INVALID_TYPE"]
+    },
+    {
+      "file": "12-complex-accent-length-list.md",
+      "deterministicErrors": 3,
+      "deterministicWarnings": 0,
+      "aiWarnings": 0,
+      "aiWarningDetails": [],
+      "deterministicMs": 0,
+      "aiMs": 0,
+      "aiProvider": "skipped",
+      "expectedErrorTypes": ["INVALID_FIELD_NAME", "INVALID_LENGTH"],
+      "detectedErrorTypes": ["INVALID_FIELD_NAME", "INVALID_LENGTH"],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": true,
+      "validableAfterRepair": false,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:ragione_sociale:120:true}}",
+          "type": "string",
+          "name": "ragione_sociale"
+        },
+        {
+          "raw": "{{list:stato_contratto:40:true:stati_contratto:Bozza,Approvato,Sospeso}}",
+          "type": "list",
+          "name": "stato_contratto"
+        }
+      ],
+      "invalidDetectedPlaceholders": [
+        "{{string:unità_responsabile:80:true}}",
+        "{{list:canale_vendita:30:true:canale-vendita:Diretto,Partner}}"
+      ],
+      "nonExtractedInvalidPlaceholders": [
+        "{{string:unità_responsabile:80:true}}",
+        "{{string:codice_commessa:length:true}}",
+        "{{list:canale_vendita:30:true:canale-vendita:Diretto,Partner}}"
+      ],
+      "repairableErrors": [],
+      "nonRepairableErrors": [
+        "INVALID_FORMAT",
+        "EXTRA_PARAMETERS",
+        "INVALID_FORMAT"
+      ]
+    },
+    {
+      "file": "13-complex-conflicting-table.md",
+      "deterministicErrors": 1,
+      "deterministicWarnings": 1,
+      "aiWarnings": 0,
+      "aiWarningDetails": [],
+      "deterministicMs": 0,
+      "aiMs": 0,
+      "aiProvider": "skipped",
+      "expectedErrorTypes": ["TYPE_CONFLICT", "DUPLICATED_FIELD"],
+      "detectedErrorTypes": ["TYPE_CONFLICT", "DUPLICATED_FIELD"],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": false,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:data_chiusura}}",
+          "type": "string",
+          "name": "data_chiusura"
+        },
+        {
+          "raw": "{{integer:percentuale_completamento}}",
+          "type": "integer",
+          "name": "percentuale_completamento"
+        },
+        {
+          "raw": "{{string:nome_cliente}}",
+          "type": "string",
+          "name": "nome_cliente"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": ["{{date:data_chiusura}}"],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["CONFLICTING_FIELD_TYPE"]
+    },
+    {
+      "file": "14-complex-invalid-required-list-values.md",
+      "deterministicErrors": 2,
+      "deterministicWarnings": 0,
+      "aiWarnings": 0,
+      "aiWarningDetails": [],
+      "deterministicMs": 0,
+      "aiMs": 0,
+      "aiProvider": "skipped",
+      "expectedErrorTypes": ["INVALID_REQUIRED", "INVALID_LIST_SYNTAX"],
+      "detectedErrorTypes": ["INVALID_REQUIRED", "INVALID_LIST_SYNTAX"],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": false,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{email:email_referente:120:true}}",
+          "type": "email",
+          "name": "email_referente"
+        },
+        {
+          "raw": "{{text:motivazione_esito:500:true}}",
+          "type": "text",
+          "name": "motivazione_esito"
+        }
+      ],
+      "invalidDetectedPlaceholders": [
+        "{{list:esito_approvazione:30:true:esiti_approvazione:}}"
+      ],
+      "nonExtractedInvalidPlaceholders": [
+        "{{string:nome_referente:80:si}}",
+        "{{list:esito_approvazione:30:true:esiti_approvazione:}}"
+      ],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["EXTRA_PARAMETERS", "EXTRA_PARAMETERS"]
+    },
+    {
+      "file": "15-complex-unbalanced-mixed.md",
+      "deterministicErrors": 2,
+      "deterministicWarnings": 1,
+      "aiWarnings": 0,
+      "aiWarningDetails": [],
+      "deterministicMs": 1,
+      "aiMs": 0,
+      "aiProvider": "skipped",
+      "expectedErrorTypes": [
+        "UNBALANCED_PLACEHOLDER",
+        "MISSING_PLACEHOLDER_TYPE",
+        "INVALID_TYPE"
+      ],
+      "detectedErrorTypes": [
+        "UNBALANCED_PLACEHOLDER",
+        "INVALID_TYPE",
+        "MISSING_PLACEHOLDER_TYPE"
+      ],
+      "errorDetectionMatch": true,
+      "unexpectedErrors": [],
+      "missingErrors": [],
+      "repairApplied": false,
+      "validableAfterRepair": false,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:titolo_documento}}",
+          "type": "string",
+          "name": "titolo_documento"
+        },
+        {
+          "raw": "{{string:revisore_documento}}",
+          "type": "string",
+          "name": "revisore_documento"
+        },
+        {
+          "raw": "{{currency:importo_massimo:30:true}}",
+          "type": "currency",
+          "name": "importo_massimo"
+        },
+        {
+          "raw": "{{integer:durata_mesi:24:true}}",
+          "type": "integer",
+          "name": "durata_mesi"
+        },
+        {
+          "raw": "{{note_finali}}",
+          "type": "string",
+          "name": "note_finali"
+        }
+      ],
+      "invalidDetectedPlaceholders": ["{{currency:importo_massimo:30:true}}"],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["UNCLOSED_PLACEHOLDER", "INVALID_TYPE"]
+    },
+    {
+      "file": "16-repairable-accent-length.md",
+      "deterministicErrors": 2,
+      "deterministicWarnings": 0,
+      "aiWarnings": 0,
+      "aiWarningDetails": [],
+      "deterministicMs": 0,
+      "aiMs": 0,
+      "aiProvider": "skipped",
+      "expectedErrorTypes": ["INVALID_FIELD_NAME", "INVALID_LENGTH"],
+      "detectedErrorTypes": ["INVALID_FIELD_NAME"],
+      "errorDetectionMatch": false,
+      "unexpectedErrors": [],
+      "missingErrors": ["INVALID_LENGTH"],
+      "repairApplied": true,
+      "validableAfterRepair": true,
+      "validExtractedPlaceholders": [],
+      "invalidDetectedPlaceholders": [
+        "{{string:nome_cliénte:lenght:true}}",
+        "{{string:unità_responsabile:60:true}}"
+      ],
+      "nonExtractedInvalidPlaceholders": [
+        "{{string:nome_cliénte:lenght:true}}",
+        "{{string:unità_responsabile:60:true}}"
+      ],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["INVALID_FORMAT", "INVALID_FORMAT"]
+    }
+  ]
+}

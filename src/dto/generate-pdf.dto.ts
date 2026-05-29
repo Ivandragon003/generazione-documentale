@@ -1,14 +1,20 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { Allow, IsObject, IsOptional } from "class-validator";
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  Allow,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from "class-validator";
 import type { FieldValueMap } from "../service/document-rendering.service";
 
 export class GeneratePdfDto {
-  @ApiProperty({
-    description: "Valori dei campi per la sostituzione dei placeholder",
+  @ApiPropertyOptional({
+    description: "Field values used for placeholder substitution",
     example: {
-      nome_cliente: "Acme SpA",
-      importo: 5000,
-      righe: [{ descrizione: "Servizio", quantita: 2, prezzo: 100 }],
+      customer_name: "Acme Inc",
+      amount: 5000,
+      rows: [{ description: "Service", quantity: 2, price: 100 }],
     },
     required: false,
   })
@@ -16,4 +22,15 @@ export class GeneratePdfDto {
   @IsOptional()
   @IsObject()
   fieldValues?: FieldValueMap;
+
+  @ApiPropertyOptional({
+    description:
+      "Browser language used to choose the document script/font profile",
+    example: "en-US",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(35)
+  language?: string;
 }

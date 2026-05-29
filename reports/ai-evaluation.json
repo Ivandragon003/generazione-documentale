@@ -1,0 +1,54 @@
+{
+  "createdAt": "2026-05-22T14:39:21.483Z",
+  "provider": "ollama",
+  "model": "qwen2.5:7b",
+  "totalCases": 6,
+  "successfulCases": 5,
+  "failedCases": 1,
+  "avgLatencyMs": 15162,
+  "totalWarnings": 5,
+  "details": [
+    {
+      "id": "03-invalid-type",
+      "latencyMs": 17541,
+      "warnings": 1,
+      "ok": true,
+      "model": "string"
+    },
+    {
+      "id": "04-duplicated-field",
+      "latencyMs": 13219,
+      "warnings": 1,
+      "ok": true,
+      "model": "schema_v1"
+    },
+    {
+      "id": "05-semantic-date-string",
+      "latencyMs": 13642,
+      "warnings": 1,
+      "ok": true,
+      "model": "schema"
+    },
+    {
+      "id": "06-semantic-amount-string",
+      "latencyMs": 14576,
+      "warnings": 1,
+      "ok": true,
+      "model": "template"
+    },
+    {
+      "id": "07-semantic-percentage-integer",
+      "latencyMs": 16831,
+      "warnings": 1,
+      "ok": true,
+      "model": "schema_v1"
+    },
+    {
+      "id": "12-type-matrix",
+      "latencyMs": 70304,
+      "warnings": 0,
+      "ok": false,
+      "error": "Unterminated string in JSON at position 1075 (line 39 column 36)"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "officialSupportedTypes": [
+    "string",
+    "text",
+    "date",
+    "integer",
+    "boolean",
+    "list",
+    "email"
+  ]
+}

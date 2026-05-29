@@ -1,0 +1,62 @@
+[
+  {
+    "id": "semantic-correct-template",
+    "markdown": "# Contratto di fornitura\n\nData stipula: {{date:data_stipula}}\nImporto totale: {{currency:importo_totale}}\nEmail referente: {{email:email_referente}}\nNumero dipendenti: {{integer:numero_dipendenti}}\nRagione sociale: {{string:ragione_sociale}}\n",
+    "expectedWarnings": []
+  },
+  {
+    "id": "semantic-date-as-string",
+    "markdown": "# Contratto\n\nData stipula: {{string:data_stipula}}\nRagione sociale: {{string:ragione_sociale}}\n",
+    "expectedWarnings": [
+      {
+        "fieldName": "data_stipula",
+        "currentType": "string",
+        "suggestedType": "date"
+      }
+    ]
+  },
+  {
+    "id": "semantic-amount-as-string",
+    "markdown": "# Offerta commerciale\n\nImporto totale: {{string:importo_totale}}\nOggetto: {{text:oggetto_offerta}}\n",
+    "expectedWarnings": [
+      {
+        "fieldName": "importo_totale",
+        "currentType": "string",
+        "suggestedType": "currency"
+      }
+    ]
+  },
+  {
+    "id": "semantic-email-as-string",
+    "markdown": "# Scheda cliente\n\nEmail referente: {{string:email_referente}}\nRagione sociale: {{string:ragione_sociale}}\n",
+    "expectedWarnings": [
+      {
+        "fieldName": "email_referente",
+        "currentType": "string",
+        "suggestedType": "email"
+      }
+    ]
+  },
+  {
+    "id": "semantic-employee-count-as-currency",
+    "markdown": "# Organico aziendale\n\nNumero dipendenti: {{currency:numero_dipendenti}}\nData stipula: {{date:data_stipula}}\n",
+    "expectedWarnings": [
+      {
+        "fieldName": "numero_dipendenti",
+        "currentType": "currency",
+        "suggestedType": "integer"
+      }
+    ]
+  },
+  {
+    "id": "semantic-single-suspicious-field",
+    "markdown": "# Riepilogo contratto\n\nRagione sociale: {{string:ragione_sociale}}\nData stipula: {{date:data_stipula}}\nImporto totale: {{currency:importo_totale}}\nEmail referente: {{email:email_referente}}\nData scadenza: {{string:data_scadenza}}\n",
+    "expectedWarnings": [
+      {
+        "fieldName": "data_scadenza",
+        "currentType": "string",
+        "suggestedType": "date"
+      }
+    ]
+  }
+]

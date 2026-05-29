@@ -4,18 +4,21 @@ import { createReadStream, type ReadStream } from "node:fs";
 import { access, mkdir, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { Inject, Injectable, Logger } from "@nestjs/common";
+import { determinePdfScriptProfileFromLanguage } from "../common/utils/pdf-script-profile.utils";
 import { sha256Signature } from "../common/utils/signature.utils";
 import { pdfConfig } from "../config/pdf.config";
 import {
   DocumentRenderingService,
   type FieldValueMap,
 } from "./document-rendering.service";
+import { TemplatePlaceholderService } from "./template-placeholder.service";
 
 export interface PdfGenerationInput {
   title: string;
   content: string;
   fieldValues: FieldValueMap;
   strict: boolean;
+  language?: string;
 }
 export type DocumentFormat = "pdf" | "docx";
 
@@ -26,6 +29,31 @@ const sleep = (ms: number): Promise<void> =>
   new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
 type PdfMode = "remote" | "local";
+const ARABIC_CHAR_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
+const HEBREW_CHAR_REGEX = /[\u0590-\u05FF]/;
+const JAPANESE_CHAR_REGEX = /[\u3040-\u30FF\u31F0-\u31FF]/;
+const CJK_IDEOGRAPH_REGEX = /[\u3400-\u4DBF\u4E00-\u9FFF]/;
+const HANGUL_CHAR_REGEX = /[\uAC00-\uD7AF\u1100-\u11FF]/;
+
+interface PdfResolvedProfile {
+  language: string;
+  scriptProfile: "latin" | "rtl" | "cjk";
+  lang: string;
+  dir: "ltr" | "rtl";
+  mainFont: string;
+  cjkMainFont: string;
+  mainFontFallbacks: string[];
+}
+
+interface PandocArgsInput {
+  outputPath: string;
+  format: DocumentFormat;
+  lang: string;
+  dir: "ltr" | "rtl";
+  mainFont: string;
+  cjkMainFont: string;
+  mainFontFallbacks: string[];
+}
 
 @Injectable()
 export class PdfGenerationService {
@@ -38,6 +66,8 @@ export class PdfGenerationService {
   constructor(
     @Inject(DocumentRenderingService)
     private readonly documentRenderingService: DocumentRenderingService,
+    @Inject(TemplatePlaceholderService)
+    private readonly templatePlaceholderService: TemplatePlaceholderService,
   ) {}
 
   private isProduction(): boolean {
@@ -92,26 +122,104 @@ export class PdfGenerationService {
     return resolve(pdfConfig.storagePath);
   }
 
-  private buildPandocArgs(
-    outputPath: string,
-    title: string,
-    author: string,
-    format: DocumentFormat,
-  ): string[] {
+  private detectLanguageFromMarkdown(markdown: string): string {
+    if (ARABIC_CHAR_REGEX.test(markdown)) return "ar";
+    if (HEBREW_CHAR_REGEX.test(markdown)) return "he";
+    if (JAPANESE_CHAR_REGEX.test(markdown)) return "ja";
+    if (HANGUL_CHAR_REGEX.test(markdown)) return "ko";
+    if (CJK_IDEOGRAPH_REGEX.test(markdown)) return "zh";
+    return "en";
+  }
+
+  private resolveDocumentProfile(
+    markdown: string,
+    browserLanguage?: string,
+  ): PdfResolvedProfile {
+    const language =
+      browserLanguage?.trim() || this.detectLanguageFromMarkdown(markdown);
+    const scriptProfile = determinePdfScriptProfileFromLanguage(language);
+    const hasRtlScript =
+      ARABIC_CHAR_REGEX.test(markdown) || HEBREW_CHAR_REGEX.test(markdown);
+    const hasCjkScript =
+      JAPANESE_CHAR_REGEX.test(markdown) ||
+      CJK_IDEOGRAPH_REGEX.test(markdown) ||
+      HANGUL_CHAR_REGEX.test(markdown);
+    if (scriptProfile === "rtl") {
+      const rtlFont = "DejaVu Sans";
+      return {
+        language,
+        scriptProfile,
+        lang: language,
+        dir: "rtl",
+        mainFont: rtlFont,
+        cjkMainFont: pdfConfig.cjkMainFont,
+        mainFontFallbacks: hasCjkScript
+          ? ["Noto Sans CJK JP", "Noto Sans"]
+          : ["Noto Sans"],
+      };
+    }
+
+    if (scriptProfile === "cjk") {
+      let mainFontFallbacks: string[] = ["Noto Sans"];
+      if (hasRtlScript) {
+        mainFontFallbacks = ["Noto Naskh Arabic", "Noto Sans"];
+      }
+      return {
+        language,
+        scriptProfile,
+        lang: language,
+        dir: "ltr",
+        mainFont: "Noto Sans",
+        cjkMainFont: "Noto Sans CJK JP",
+        mainFontFallbacks,
+      };
+    }
+
+    let mainFontFallbacks: string[] = [];
+    if (hasRtlScript) {
+      mainFontFallbacks = ["Noto Naskh Arabic", "Noto Sans CJK JP"];
+    } else if (hasCjkScript) {
+      mainFontFallbacks = ["Noto Sans CJK JP"];
+    }
+    return {
+      language,
+      scriptProfile,
+      lang: language,
+      dir: "ltr",
+      mainFont: "Noto Sans",
+      cjkMainFont: pdfConfig.cjkMainFont,
+      mainFontFallbacks,
+    };
+  }
+
+  private buildPandocArgs(input: PandocArgsInput): string[] {
+    const {
+      outputPath,
+      format,
+      lang,
+      dir,
+      mainFont,
+      cjkMainFont,
+      mainFontFallbacks,
+    } = input;
+    const fallbackArgs = mainFontFallbacks.flatMap((font) => [
+      "-V",
+      `mainfontfallback=${font}`,
+    ]);
+    const pdfEngineArgs: string[] = [];
+    if (format === "pdf") {
+      pdfEngineArgs.push("--pdf-engine", pdfConfig.engine);
+    }
     return [
       "--from",
       "markdown+smart+pipe_tables",
       "--to",
       format,
-      ...(format === "pdf"
-        ? (["--pdf-engine", pdfConfig.engine] as const)
-        : []),
+      ...pdfEngineArgs,
       "--output",
       outputPath,
-      `--metadata=title:${title}`,
-      `--metadata=author:${author}`,
-      "--metadata=lang:it",
-      `--metadata=date:${new Intl.DateTimeFormat("it-IT").format(new Date())}`,
+      `--metadata=lang:${lang}`,
+      `--metadata=dir:${dir}`,
       "-V",
       `papersize=${pdfConfig.paper}`,
       "-V",
@@ -119,11 +227,14 @@ export class PdfGenerationService {
       "-V",
       `geometry:top=${pdfConfig.marginTop},bottom=${pdfConfig.marginBottom},left=${pdfConfig.marginLeft},right=${pdfConfig.marginRight}`,
       "-V",
-      `mainfont=${pdfConfig.mainFont}`,
+      `mainfont=${mainFont}`,
       "-V",
       `sansfont=${pdfConfig.sansFont}`,
       "-V",
       `monofont=${pdfConfig.monoFont}`,
+      "-V",
+      `CJKmainfont=${cjkMainFont}`,
+      ...fallbackArgs,
       "-V",
       `colorlinks=${pdfConfig.colorLinks}`,
       "-V",
@@ -286,10 +397,13 @@ export class PdfGenerationService {
 
   private async runRemotePdfService(input: {
     markdown: string;
-    title: string;
-    author: string;
     outputPath: string;
     format: DocumentFormat;
+    lang: string;
+    dir: "ltr" | "rtl";
+    mainFont: string;
+    cjkMainFont: string;
+    mainFontFallbacks: string[];
   }): Promise<void> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), pdfConfig.timeoutMs);
@@ -301,8 +415,6 @@ export class PdfGenerationService {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             markdown: input.markdown,
-            title: input.title,
-            author: input.author,
             options: {
               engine: pdfConfig.engine,
               paper: pdfConfig.paper,
@@ -311,11 +423,15 @@ export class PdfGenerationService {
               marginBottom: pdfConfig.marginBottom,
               marginLeft: pdfConfig.marginLeft,
               marginRight: pdfConfig.marginRight,
-              mainFont: pdfConfig.mainFont,
+              mainFont: input.mainFont,
               sansFont: pdfConfig.sansFont,
               monoFont: pdfConfig.monoFont,
+              cjkMainFont: input.cjkMainFont,
+              mainFontFallbacks: input.mainFontFallbacks,
               colorLinks: pdfConfig.colorLinks,
               linkColor: pdfConfig.linkColor,
+              lang: input.lang,
+              dir: input.dir,
             },
             format: input.format,
           }),
@@ -344,8 +460,6 @@ export class PdfGenerationService {
     unresolvedFields?: string[];
     renderedContentHash: string;
   }> {
-    const title = document.title || "Document";
-    const author = "MAC Documents";
     const strict = document.strict ?? false;
 
     if (
@@ -356,26 +470,69 @@ export class PdfGenerationService {
       );
     }
 
+    const unresolvedRequired =
+      this.templatePlaceholderService.getUnresolvedRequiredFields(
+        document.content,
+        document.fieldValues,
+      );
+    if (unresolvedRequired.length > 0) {
+      const report = unresolvedRequired
+        .map((field) => {
+          const suggestion = field.suggestedField
+            ? `, field=${field.field}, suggestedField=${field.suggestedField}, distance=${field.distance}, code=${field.code}`
+            : "";
+          return `${field.name} (type=${field.type}, required=${field.required}, reason=${field.reason}${suggestion})`;
+        })
+        .join("; ");
+      throw new Error(`Required template fields are unresolved: ${report}`);
+    }
+
+    const fieldValuesValidation =
+      this.templatePlaceholderService.validateFieldValues(
+        document.content,
+        document.fieldValues,
+      );
+    if (!fieldValuesValidation.valid) {
+      throw new Error(
+        `Template field values validation failed: ${fieldValuesValidation.errors.join("; ")}`,
+      );
+    }
+
     const { result: interpolated, unresolved } =
       this.documentRenderingService.renderTemplate(
         document.content,
         document.fieldValues,
         strict,
       );
+    const profile = this.resolveDocumentProfile(
+      interpolated,
+      document.language,
+    );
     const renderedContentHash = sha256Signature(interpolated);
 
     await mkdir(this.getStoragePath(), { recursive: true });
     const filename = `${randomUUID()}.${format}`;
     const outputPath = join(this.getStoragePath(), filename);
-    const args = this.buildPandocArgs(outputPath, title, author, format);
+    const args = this.buildPandocArgs({
+      outputPath,
+      format,
+      lang: profile.lang,
+      dir: profile.dir,
+      mainFont: profile.mainFont,
+      cjkMainFont: profile.cjkMainFont,
+      mainFontFallbacks: profile.mainFontFallbacks,
+    });
 
     if (this.resolvePdfMode() === "remote") {
       await this.runRemotePdfService({
         markdown: interpolated,
-        title,
-        author,
         outputPath,
         format,
+        lang: profile.lang,
+        dir: profile.dir,
+        mainFont: profile.mainFont,
+        cjkMainFont: profile.cjkMainFont,
+        mainFontFallbacks: profile.mainFontFallbacks,
       });
       return { filename, unresolvedFields: unresolved, renderedContentHash };
     }

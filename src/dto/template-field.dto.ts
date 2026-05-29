@@ -4,15 +4,17 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
+  Min,
   ValidateNested,
 } from "class-validator";
 import type { FieldType } from "../common/types/field-definition.type";
 import { allowedFieldTypes } from "../common/utils/markdown.utils";
 
 export class TemplateFieldOptionDto {
-  @ApiProperty({ example: "Attivo" })
+  @ApiProperty({ example: "Active" })
   @IsString()
   label!: string;
 
@@ -22,11 +24,11 @@ export class TemplateFieldOptionDto {
 }
 
 export class TemplateFieldColumnDto {
-  @ApiProperty({ example: "descrizione" })
+  @ApiProperty({ example: "description" })
   @IsString()
   name!: string;
 
-  @ApiPropertyOptional({ example: "Descrizione" })
+  @ApiPropertyOptional({ example: "Description" })
   @IsOptional()
   @IsString()
   label?: string;
@@ -41,15 +43,31 @@ export class TemplateFieldColumnDto {
   @IsBoolean()
   required?: boolean;
 
+  @ApiPropertyOptional({ example: 100 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxLength?: number;
+
   @ApiPropertyOptional({ example: "" })
   @IsOptional()
   @IsString()
   defaultValue?: string;
 
-  @ApiPropertyOptional({ example: "Inserisci valore" })
+  @ApiPropertyOptional({ example: "Enter value" })
   @IsOptional()
   @IsString()
   placeholder?: string;
+
+  @ApiPropertyOptional({ example: "contract_types" })
+  @IsOptional()
+  @IsString()
+  listName?: string;
+
+  @ApiPropertyOptional({ example: "Contract type" })
+  @IsOptional()
+  @IsString()
+  listLabel?: string;
 
   @ApiPropertyOptional({ type: () => TemplateFieldOptionDto, isArray: true })
   @IsOptional()

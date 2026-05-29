@@ -1,8 +1,9 @@
 import "dotenv/config";
 import { DataSource } from "typeorm";
 import { parsePort } from "../common/utils/parse-port";
+import { AuditLogEntity } from "../entities/audit-log.entity";
 import { PdfJobEntity } from "../entities/pdf-job.entity";
-import { TemplateEntity } from "../entities/template.entity";
+import { TemplateFieldListEntity } from "../entities/template-field-list.entity";
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
@@ -19,7 +20,7 @@ export default new DataSource({
   username: requireEnv("DB_USER"),
   password: requireEnv("DB_PASSWORD"),
   database: requireEnv("DB_NAME"),
-  entities: [TemplateEntity, PdfJobEntity],
+  entities: [PdfJobEntity, TemplateFieldListEntity, AuditLogEntity],
   migrations: ["src/migrations/*.ts"],
   synchronize: (process.env.DB_SYNCHRONIZE ?? "").toLowerCase() === "true",
 });

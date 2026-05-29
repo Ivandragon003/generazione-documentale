@@ -1,0 +1,6 @@
+{
+  "deterministic": { "errors": [], "warnings": [] },
+  "fieldValidationInvalidInput": [
+    "Invalid value for field \"importo_totale\" of type \"string\""
+  ]
+}

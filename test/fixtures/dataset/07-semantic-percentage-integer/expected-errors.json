@@ -1,0 +1,6 @@
+{
+  "deterministic": { "errors": [], "warnings": [] },
+  "fieldValidationInvalidInput": [
+    "Invalid value for field \"percentuale_sconto\" of type \"integer\""
+  ]
+}

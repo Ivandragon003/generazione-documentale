@@ -14,7 +14,8 @@ const theme = createTheme({
   },
   shape: { borderRadius: 14 },
   typography: {
-    fontFamily: "Inter, sans-serif",
+    fontFamily:
+      'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", "Noto Sans CJK JP", "Microsoft YaHei", "Hiragino Sans", sans-serif',
     h4: { fontWeight: 800 },
     h5: { fontWeight: 700 },
     h6: { fontWeight: 700 },

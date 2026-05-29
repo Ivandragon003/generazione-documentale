@@ -1,0 +1,417 @@
+{
+  "analyzedAt": "2026-05-25T08:40:55.177Z",
+  "provider": "mock",
+  "details": [
+    {
+      "fixture": "01-valid.md",
+      "expectedErrors": ["INVALID_TYPE"],
+      "detectedErrors": ["INVALID_TYPE"],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": false,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:nome_cliente:120:true}}",
+          "type": "string",
+          "name": "nome_cliente"
+        },
+        {
+          "raw": "{{date:data_stipula}}",
+          "type": "date",
+          "name": "data_stipula"
+        },
+        {
+          "raw": "{{currency:importo_totale}}",
+          "type": "currency",
+          "name": "importo_totale"
+        },
+        {
+          "raw": "{{percentage:sconto}}",
+          "type": "percentage",
+          "name": "sconto"
+        }
+      ],
+      "invalidDetectedPlaceholders": [
+        "{{currency:importo_totale}}",
+        "{{percentage:sconto}}"
+      ],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["INVALID_TYPE", "INVALID_TYPE"]
+    },
+    {
+      "fixture": "02-malformed.md",
+      "expectedErrors": ["UNBALANCED_PLACEHOLDER"],
+      "detectedErrors": ["UNBALANCED_PLACEHOLDER"],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": false,
+      "validExtractedPlaceholders": [],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["UNCLOSED_PLACEHOLDER"]
+    },
+    {
+      "fixture": "03-invalid-type.md",
+      "expectedErrors": ["INVALID_PLACEHOLDER_TYPE"],
+      "detectedErrors": ["INVALID_PLACEHOLDER_TYPE"],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": false,
+      "validExtractedPlaceholders": [],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": ["{{strnig:nome_cliente}}"],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["UNSUPPORTED_TYPE"]
+    },
+    {
+      "fixture": "04-duplicated-field.md",
+      "expectedErrors": ["DUPLICATED_FIELD"],
+      "detectedErrors": ["DUPLICATED_FIELD"],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:nome_cliente}}",
+          "type": "string",
+          "name": "nome_cliente"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "fixture": "05-semantic-date-string.md",
+      "expectedErrors": [],
+      "detectedErrors": [],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:data_nascita:100:true}}",
+          "type": "string",
+          "name": "data_nascita"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "fixture": "06-semantic-amount-string.md",
+      "expectedErrors": [],
+      "detectedErrors": [],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:importo_totale:100:true}}",
+          "type": "string",
+          "name": "importo_totale"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "fixture": "07-semantic-percentage-integer.md",
+      "expectedErrors": [],
+      "detectedErrors": [],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{integer:percentuale_sconto}}",
+          "type": "integer",
+          "name": "percentuale_sconto"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "fixture": "08-ambiguous.md",
+      "expectedErrors": [],
+      "detectedErrors": [],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:valore}}",
+          "type": "string",
+          "name": "valore"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "fixture": "09-semantic-contract-expiry-string.md",
+      "expectedErrors": [],
+      "detectedErrors": [],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:data_scadenza_contratto}}",
+          "type": "string",
+          "name": "data_scadenza_contratto"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "fixture": "10-semantic-boolean-string.md",
+      "expectedErrors": [],
+      "detectedErrors": [],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": true,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:obbligatorio}}",
+          "type": "string",
+          "name": "obbligatorio"
+        },
+        {
+          "raw": "{{string:attivo}}",
+          "type": "string",
+          "name": "attivo"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": []
+    },
+    {
+      "fixture": "11-semantic-employee-count-currency.md",
+      "expectedErrors": ["INVALID_TYPE"],
+      "detectedErrors": ["INVALID_TYPE"],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": false,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{currency:numero_dipendenti}}",
+          "type": "currency",
+          "name": "numero_dipendenti"
+        }
+      ],
+      "invalidDetectedPlaceholders": ["{{currency:numero_dipendenti}}"],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["INVALID_TYPE"]
+    },
+    {
+      "fixture": "12-complex-accent-length-list.md",
+      "expectedErrors": ["INVALID_FIELD_NAME", "INVALID_LENGTH"],
+      "detectedErrors": ["INVALID_FIELD_NAME", "INVALID_LENGTH"],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": true,
+      "finalValidable": false,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:ragione_sociale:120:true}}",
+          "type": "string",
+          "name": "ragione_sociale"
+        },
+        {
+          "raw": "{{list:stato_contratto:40:true:stati_contratto:Bozza,Approvato,Sospeso}}",
+          "type": "list",
+          "name": "stato_contratto"
+        }
+      ],
+      "invalidDetectedPlaceholders": [
+        "{{string:unità_responsabile:80:true}}",
+        "{{list:canale_vendita:30:true:canale-vendita:Diretto,Partner}}"
+      ],
+      "nonExtractedInvalidPlaceholders": [
+        "{{string:unità_responsabile:80:true}}",
+        "{{string:codice_commessa:length:true}}",
+        "{{list:canale_vendita:30:true:canale-vendita:Diretto,Partner}}"
+      ],
+      "repairableErrors": [],
+      "nonRepairableErrors": [
+        "INVALID_FORMAT",
+        "EXTRA_PARAMETERS",
+        "INVALID_FORMAT"
+      ]
+    },
+    {
+      "fixture": "13-complex-conflicting-table.md",
+      "expectedErrors": ["TYPE_CONFLICT", "DUPLICATED_FIELD"],
+      "detectedErrors": ["TYPE_CONFLICT", "DUPLICATED_FIELD"],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": false,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:data_chiusura}}",
+          "type": "string",
+          "name": "data_chiusura"
+        },
+        {
+          "raw": "{{integer:percentuale_completamento}}",
+          "type": "integer",
+          "name": "percentuale_completamento"
+        },
+        {
+          "raw": "{{string:nome_cliente}}",
+          "type": "string",
+          "name": "nome_cliente"
+        }
+      ],
+      "invalidDetectedPlaceholders": [],
+      "nonExtractedInvalidPlaceholders": ["{{date:data_chiusura}}"],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["CONFLICTING_FIELD_TYPE"]
+    },
+    {
+      "fixture": "14-complex-invalid-required-list-values.md",
+      "expectedErrors": ["INVALID_REQUIRED", "INVALID_LIST_SYNTAX"],
+      "detectedErrors": ["INVALID_REQUIRED", "INVALID_LIST_SYNTAX"],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": false,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{email:email_referente:120:true}}",
+          "type": "email",
+          "name": "email_referente"
+        },
+        {
+          "raw": "{{text:motivazione_esito:500:true}}",
+          "type": "text",
+          "name": "motivazione_esito"
+        }
+      ],
+      "invalidDetectedPlaceholders": [
+        "{{list:esito_approvazione:30:true:esiti_approvazione:}}"
+      ],
+      "nonExtractedInvalidPlaceholders": [
+        "{{string:nome_referente:80:si}}",
+        "{{list:esito_approvazione:30:true:esiti_approvazione:}}"
+      ],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["EXTRA_PARAMETERS", "EXTRA_PARAMETERS"]
+    },
+    {
+      "fixture": "15-complex-unbalanced-mixed.md",
+      "expectedErrors": [
+        "UNBALANCED_PLACEHOLDER",
+        "MISSING_PLACEHOLDER_TYPE",
+        "INVALID_TYPE"
+      ],
+      "detectedErrors": [
+        "UNBALANCED_PLACEHOLDER",
+        "INVALID_TYPE",
+        "MISSING_PLACEHOLDER_TYPE"
+      ],
+      "fullMatch": true,
+      "missingErrors": [],
+      "unexpectedErrors": [],
+      "repairApplied": false,
+      "finalValidable": false,
+      "validExtractedPlaceholders": [
+        {
+          "raw": "{{string:titolo_documento}}",
+          "type": "string",
+          "name": "titolo_documento"
+        },
+        {
+          "raw": "{{string:revisore_documento}}",
+          "type": "string",
+          "name": "revisore_documento"
+        },
+        {
+          "raw": "{{currency:importo_massimo:30:true}}",
+          "type": "currency",
+          "name": "importo_massimo"
+        },
+        {
+          "raw": "{{integer:durata_mesi:24:true}}",
+          "type": "integer",
+          "name": "durata_mesi"
+        },
+        {
+          "raw": "{{note_finali}}",
+          "type": "string",
+          "name": "note_finali"
+        }
+      ],
+      "invalidDetectedPlaceholders": ["{{currency:importo_massimo:30:true}}"],
+      "nonExtractedInvalidPlaceholders": [],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["UNCLOSED_PLACEHOLDER", "INVALID_TYPE"]
+    },
+    {
+      "fixture": "16-repairable-accent-length.md",
+      "expectedErrors": ["INVALID_FIELD_NAME", "INVALID_LENGTH"],
+      "detectedErrors": ["INVALID_FIELD_NAME"],
+      "fullMatch": false,
+      "missingErrors": ["INVALID_LENGTH"],
+      "unexpectedErrors": [],
+      "repairApplied": true,
+      "finalValidable": true,
+      "validExtractedPlaceholders": [],
+      "invalidDetectedPlaceholders": [
+        "{{string:nome_cliénte:lenght:true}}",
+        "{{string:unità_responsabile:60:true}}"
+      ],
+      "nonExtractedInvalidPlaceholders": [
+        "{{string:nome_cliénte:lenght:true}}",
+        "{{string:unità_responsabile:60:true}}"
+      ],
+      "repairableErrors": [],
+      "nonRepairableErrors": ["INVALID_FORMAT", "INVALID_FORMAT"]
+    }
+  ]
+}

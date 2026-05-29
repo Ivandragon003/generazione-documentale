@@ -1,0 +1,166 @@
+[
+  {
+    "fileName": "01-valid.md",
+    "description": "Template valido base con placeholder tipizzati coerenti.",
+    "expectedValid": false,
+    "expectedSyntaxErrorTypes": ["INVALID_TYPE"],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": false,
+    "notes": "Con policy ufficiale senza currency/percentage emerge INVALID_TYPE."
+  },
+  {
+    "fileName": "02-malformed.md",
+    "description": "Placeholder non chiuso.",
+    "expectedValid": false,
+    "expectedSyntaxErrorTypes": ["UNBALANCED_PLACEHOLDER"],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": false,
+    "notes": "Errore bloccante di struttura."
+  },
+  {
+    "fileName": "03-invalid-type.md",
+    "description": "Tipo placeholder non supportato.",
+    "expectedValid": false,
+    "expectedSyntaxErrorTypes": ["INVALID_PLACEHOLDER_TYPE"],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": false,
+    "notes": "Non auto-riparato dalla pipeline draft."
+  },
+  {
+    "fileName": "04-duplicated-field.md",
+    "description": "Campo duplicato con stesso tipo.",
+    "expectedValid": true,
+    "expectedSyntaxErrorTypes": ["DUPLICATED_FIELD"],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": true,
+    "notes": "Warning non bloccante."
+  },
+  {
+    "fileName": "05-semantic-date-string.md",
+    "description": "Template semanticamente sospetto ma sintatticamente valido.",
+    "expectedValid": true,
+    "expectedSyntaxErrorTypes": [],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": true,
+    "notes": "Errore semantico AI, non sintattico."
+  },
+  {
+    "fileName": "06-semantic-amount-string.md",
+    "description": "Importo tipizzato string ma parser valido.",
+    "expectedValid": true,
+    "expectedSyntaxErrorTypes": [],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": true,
+    "notes": "Confronto utile per layer semantico."
+  },
+  {
+    "fileName": "07-semantic-percentage-integer.md",
+    "description": "Percentuale tipizzata integer ma parser valido.",
+    "expectedValid": true,
+    "expectedSyntaxErrorTypes": [],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": true,
+    "notes": "Solo warning AI atteso."
+  },
+  {
+    "fileName": "08-ambiguous.md",
+    "description": "Caso ambiguo senza errori sintattici.",
+    "expectedValid": true,
+    "expectedSyntaxErrorTypes": [],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": true,
+    "notes": "Nessun errore deterministico."
+  },
+  {
+    "fileName": "09-semantic-contract-expiry-string.md",
+    "description": "Data scadenza come string, valido sintatticamente.",
+    "expectedValid": true,
+    "expectedSyntaxErrorTypes": [],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": true,
+    "notes": "Solo mismatch semantico AI."
+  },
+  {
+    "fileName": "10-semantic-boolean-string.md",
+    "description": "Booleani espressi come string, valido sintatticamente.",
+    "expectedValid": true,
+    "expectedSyntaxErrorTypes": [],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": true,
+    "notes": "Warning semantici ma no errori parser."
+  },
+  {
+    "fileName": "11-semantic-employee-count-currency.md",
+    "description": "Numero dipendenti come currency, valido sintatticamente.",
+    "expectedValid": false,
+    "expectedSyntaxErrorTypes": ["INVALID_TYPE"],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": false,
+    "notes": "Con policy ufficiale senza currency, deve emergere INVALID_TYPE."
+  },
+  {
+    "fileName": "12-complex-accent-length-list.md",
+    "description": "Caso multi-errore con accento in field_name, length non numerico e list_name non snake_case.",
+    "expectedValid": false,
+    "expectedSyntaxErrorTypes": ["INVALID_FIELD_NAME", "INVALID_LENGTH"],
+    "expectedRepairable": false,
+    "expectedRepairActions": ["normalize_field_name", "set_default_length"],
+    "expectedSavableAfterRepair": false,
+    "notes": "Riparazione parziale possibile ma resta errore su list classificato dal parser come invalid field_name."
+  },
+  {
+    "fileName": "13-complex-conflicting-table.md",
+    "description": "Conflitto tipi su stesso field e duplicazione.",
+    "expectedValid": false,
+    "expectedSyntaxErrorTypes": ["TYPE_CONFLICT", "DUPLICATED_FIELD"],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": false,
+    "notes": "Conflitto bloccante."
+  },
+  {
+    "fileName": "14-complex-invalid-required-list-values.md",
+    "description": "required non valido e list con valori mancanti.",
+    "expectedValid": false,
+    "expectedSyntaxErrorTypes": ["INVALID_REQUIRED", "INVALID_LIST_SYNTAX"],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": false,
+    "notes": "Nessuna auto-riparazione sicura prevista."
+  },
+  {
+    "fileName": "15-complex-unbalanced-mixed.md",
+    "description": "Placeholder non bilanciato con legacy placeholder aggiuntivo.",
+    "expectedValid": false,
+    "expectedSyntaxErrorTypes": [
+      "UNBALANCED_PLACEHOLDER",
+      "MISSING_PLACEHOLDER_TYPE",
+      "INVALID_TYPE"
+    ],
+    "expectedRepairable": false,
+    "expectedRepairActions": [],
+    "expectedSavableAfterRepair": false,
+    "notes": "Errore bloccante più warning compatibilità legacy."
+  },
+  {
+    "fileName": "16-repairable-accent-length.md",
+    "description": "Errore su field_name accentato e length non numerico, riparabile in sicurezza.",
+    "expectedValid": false,
+    "expectedSyntaxErrorTypes": ["INVALID_FIELD_NAME", "INVALID_LENGTH"],
+    "expectedRepairable": true,
+    "expectedRepairActions": ["normalize_field_name", "set_default_length"],
+    "expectedSavableAfterRepair": true,
+    "notes": "Caso di auto-repair positiva."
+  }
+]

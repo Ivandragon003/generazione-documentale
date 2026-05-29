@@ -1,0 +1,117 @@
+[
+  {
+    "id": "contract-supply",
+    "description": "Genera un contratto di fornitura con cliente, data stipula, importo totale e durata in mesi.",
+    "language": "it",
+    "placeholderSyntaxSource": "pipeline",
+    "generationMode": "guided",
+    "expected": {
+      "requiredFields": [
+        { "name": "nome_cliente", "type": "string" },
+        { "name": "data_stipula", "type": "date" },
+        { "name": "importo_totale", "type": "currency" },
+        { "name": "durata_mesi", "type": "integer" }
+      ]
+    }
+  },
+  {
+    "id": "meeting-minutes",
+    "description": "Crea un verbale di riunione con data, partecipanti, decisioni e azioni.",
+    "language": "it",
+    "placeholderSyntaxSource": "pipeline",
+    "generationMode": "guided",
+    "expected": {
+      "requiredFields": [
+        { "name": "data_riunione", "type": "date" },
+        { "name": "partecipanti", "type": "text" },
+        { "name": "decisioni", "type": "text" }
+      ]
+    }
+  },
+  {
+    "id": "commercial-offer",
+    "description": "Produci una offerta commerciale con oggetto offerta, prezzo proposto e validita in giorni.",
+    "language": "it",
+    "placeholderSyntaxSource": "pipeline",
+    "generationMode": "guided",
+    "expected": {
+      "requiredFields": [
+        { "name": "oggetto_offerta", "type": "text" },
+        { "name": "prezzo_proposto", "type": "currency" },
+        { "name": "validita_giorni", "type": "integer" }
+      ]
+    }
+  },
+  {
+    "id": "customer-master-data",
+    "description": "Genera una scheda anagrafica cliente con ragione sociale, email referente, telefono referente e stato cliente.",
+    "language": "it",
+    "placeholderSyntaxSource": "pipeline",
+    "generationMode": "guided",
+    "expected": {
+      "requiredFields": [
+        { "name": "ragione_sociale", "type": "string" },
+        { "name": "email_referente", "type": "email" },
+        { "name": "telefono_referente", "type": "phone" },
+        { "name": "stato_cliente", "type": "list" }
+      ]
+    }
+  },
+  {
+    "id": "monthly-activity-report",
+    "description": "Crea un report attivita mensile con mese riferimento, attivita principali e avanzamento percentuale.",
+    "language": "it",
+    "placeholderSyntaxSource": "pipeline",
+    "generationMode": "guided",
+    "expected": {
+      "requiredFields": [
+        { "name": "mese_riferimento", "type": "string" },
+        { "name": "attivita_principali", "type": "text" },
+        { "name": "avanzamento_percentuale", "type": "percentage" }
+      ]
+    }
+  },
+  {
+    "id": "strict-technical-placeholders",
+    "description": "Genera un contratto enterprise con segnaposto tecnici obbligatori, campi con length e required, includendo anche un campo list per lo stato.",
+    "language": "it",
+    "placeholderSyntaxSource": "user",
+    "generationMode": "guided",
+    "expected": {
+      "requiredFields": [
+        { "name": "nome_cliente", "type": "string" },
+        { "name": "data_stipula", "type": "date" },
+        { "name": "importo_totale", "type": "currency" },
+        { "name": "durata_mesi", "type": "integer" },
+        { "name": "stato_cliente", "type": "list" }
+      ]
+    }
+  },
+  {
+    "id": "no-technical-placeholders",
+    "description": "Genera solo testo markdown con segnaposto testuali semplici e non usare placeholder tecnici.",
+    "language": "it",
+    "placeholderSyntaxSource": "user",
+    "generationMode": "free",
+    "expected": {
+      "requiredFields": []
+    }
+  },
+  {
+    "id": "multi-section-governance-template",
+    "description": "Template governance con sezioni anagrafica, compliance, economico e approvazioni; includi data, importo, email, telefono, numero dipendenti e stato cliente.",
+    "language": "it",
+    "placeholderSyntaxSource": "pipeline",
+    "generationMode": "guided",
+    "expected": {
+      "requiredFields": [
+        { "name": "ragione_sociale", "type": "string" },
+        { "name": "email_referente", "type": "email" },
+        { "name": "telefono_referente", "type": "phone" },
+        { "name": "numero_dipendenti", "type": "integer" },
+        { "name": "stato_cliente", "type": "list" },
+        { "name": "importo_totale", "type": "currency" }
+      ]
+    }
+  }
+]

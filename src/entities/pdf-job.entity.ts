@@ -4,12 +4,9 @@ import {
   CreateDateColumn,
   Entity,
   Index,
-  JoinColumn,
-  ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import type { FieldValueMap } from "../service/document-rendering.service";
-import { TemplateEntity } from "./template.entity";
 
 @Entity({ name: "pdf_jobs" })
 @Check(
@@ -21,15 +18,14 @@ export class PdfJobEntity {
   id!: string;
 
   @Index("idx_pdf_jobs_template_id")
-  @Column({ type: "uuid" })
+  @Column({ type: "varchar", length: 512 })
   template_id!: string;
 
   @Column({ type: "jsonb", default: () => "'{}'", nullable: false })
   field_values!: FieldValueMap;
 
-  @ManyToOne(() => TemplateEntity, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "template_id" })
-  template?: TemplateEntity;
+  @Column({ type: "varchar", length: 35, nullable: true })
+  language!: string | null;
 
   @Index("idx_pdf_jobs_status")
   @Column({ type: "varchar", length: 50, default: "queued" })

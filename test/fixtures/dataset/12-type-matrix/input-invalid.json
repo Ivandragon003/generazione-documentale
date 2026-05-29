@@ -1,0 +1,9 @@
+{
+  "nome": { "x": 1 },
+  "descrizione": ["bad"],
+  "data_documento": "not-a-date",
+  "totale": "x12",
+  "quantita": "12.3",
+  "attivo": "forse",
+  "sconto": "abc"
+}

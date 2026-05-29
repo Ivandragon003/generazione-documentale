@@ -12,6 +12,12 @@ const timeoutMs = Number.parseInt(
   process.env.PDF_GENERATION_TIMEOUT_MS ?? "120000",
   10,
 );
+const debugEnabled = (process.env.PDF_SERVICE_DEBUG ?? "false") === "true";
+const saveTexOnError = (process.env.PDF_SERVICE_SAVE_TEX_ON_ERROR ?? "false") === "true";
+
+function logDebug(message) {
+  if (debugEnabled) console.log(`[pdf-service][debug] ${message}`);
+}
 
 function readBody(request) {
   return new Promise((resolve, reject) => {
@@ -29,15 +35,33 @@ function readBody(request) {
 }
 
 function metadata(options, title, author, format) {
+  const mainFontFallbacks = Array.isArray(options.mainFontFallbacks)
+    ? options.mainFontFallbacks.filter((font) => typeof font === "string" && font.trim().length > 0)
+    : [];
+  const fallbackArgs = mainFontFallbacks.flatMap((font) => [
+    "-V",
+    `mainfontfallback=${font}`,
+  ]);
+
+  const titleArgs =
+    typeof title === "string" && title.trim().length > 0
+      ? [`--metadata=title:${title}`]
+      : [];
+  const authorArgs =
+    typeof author === "string" && author.trim().length > 0
+      ? [`--metadata=author:${author}`]
+      : [];
+
   return [
     "--from",
     "markdown+smart+pipe_tables",
     "--to",
     format,
     ...(format === "pdf" ? ["--pdf-engine", options.engine ?? "xelatex"] : []),
-    `--metadata=title:${title}`,
-    `--metadata=author:${author}`,
-    "--metadata=lang:it",
+    ...titleArgs,
+    ...authorArgs,
+    `--metadata=lang:${options.lang ?? "it"}`,
+    `--metadata=dir:${options.dir ?? "ltr"}`,
     "-V",
     `papersize=${options.paper ?? "a4"}`,
     "-V",
@@ -45,11 +69,14 @@ function metadata(options, title, author, format) {
     "-V",
     `geometry:top=${options.marginTop ?? "2.5cm"},bottom=${options.marginBottom ?? "2.5cm"},left=${options.marginLeft ?? "2.5cm"},right=${options.marginRight ?? "2.5cm"}`,
     "-V",
-    `mainfont=${options.mainFont ?? "Liberation Serif"}`,
+    `mainfont=${options.mainFont ?? "Noto Sans"}`,
     "-V",
-    `sansfont=${options.sansFont ?? "Liberation Sans"}`,
+    `sansfont=${options.sansFont ?? "Noto Sans"}`,
     "-V",
-    `monofont=${options.monoFont ?? "Liberation Mono"}`,
+    `monofont=${options.monoFont ?? "DejaVu Sans Mono"}`,
+    "-V",
+    `CJKmainfont=${options.cjkMainFont ?? "Noto Sans CJK JP"}`,
+    ...fallbackArgs,
     "-V",
     `colorlinks=${options.colorLinks ?? "true"}`,
     "-V",
@@ -59,9 +86,13 @@ function metadata(options, title, author, format) {
 
 function runPandoc(markdown, outputPath, options, title, author, format) {
   return new Promise((resolve, reject) => {
+    const args = [...metadata(options, title, author, format), "--output", outputPath];
+    if (debugEnabled) {
+      logDebug(`pandoc command: ${pandocPath} ${args.join(" ")}`);
+    }
     const process = spawn(
       pandocPath,
-      [...metadata(options, title, author, format), "--output", outputPath],
+      args,
       { stdio: ["pipe", "ignore", "pipe"] },
     );
     let stderr = "";
@@ -90,8 +121,37 @@ function runPandoc(markdown, outputPath, options, title, author, format) {
     process.on("close", (code) => {
       clearTimeout(timer);
       if (code === 0) resolve();
-      else reject(new Error(`Pandoc exit ${code}: ${stderr.slice(0, 500)}`));
+      else {
+        logDebug(`pandoc stderr: ${stderr.slice(0, 2000)}`);
+        reject(new Error(`Pandoc exit ${code}: ${stderr.slice(0, 500)}`));
+      }
     });
+    process.stdin.end(markdown, "utf8");
+  });
+}
+
+function saveTexDebug(markdown, texPath, options, title, author) {
+  return new Promise((resolve) => {
+    const args = [
+      ...metadata(options, title, author, "latex"),
+      "--output",
+      texPath,
+    ];
+    logDebug(`saving intermediate tex: ${pandocPath} ${args.join(" ")}`);
+    const process = spawn(pandocPath, args, { stdio: ["pipe", "ignore", "pipe"] });
+    let stderr = "";
+    process.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    process.on("close", (code) => {
+      if (code === 0) {
+        logDebug(`intermediate tex saved at ${texPath}`);
+      } else {
+        logDebug(`failed to save intermediate tex (exit ${code}): ${stderr.slice(0, 1000)}`);
+      }
+      resolve();
+    });
+    process.on("error", () => resolve());
     process.stdin.end(markdown, "utf8");
   });
 }
@@ -151,8 +211,10 @@ const server = createServer(async (request, response) => {
   }
 
   let finalOutputPath = "";
+  let parsedPayload = null;
   try {
     const payload = JSON.parse(await readBody(request));
+    parsedPayload = payload;
     const format = payload?.format === "docx" ? "docx" : "pdf";
     const filename = `${randomUUID()}.${format}`;
     finalOutputPath = join(workdir, filename);
@@ -164,8 +226,8 @@ const server = createServer(async (request, response) => {
       payload.markdown,
       finalOutputPath,
       payload.options ?? {},
-      payload.title ?? "Document",
-      payload.author ?? "MAC Documents",
+      payload.title ?? "",
+      payload.author ?? "",
       format,
     );
 
@@ -180,6 +242,24 @@ const server = createServer(async (request, response) => {
       void rm(finalOutputPath, { force: true });
     });
   } catch (error) {
+    if (saveTexOnError) {
+      const fallbackTexPath = finalOutputPath
+        ? finalOutputPath.replace(/\.(pdf|docx)$/i, ".debug.tex")
+        : join(workdir, `${randomUUID()}.debug.tex`);
+      try {
+        if (typeof parsedPayload?.markdown === "string") {
+          await saveTexDebug(
+            parsedPayload.markdown,
+            fallbackTexPath,
+            parsedPayload.options ?? {},
+            parsedPayload.title ?? "",
+            parsedPayload.author ?? "",
+          );
+        }
+      } catch {
+        // ignore debug failures
+      }
+    }
     if (finalOutputPath) {
       await rm(finalOutputPath, { force: true }).catch(() => undefined);
     }

@@ -1,0 +1,9 @@
+{
+  "deterministic": {
+    "errors": [],
+    "warnings": [{ "code": "DUPLICATED_FIELD", "fieldName": "nome_cliente" }]
+  },
+  "fieldValidationInvalidInput": [
+    "Invalid value for field \"nome_cliente\" of type \"string\""
+  ]
+}

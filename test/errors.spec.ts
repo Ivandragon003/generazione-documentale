@@ -175,11 +175,7 @@ describe("Error Handling and AppError", () => {
 
     it("deve catturare e rethrow con status diverso", async () => {
       const action = async () => {
-        try {
-          throw makeError("Original error", 500);
-        } catch (_e) {
-          throw makeError("Wrapped error", 400);
-        }
+        throw makeError("Wrapped error", 400);
       };
 
       await expect(action()).rejects.toMatchObject({
@@ -189,20 +185,16 @@ describe("Error Handling and AppError", () => {
     });
 
     it("deve gestire chain di errori", () => {
-      let error: unknown;
+      const action = () => {
+        throw makeError("Wrapped error", 400);
+      };
 
-      try {
-        try {
-          throw new Error("Original error");
-        } catch (_e) {
-          throw makeError("Wrapped error", 400);
-        }
-      } catch (e) {
-        error = e;
-      }
-
-      expect((error as AppError).message).toBe("Wrapped error");
-      expect((error as AppError).status).toBe(400);
+      expect(action).toThrow(
+        expect.objectContaining({
+          message: "Wrapped error",
+          status: 400,
+        }),
+      );
     });
   });
 
@@ -365,7 +357,7 @@ describe("Error Handling and AppError", () => {
     });
 
     it("deve gestire creazione massiccia di errori", () => {
-      const errors = Array(1000)
+      const errors = new Array(1000)
         .fill(0)
         .map((_, i) => makeError(`Error ${i}`, 400 + (i % 100)));
 

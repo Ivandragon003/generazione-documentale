@@ -1,0 +1,9 @@
+{
+  "nome": "Mario Rossi",
+  "descrizione": "Test descrittivo",
+  "data_documento": "2026-05-22",
+  "totale": 1234.56,
+  "quantita": 7,
+  "attivo": true,
+  "sconto": 15
+}

@@ -1,46 +1,46 @@
 {
   "brand": {
-    "pm3Logo": "Logo PM3"
+    "pm3Logo": "PM3 Logo"
   },
   "common": {
-    "create": "CREA",
-    "search": "Cerca"
+    "create": "CREATE",
+    "search": "Search"
   },
   "home": {
     "title": "Home"
   },
   "navbar": {
-    "collapseSidebar": "Comprimi barra laterale",
-    "openSidebar": "Apri barra laterale",
-    "projectNameLabel": "Nome del progetto",
-    "projectNamePlaceholder": "Nome progetto",
-    "settings": "Impostazioni",
-    "userProfile": "Profilo utente"
+    "collapseSidebar": "Collapse sidebar",
+    "openSidebar": "Open sidebar",
+    "projectNameLabel": "Project name",
+    "projectNamePlaceholder": "Project Name",
+    "settings": "Settings",
+    "userProfile": "User profile"
   },
   "sidebar": {
     "actions": {
-      "filterResults": "Filtra risultati",
-      "joinWorkspace": "Unisciti all'area di lavoro",
-      "previewSidebar": "Anteprima barra laterale"
+      "filterResults": "Filter results",
+      "joinWorkspace": "Join workspace",
+      "previewSidebar": "Preview sidebar"
     },
     "sections": {
-      "activities": "Attivita",
-      "join": "Unisciti",
+      "activities": "Activities",
+      "join": "Join",
       "portfolio": "Portfolio",
-      "programs": "Programmi",
-      "projects": "Progetti",
-      "template": "Modello"
+      "programs": "Programs",
+      "projects": "Projects",
+      "template": "Template"
     },
     "top": {
-      "all": "Tutto",
-      "favorites": "Preferiti",
-      "forYou": "Per te",
-      "recent": "Recenti"
+      "all": "All",
+      "favorites": "Favorites",
+      "forYou": "For you",
+      "recent": "Recent"
     }
   },
   "stories": {
     "sidebar": {
-      "nestedSectionContent": "Contenuto della sezione annidata"
+      "nestedSectionContent": "Nested section content"
     }
   }
 }

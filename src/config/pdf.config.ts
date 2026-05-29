@@ -13,9 +13,10 @@
  *   PDF_MARGIN_BOTTOM    bottom margin (default: 2.5cm)
  *   PDF_MARGIN_LEFT      left margin (default: 2.5cm)
  *   PDF_MARGIN_RIGHT     right margin (default: 2.5cm)
- *   PDF_MAIN_FONT        body font (default: Liberation Serif)
- *   PDF_SANS_FONT        sans font (default: Liberation Sans)
- *   PDF_MONO_FONT        mono font (default: Liberation Mono)
+ *   PDF_MAIN_FONT        body font (default: DejaVu Sans)
+ *   PDF_SANS_FONT        sans font (default: DejaVu Sans)
+ *   PDF_MONO_FONT        mono font (default: DejaVu Sans Mono)
+ *   PDF_CJK_MAIN_FONT    CJK font (default: Noto Sans CJK JP)
  *   PDF_LINE_STRETCH     line stretch 1.0â€“2.0 (default: 1.25)
  *   PDF_COLOR_LINKS      enable colored links: true|false (default: true)
  *   PDF_LINK_COLOR       pandoc link color (default: teal)
@@ -40,6 +41,7 @@ export interface PdfConfig {
   mainFont: string;
   sansFont: string;
   monoFont: string;
+  cjkMainFont: string;
   lineStretch: number;
   colorLinks: boolean;
   linkColor: string;
@@ -78,6 +80,8 @@ const validateMargin = (
   varName: string,
   fallback: string,
 ): { value: string; error?: string } => {
+  if (raw === undefined) return { value: fallback };
+
   const v = raw?.trim() ?? fallback;
   if (MARGIN_PATTERN.test(v)) return { value: v };
   return {
@@ -92,6 +96,8 @@ const validatePositiveInt = (
   fallback: number,
   min = 1,
 ): { value: number; error?: string } => {
+  if (raw === undefined) return { value: fallback };
+
   const parsed = Math.round(Number.parseFloat(raw ?? ""));
   if (Number.isInteger(parsed) && parsed >= min) return { value: parsed };
   return {
@@ -103,6 +109,8 @@ const validatePositiveInt = (
 const validateLineStretch = (
   raw: string | undefined,
 ): { value: number; error?: string } => {
+  if (raw === undefined) return { value: 1.25 };
+
   const parsed = Number.parseFloat(raw ?? "");
   if (
     !Number.isNaN(parsed) &&
@@ -219,9 +227,10 @@ const buildPdfConfig = (): PdfConfig => {
     marginBottom,
     marginLeft,
     marginRight,
-    mainFont: process.env.PDF_MAIN_FONT || "Liberation Serif",
-    sansFont: process.env.PDF_SANS_FONT || "Liberation Sans",
-    monoFont: process.env.PDF_MONO_FONT || "Liberation Mono",
+    mainFont: process.env.PDF_MAIN_FONT || "DejaVu Sans",
+    sansFont: process.env.PDF_SANS_FONT || "DejaVu Sans",
+    monoFont: process.env.PDF_MONO_FONT || "DejaVu Sans Mono",
+    cjkMainFont: process.env.PDF_CJK_MAIN_FONT || "Noto Sans CJK JP",
     lineStretch,
     colorLinks,
     linkColor,

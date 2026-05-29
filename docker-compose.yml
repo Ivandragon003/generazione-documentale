@@ -61,7 +61,7 @@ services:
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_NAME: ${DB_NAME:-mac_documents}
-      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-true}
 
       STORAGE_PATH: ${STORAGE_PATH:-/app/storage/pdf}
       PDF_SERVICE_URL: ${PDF_SERVICE_URL:-http://pdf-service:3100}
@@ -77,11 +77,17 @@ services:
       GITHUB_OWNER: ${GITHUB_OWNER}
       GITHUB_REPO: ${GITHUB_REPO}
       GITHUB_BRANCH: ${GITHUB_BRANCH:-main}
-      GITHUB_TEMPLATES_DIR: ${GITHUB_TEMPLATES_DIR:-templates}
+      GITHUB_TEMPLATES_DIR: ${GITHUB_TEMPLATES_DIR:-}
+      AI_PROVIDER: ${AI_PROVIDER:-ollama}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_DRAFT_NUM_PREDICT: ${OLLAMA_DRAFT_NUM_PREDICT:-1200}
+      OLLAMA_DRAFT_TEMPERATURE: ${OLLAMA_DRAFT_TEMPERATURE:-0.2}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
 
     volumes:
       - pdf_storage:/app/storage/pdf
-      # Sincronizza openapi.json dal container all'host ad ogni avvio
+      # Sync openapi.json from container to host at each startup
       - ./openapi.json:/app/openapi.json
 
     ports:
@@ -89,6 +95,8 @@ services:
 
     networks:
       - mac_net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 
   # PDF/LaTeX/Pandoc separato dall'app NestJS
@@ -104,6 +112,8 @@ services:
       PDF_SERVICE_PORT: 3100
       PDF_GENERATION_TIMEOUT_MS: ${PDF_GENERATION_TIMEOUT_MS:-120000}
       PANDOC_PATH: ${PANDOC_PATH:-/usr/bin/pandoc}
+      PDF_SERVICE_DEBUG: ${PDF_SERVICE_DEBUG:-false}
+      PDF_SERVICE_SAVE_TEX_ON_ERROR: ${PDF_SERVICE_SAVE_TEX_ON_ERROR:-false}
 
     healthcheck:
       test: ["CMD-SHELL", "node -e \"const h=require('http');h.get('http://localhost:3100/health',r=>{let b='';r.on('data',c=>b+=c);r.on('end',()=>process.exit(r.statusCode===200&&b.includes('\\\"ok\\\":true')?0:1));}).on('error',()=>process.exit(1))\""]
@@ -144,7 +154,9 @@ services:
 # ───────────────────────────────────────────────────────────────
 volumes:
   postgres_data:
+    name: mac_postgres_data
   pdf_storage:
+    name: mac_pdf_storage
 
 
 # ───────────────────────────────────────────────────────────────

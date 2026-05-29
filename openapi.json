@@ -7,7 +7,7 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Applicazione attiva",
+            "description": "Application is running",
             "content": {
               "application/json": {
                 "schema": {
@@ -26,21 +26,160 @@
             }
           }
         },
-        "summary": "Health check applicazione",
+        "summary": "Application health check",
         "tags": ["health"]
       }
     },
-    "/health/pdf": {
+    "/api/health/ollama": {
       "get": {
-        "operationId": "HealthController_checkPdf",
+        "operationId": "HealthController_checkOllama",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Ollama connectivity details"
+          }
+        },
+        "summary": "Ollama connectivity check from backend runtime",
+        "tags": ["health"]
+      }
+    },
+    "/api/templates/tenants": {
+      "get": {
+        "operationId": "TemplatesController_listTenants",
         "parameters": [],
         "responses": {
           "200": {
             "description": ""
           }
         },
-        "summary": "Health check servizio PDF/Pandoc",
-        "tags": ["health"]
+        "summary": "List available tenants",
+        "tags": ["templates"]
+      }
+    },
+    "/api/templates/tenants/{tenantUuid}/template-lists": {
+      "get": {
+        "operationId": "TemplatesController_listTemplateLists",
+        "parameters": [
+          {
+            "name": "tenantUuid",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List template lists for a tenant",
+        "tags": ["templates"]
+      }
+    },
+    "/api/templates/tenants/{tenantUuid}/template-lists/{listName}": {
+      "get": {
+        "operationId": "TemplatesController_getTemplateList",
+        "parameters": [
+          {
+            "name": "tenantUuid",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "listName",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get one template list by tenant and list name",
+        "tags": ["templates"]
+      },
+      "put": {
+        "operationId": "TemplatesController_upsertTemplateList",
+        "parameters": [
+          {
+            "name": "tenantUuid",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "listName",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Create or update a template list for a tenant",
+        "tags": ["templates"]
+      }
+    },
+    "/api/templates/tenants/{tenantUuid}/audit-logs": {
+      "get": {
+        "operationId": "TemplatesController_listAuditLogs",
+        "parameters": [
+          {
+            "name": "tenantUuid",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List tenant audit logs",
+        "tags": ["templates"]
       }
     },
     "/api/templates": {
@@ -78,6 +217,14 @@
         "operationId": "TemplatesController_create",
         "parameters": [
           {
+            "name": "tenantUuid",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "x-user",
             "in": "header",
             "required": false,
@@ -106,28 +253,137 @@
         "tags": ["templates"]
       }
     },
-    "/api/templates/{id}": {
+    "/api/templates/tree": {
       "get": {
-        "operationId": "TemplatesController_findOne",
+        "operationId": "TemplatesController_getTemplateTree",
         "parameters": [
           {
-            "name": "id",
+            "name": "tenantUuid",
             "required": true,
-            "in": "path",
-            "description": "Template UUID",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "path",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
             "schema": {
               "type": "string"
             }
           }
         ],
         "responses": {
-          "404": {
-            "description": "Template not found"
+          "200": {
+            "description": ""
           }
         },
-        "summary": "Template details",
+        "summary": "List tenant template tree level (lazy)",
         "tags": ["templates"]
-      },
+      }
+    },
+    "/api/templates/search": {
+      "get": {
+        "operationId": "TemplatesController_searchTemplates",
+        "parameters": [
+          {
+            "name": "tenantUuid",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "path",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Search templates in tenant (server-side)",
+        "tags": ["templates"]
+      }
+    },
+    "/api/templates/{id}/content": {
+      "get": {
+        "operationId": "TemplatesController_getOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantUuid",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get one template content (lazy load markdown)",
+        "tags": ["templates"]
+      }
+    },
+    "/api/templates/{id}": {
       "put": {
         "operationId": "TemplatesController_update",
         "parameters": [
@@ -135,7 +391,15 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "Template UUID",
+            "description": "Template id (github:<path>)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantUuid",
+            "required": true,
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -175,7 +439,15 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "Template UUID",
+            "description": "Template id (github:<path>)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantUuid",
+            "required": true,
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -199,6 +471,112 @@
         "tags": ["templates"]
       }
     },
+    "/api/templates/{id}/versions": {
+      "get": {
+        "operationId": "TemplatesController_listTemplateVersions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantUuid",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List template versions from Git history",
+        "tags": ["templates"]
+      }
+    },
+    "/api/templates/{id}/versions/{commitSha}": {
+      "get": {
+        "operationId": "TemplatesController_getTemplateVersionContent",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commitSha",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantUuid",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get template content for a specific commit version",
+        "tags": ["templates"]
+      }
+    },
+    "/api/templates/{id}/versions/{commitSha}/restore": {
+      "post": {
+        "operationId": "TemplatesController_restoreTemplateVersion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commitSha",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantUuid",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Restore a template content from a past version",
+        "tags": ["templates"]
+      }
+    },
     "/api/templates/validate": {
       "post": {
         "operationId": "TemplatesController_validateTemplate",
@@ -212,6 +590,65 @@
         "tags": ["templates"]
       }
     },
+    "/api/templates/audit": {
+      "post": {
+        "operationId": "TemplatesController_auditTemplate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Run deterministic + AI semantic audit for a template markdown",
+        "tags": ["templates"]
+      }
+    },
+    "/api/templates/generate-draft": {
+      "post": {
+        "operationId": "TemplatesController_generateDraft",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateTemplateDraftDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Generate an AI-assisted markdown draft and validate it deterministically",
+        "tags": ["templates"]
+      }
+    },
+    "/api/templates/repair-draft": {
+      "post": {
+        "operationId": "TemplatesController_repairDraft",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Function"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Apply safe deterministic placeholder corrections on current markdown and revalidate",
+        "tags": ["templates"]
+      }
+    },
     "/api/templates/{id}/pdf": {
       "post": {
         "operationId": "TemplatesController_generatePdf",
@@ -220,7 +657,7 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "Template UUID",
+            "description": "Template id (github:<path>)",
             "schema": {
               "type": "string"
             }
@@ -295,7 +732,7 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "Template UUID",
+            "description": "Template id (github:<path>)",
             "schema": {
               "type": "string"
             }
@@ -318,7 +755,7 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "Template UUID",
+            "description": "Template id (github:<path>)",
             "schema": {
               "type": "string"
             }
@@ -350,7 +787,7 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "Template UUID",
+            "description": "Template id (github:<path>)",
             "schema": {
               "type": "string"
             }
@@ -363,6 +800,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "tenantUuid",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -370,7 +815,7 @@
             "description": ""
           }
         },
-        "summary": "Download PDF from specific job",
+        "summary": "Download completed PDF job",
         "tags": ["templates"]
       }
     },
@@ -382,7 +827,15 @@
             "name": "id",
             "required": true,
             "in": "path",
-            "description": "Template UUID",
+            "description": "Template id (github:<path>)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "language",
+            "required": false,
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -422,7 +875,7 @@
         "properties": {
           "label": {
             "type": "string",
-            "example": "Attivo"
+            "example": "Active"
           },
           "value": {
             "type": "string",
@@ -436,23 +889,24 @@
         "properties": {
           "name": {
             "type": "string",
-            "example": "descrizione"
+            "example": "description"
           },
           "label": {
             "type": "string",
-            "example": "Descrizione"
+            "example": "Description"
           },
           "type": {
             "type": "string",
             "enum": [
               "string",
               "text",
-              "number",
-              "integer",
               "date",
               "currency",
-              "percentage",
+              "integer",
               "boolean",
+              "percentage",
+              "list",
+              "number",
               "email",
               "phone",
               "textarea",
@@ -472,13 +926,25 @@
             "example": true,
             "default": true
           },
+          "maxLength": {
+            "type": "number",
+            "example": 100
+          },
           "defaultValue": {
             "type": "string",
             "example": ""
           },
           "placeholder": {
             "type": "string",
-            "example": "Inserisci valore"
+            "example": "Enter value"
+          },
+          "listName": {
+            "type": "string",
+            "example": "contract_types"
+          },
+          "listLabel": {
+            "type": "string",
+            "example": "Contract type"
           },
           "options": {
             "type": "array",
@@ -500,23 +966,24 @@
         "properties": {
           "name": {
             "type": "string",
-            "example": "descrizione"
+            "example": "description"
           },
           "label": {
             "type": "string",
-            "example": "Descrizione"
+            "example": "Description"
           },
           "type": {
             "type": "string",
             "enum": [
               "string",
               "text",
-              "number",
-              "integer",
               "date",
               "currency",
-              "percentage",
+              "integer",
               "boolean",
+              "percentage",
+              "list",
+              "number",
               "email",
               "phone",
               "textarea",
@@ -536,13 +1003,25 @@
             "example": true,
             "default": true
           },
+          "maxLength": {
+            "type": "number",
+            "example": 100
+          },
           "defaultValue": {
             "type": "string",
             "example": ""
           },
           "placeholder": {
             "type": "string",
-            "example": "Inserisci valore"
+            "example": "Enter value"
+          },
+          "listName": {
+            "type": "string",
+            "example": "contract_types"
+          },
+          "listLabel": {
+            "type": "string",
+            "example": "Contract type"
           },
           "options": {
             "type": "array",
@@ -572,7 +1051,7 @@
             "description": "Template Markdown content"
           },
           "fields": {
-            "description": "Definizioni dei campi",
+            "description": "Field definitions",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/TemplateFieldDto"
@@ -580,7 +1059,12 @@
           },
           "path": {
             "type": "string",
-            "description": "Percorso GitHub opzionale per sovrascrittura"
+            "description": "Optional GitHub path override"
+          },
+          "tenantUuid": {
+            "type": "string",
+            "description": "Tenant UUID",
+            "example": "11111111-1111-1111-1111-111111111111"
           }
         },
         "required": ["name", "content"]
@@ -598,35 +1082,84 @@
             "description": "Template Markdown content"
           },
           "fields": {
-            "description": "Definizioni dei campi",
+            "description": "Field definitions",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/TemplateFieldDto"
             }
           },
-          "path": {
+          "tenantUuid": {
             "type": "string",
-            "description": "Percorso GitHub opzionale per sovrascrittura"
+            "description": "Tenant UUID",
+            "example": "11111111-1111-1111-1111-111111111111"
           }
         }
+      },
+      "GenerateTemplateDraftDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Natural language description of the document template",
+            "example": "Contratto di fornitura con dati cliente, data stipula, importo e durata",
+            "maxLength": 4000
+          },
+          "language": {
+            "type": "string",
+            "description": "Preferred output language for labels and sections",
+            "example": "it",
+            "maxLength": 16
+          },
+          "runSemanticAudit": {
+            "type": "boolean",
+            "description": "Run semantic AI audit after deterministic validation of the draft",
+            "default": false
+          },
+          "generationMode": {
+            "type": "string",
+            "description": "Prompt mode: free excludes parser grammar, guided includes parser grammar",
+            "enum": ["free", "guided"],
+            "default": "guided"
+          },
+          "autoRepair": {
+            "type": "boolean",
+            "description": "Enable deterministic auto-repair for safe syntax fixes",
+            "default": false
+          },
+          "defaultLength": {
+            "type": "number",
+            "description": "Fallback length used by auto-repair when length is invalid",
+            "default": 120
+          }
+        },
+        "required": ["description"]
+      },
+      "Function": {
+        "type": "object",
+        "properties": {}
       },
       "GeneratePdfDto": {
         "type": "object",
         "properties": {
           "fieldValues": {
             "type": "object",
-            "description": "Valori dei campi per la sostituzione dei placeholder",
+            "description": "Field values used for placeholder substitution",
             "example": {
-              "nome_cliente": "Acme SpA",
-              "importo": 5000,
-              "righe": [
+              "customer_name": "Acme Inc",
+              "amount": 5000,
+              "rows": [
                 {
-                  "descrizione": "Servizio",
-                  "quantita": 2,
-                  "prezzo": 100
+                  "description": "Service",
+                  "quantity": 2,
+                  "price": 100
                 }
               ]
             }
+          },
+          "language": {
+            "type": "string",
+            "description": "Browser language used to choose the document script/font profile",
+            "example": "en-US"
           }
         }
       }

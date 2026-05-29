@@ -1,21 +1,21 @@
 import { Controller, Get, HttpCode, HttpStatus, Inject } from "@nestjs/common";
 import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
-import { PdfGenerationService } from "../service/pdf-generation.service";
+import { OllamaAiProvider } from "../service/ai/ollama-ai.provider";
 
 @ApiTags("health")
 @Controller("health")
 export class HealthController {
   constructor(
-    @Inject(PdfGenerationService)
-    private readonly pdfGenerationService: PdfGenerationService,
+    @Inject(OllamaAiProvider)
+    private readonly ollamaAiProvider: OllamaAiProvider,
   ) {}
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Health check applicazione" })
+  @ApiOperation({ summary: "Application health check" })
   @ApiResponse({
     status: 200,
-    description: "Applicazione attiva",
+    description: "Application is running",
     schema: {
       properties: {
         status: { type: "string", example: "ok" },
@@ -27,18 +27,38 @@ export class HealthController {
     return { status: "ok", timestamp: new Date().toISOString() };
   }
 
-  @Get("pdf")
+  @Get("ollama")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Health check servizio PDF/Pandoc" })
-  async checkPdf() {
-    const health = await this.pdfGenerationService.checkHealth();
-    if (!health.ok) {
-      return {
-        status: "error",
-        ...health,
-        timestamp: new Date().toISOString(),
-      };
-    }
-    return { status: "ok", ...health, timestamp: new Date().toISOString() };
+  @ApiOperation({ summary: "Ollama connectivity check from backend runtime" })
+  @ApiResponse({
+    status: 200,
+    description: "Ollama connectivity details",
+  })
+  async checkOllama(): Promise<{
+    provider: "ollama";
+    configured: {
+      baseUrl: string;
+      model: string;
+      numPredict: number;
+      temperature: number;
+      keepAlive: string;
+    };
+    reachable: boolean;
+    error?: string;
+  }> {
+    const config = this.ollamaAiProvider.getRuntimeConfig();
+    const status = await this.ollamaAiProvider.healthCheck();
+    return {
+      provider: "ollama",
+      configured: {
+        baseUrl: config.baseUrl,
+        model: config.model,
+        numPredict: config.numPredict,
+        temperature: config.temperature,
+        keepAlive: config.keepAlive,
+      },
+      reachable: status.ok,
+      ...(status.error ? { error: status.error } : {}),
+    };
   }
 }

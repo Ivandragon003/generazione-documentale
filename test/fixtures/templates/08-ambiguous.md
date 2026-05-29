@@ -1,0 +1,3 @@
+# Ambiguità
+
+Valore: {{string:valore}}

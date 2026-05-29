@@ -18,6 +18,7 @@ export const validateEnv = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
   const pdfServiceUrl = env.PDF_SERVICE_URL?.trim() ?? "";
   const enableLocalPdfFallback =
     env.ENABLE_LOCAL_PDF_FALLBACK?.trim().toLowerCase() ?? "false";
+  const aiProvider = env.AI_PROVIDER?.trim().toLowerCase() ?? "mock";
 
   parsePort(dbPortRaw, "DB_PORT");
   parsePort(port, "PORT");
@@ -31,6 +32,11 @@ export const validateEnv = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
   if (!["true", "false", ""].includes(enableLocalPdfFallback)) {
     throw new Error(
       `Invalid ENABLE_LOCAL_PDF_FALLBACK="${env.ENABLE_LOCAL_PDF_FALLBACK}". Allowed: true, false`,
+    );
+  }
+  if (!["mock", "ollama"].includes(aiProvider)) {
+    throw new Error(
+      `Invalid AI_PROVIDER="${env.AI_PROVIDER}". Allowed: mock, ollama`,
     );
   }
 
@@ -51,5 +57,14 @@ export const validateEnv = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
     PORT: port,
     PDF_SERVICE_URL: pdfServiceUrl,
     ENABLE_LOCAL_PDF_FALLBACK: enableLocalPdfFallback,
+    AI_PROVIDER: aiProvider,
+    OLLAMA_BASE_URL: env.OLLAMA_BASE_URL?.trim() ?? "",
+    OLLAMA_MODEL: env.OLLAMA_MODEL?.trim() ?? "",
+    OLLAMA_DRAFT_NUM_PREDICT: env.OLLAMA_DRAFT_NUM_PREDICT?.trim() ?? "",
+    OLLAMA_COMPACT_PROMPT_CHARS: env.OLLAMA_COMPACT_PROMPT_CHARS?.trim() ?? "",
+    OLLAMA_MAX_PROMPT_CHARS: env.OLLAMA_MAX_PROMPT_CHARS?.trim() ?? "",
+    OLLAMA_AUDIT_NUM_PREDICT: env.OLLAMA_AUDIT_NUM_PREDICT?.trim() ?? "",
+    OLLAMA_DRAFT_TEMPERATURE: env.OLLAMA_DRAFT_TEMPERATURE?.trim() ?? "",
+    OLLAMA_KEEP_ALIVE: env.OLLAMA_KEEP_ALIVE?.trim() ?? "",
   };
 };

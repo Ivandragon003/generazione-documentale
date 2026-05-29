@@ -1,8 +1,9 @@
 import type { ConfigService } from "@nestjs/config";
 import type { TypeOrmModuleOptions } from "@nestjs/typeorm";
 import { parsePort } from "../common/utils/parse-port";
+import { AuditLogEntity } from "../entities/audit-log.entity";
 import { PdfJobEntity } from "../entities/pdf-job.entity";
-import { TemplateEntity } from "../entities/template.entity";
+import { TemplateFieldListEntity } from "../entities/template-field-list.entity";
 
 export const buildTypeOrmOptions = (
   configService: ConfigService,
@@ -17,7 +18,7 @@ export const buildTypeOrmOptions = (
     username: configService.getOrThrow<string>("DB_USER"),
     password: configService.getOrThrow<string>("DB_PASSWORD"),
     database: configService.getOrThrow<string>("DB_NAME"),
-    entities: [TemplateEntity, PdfJobEntity],
+    entities: [PdfJobEntity, TemplateFieldListEntity, AuditLogEntity],
     synchronize,
     migrationsRun: false,
     migrations: ["dist/migrations/*.js"],

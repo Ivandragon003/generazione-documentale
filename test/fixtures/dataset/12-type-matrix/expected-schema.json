@@ -1,0 +1,11 @@
+{
+  "fields": [
+    { "name": "nome", "type": "string", "required": true },
+    { "name": "descrizione", "type": "text", "required": true },
+    { "name": "data_documento", "type": "date", "required": true },
+    { "name": "totale", "type": "currency", "required": true },
+    { "name": "quantita", "type": "integer", "required": true },
+    { "name": "attivo", "type": "boolean", "required": true },
+    { "name": "sconto", "type": "percentage", "required": true }
+  ]
+}

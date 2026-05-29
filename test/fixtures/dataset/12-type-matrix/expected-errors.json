@@ -1,0 +1,12 @@
+{
+  "deterministic": { "errors": [], "warnings": [] },
+  "fieldValidationInvalidInput": [
+    "Invalid value for field \"nome\" of type \"string\"",
+    "Invalid value for field \"descrizione\" of type \"text\"",
+    "Invalid value for field \"data_documento\" of type \"date\"",
+    "Invalid value for field \"totale\" of type \"currency\"",
+    "Invalid value for field \"quantita\" of type \"integer\"",
+    "Invalid value for field \"attivo\" of type \"boolean\"",
+    "Invalid value for field \"sconto\" of type \"percentage\""
+  ]
+}

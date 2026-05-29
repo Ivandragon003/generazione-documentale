@@ -1,0 +1,119 @@
+[
+  {
+    "id": "contratto-fornitura",
+    "description": "Genera un contratto di fornitura con cliente, data stipula, importo totale e durata in mesi.",
+    "language": "it",
+    "generationMode": "guided",
+    "expected": {
+      "fields": [
+        { "name": "nome_cliente", "type": "string" },
+        { "name": "data_stipula", "type": "date" },
+        { "name": "importo_totale", "type": "currency" },
+        { "name": "durata_mesi", "type": "integer" }
+      ],
+      "sections": ["Contratto"]
+    }
+  },
+  {
+    "id": "verbale-riunione",
+    "description": "Crea un verbale di riunione con data, partecipanti, decisioni e azioni.",
+    "language": "it",
+    "generationMode": "guided",
+    "expected": {
+      "fields": [
+        { "name": "data_riunione", "type": "date" },
+        { "name": "partecipanti", "type": "text" },
+        { "name": "decisioni", "type": "text" }
+      ],
+      "sections": ["Riunione"]
+    }
+  },
+  {
+    "id": "offerta-commerciale",
+    "description": "Produci una offerta commerciale con oggetto offerta, prezzo proposto e validita in giorni.",
+    "language": "it",
+    "generationMode": "guided",
+    "expected": {
+      "fields": [
+        { "name": "oggetto_offerta", "type": "text" },
+        { "name": "prezzo_proposto", "type": "currency" },
+        { "name": "validita_giorni", "type": "integer" }
+      ],
+      "sections": ["Offerta"]
+    }
+  },
+  {
+    "id": "scheda-anagrafica-cliente",
+    "description": "Genera una scheda anagrafica cliente con ragione sociale, email referente, telefono referente e stato cliente.",
+    "language": "it",
+    "generationMode": "guided",
+    "expected": {
+      "fields": [
+        { "name": "ragione_sociale", "type": "string" },
+        { "name": "email_referente", "type": "email" },
+        { "name": "telefono_referente", "type": "phone" },
+        { "name": "stato_cliente", "type": "list" }
+      ],
+      "sections": ["Cliente"]
+    }
+  },
+  {
+    "id": "report-attivita-mensile",
+    "description": "Crea un report attivita mensile con mese riferimento, attivita principali e avanzamento percentuale.",
+    "language": "it",
+    "generationMode": "guided",
+    "expected": {
+      "fields": [
+        { "name": "mese_riferimento", "type": "string" },
+        { "name": "attivita_principali", "type": "text" },
+        { "name": "avanzamento_percentuale", "type": "percentage" }
+      ],
+      "sections": ["Report mensile"]
+    }
+  },
+  {
+    "id": "template-governance-multisezione",
+    "description": "Genera un template di governance contrattuale con sezioni Contratto, Cliente e Report mensile, includendo campi data, importo, email, telefono e stato.",
+    "language": "it",
+    "generationMode": "guided",
+    "expected": {
+      "fields": [
+        { "name": "nome_cliente", "type": "string" },
+        { "name": "data_stipula", "type": "date" },
+        { "name": "importo_totale", "type": "currency" },
+        { "name": "email_referente", "type": "email" },
+        { "name": "telefono_referente", "type": "phone" },
+        { "name": "stato_cliente", "type": "list" }
+      ],
+      "sections": ["Contratto", "Cliente", "Report mensile"]
+    }
+  },
+  {
+    "id": "project-charter-guided",
+    "description": "Genera un Project Charter con nome progetto, data inizio e fine, descrizione progetto, business case, obiettivi del progetto e benefici attesi. Usa list solo dove sono richieste opzioni predefinite.",
+    "language": "it",
+    "generationMode": "guided",
+    "expected": {
+      "fields": [
+        { "name": "nome_progetto", "type": "string" },
+        { "name": "data_inizio", "type": "date" },
+        { "name": "data_fine", "type": "date" },
+        { "name": "descrizione_progetto", "type": "text" },
+        { "name": "business_case", "type": "text" },
+        { "name": "obiettivi_progetto", "type": "text" },
+        { "name": "benefici_attesi", "type": "text" }
+      ],
+      "sections": ["Project Charter"]
+    }
+  },
+  {
+    "id": "prompt-no-technical-placeholders",
+    "description": "Genera solo testo markdown con segnaposto semplici e non usare placeholder tecnici.",
+    "language": "it",
+    "generationMode": "free",
+    "expected": {
+      "fields": [],
+      "sections": []
+    }
+  }
+]

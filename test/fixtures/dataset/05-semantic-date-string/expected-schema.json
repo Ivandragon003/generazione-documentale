@@ -1,0 +1,1 @@
+{ "fields": [{ "name": "data_nascita", "type": "string", "required": true }] }

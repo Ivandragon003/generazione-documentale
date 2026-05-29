@@ -23,7 +23,7 @@ export class CreateTemplateDto {
   content!: string;
 
   @ApiPropertyOptional({
-    description: "Definizioni dei campi",
+    description: "Field definitions",
     type: () => TemplateFieldDto,
     isArray: true,
   })
@@ -34,9 +34,17 @@ export class CreateTemplateDto {
   fields?: TemplateFieldDto[];
 
   @ApiPropertyOptional({
-    description: "Percorso GitHub opzionale per sovrascrittura",
+    description: "Optional GitHub path override",
   })
   @IsOptional()
   @IsString()
   path?: string;
+
+  @ApiPropertyOptional({
+    description: "Tenant UUID",
+    example: "11111111-1111-1111-1111-111111111111",
+  })
+  @IsOptional()
+  @IsString()
+  tenantUuid?: string;
 }

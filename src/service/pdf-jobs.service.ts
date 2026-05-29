@@ -11,6 +11,7 @@ import { validateMarkdownContent } from "../common/utils/markdown.utils";
 import { sha256Signature } from "../common/utils/signature.utils";
 import { appConfig } from "../config/app.config";
 import { PdfJobsRepository } from "../repository/pdf-jobs.repository";
+import { AuditLogsService } from "./audit-logs.service";
 import type { FieldValueMap } from "./document-rendering.service";
 import { PdfGenerationService } from "./pdf-generation.service";
 import { TemplatesService } from "./templates.service";
@@ -20,6 +21,7 @@ const PDF_JOBS_RETENTION_DAYS = appConfig.pdfJobsRetentionDays;
 const PDF_FAILED_JOBS_RETENTION_DAYS = appConfig.pdfFailedJobsRetentionDays;
 const PDF_RETENTION_RUN_EVERY_MS = appConfig.pdfRetentionRunEveryMs;
 const MAX_TEMPLATE_CONTENT_BYTES = appConfig.maxTemplateContentBytes;
+const DOWNLOAD_NAME_SANITIZE_REGEX = /[<>:"/\\|?*]/g;
 
 function pipeToResponse(readable: Readable, response: Response): Promise<void> {
   return new Promise<void>((resolve, reject) => {
@@ -46,6 +48,8 @@ export class PdfJobsService implements OnModuleDestroy {
     private readonly templatesService: TemplatesService,
     @Inject(PdfGenerationService)
     private readonly pdfGenerationService: PdfGenerationService,
+    @Inject(AuditLogsService)
+    private readonly auditLogsService: AuditLogsService,
   ) {
     setImmediate(() => {
       this.ensureQueueRecovery().catch(() => undefined);
@@ -136,8 +140,19 @@ export class PdfJobsService implements OnModuleDestroy {
     this.processorRunning = true;
     try {
       const queuedJobs = await this.pdfJobsRepository.findQueued();
+      if (queuedJobs.length > 0) {
+        this.logger.log(`Processing queued PDF jobs: ${queuedJobs.length}`);
+      }
       for (const job of queuedJobs) {
-        await this.processJob(job.id).catch(() => undefined);
+        try {
+          await this.processJob(job.id);
+        } catch (error) {
+          this.logger.error(
+            `Unexpected job processor error for ${job.id}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
       }
     } finally {
       this.processorRunning = false;
@@ -148,21 +163,19 @@ export class PdfJobsService implements OnModuleDestroy {
     templateId: string,
     fieldValues: FieldValueMap,
     actor = "system",
+    language?: string,
   ) {
     await this.ensureQueueRecovery();
 
     const persistedTemplateId =
-      await this.templatesService.resolveTemplateIdForPdfJob(
-        templateId,
-        actor,
-        true,
-      );
+      await this.templatesService.resolveTemplateIdForPdfJob(templateId, true);
     if (!persistedTemplateId) throw makeError("Template not found", 404);
 
     const template = await this.templatesService.findOne(persistedTemplateId);
     if (!template) throw makeError("Template not found", 404);
 
     const templateContentHash = sha256Signature(template.content);
+    const normalizedLanguage = language?.trim() || null;
     const fieldValuesHash = sha256Signature(fieldValues ?? {});
     const job = await this.pdfJobsRepository.insert(
       persistedTemplateId,
@@ -170,17 +183,48 @@ export class PdfJobsService implements OnModuleDestroy {
       actor,
       templateContentHash,
       fieldValuesHash,
+      normalizedLanguage,
     );
+    const tenantUuid =
+      this.extractTenantUuidFromTemplateId(persistedTemplateId);
+    if (tenantUuid) {
+      await this.auditLogsService.recordSafe({
+        tenantUuid,
+        eventType: "pdf.job.queued",
+        actor,
+        templateId: persistedTemplateId,
+        payload: { jobId: job.id, language: normalizedLanguage },
+      });
+    }
     this.triggerQueueProcessor().catch(() => undefined);
     return job;
   }
 
+  private extractTenantUuidFromTemplateId(templateId: string): string | null {
+    const scopedId = templateId.startsWith("github:")
+      ? templateId.slice("github:".length)
+      : templateId;
+    const [tenantUuid] = scopedId.split("/");
+    return tenantUuid?.trim() || null;
+  }
+
   async processJob(jobId: string): Promise<void> {
+    const startedAtMs = Date.now();
     const claimed = await this.pdfJobsRepository.claim(jobId);
     if (!claimed) return;
 
     const job = await this.pdfJobsRepository.findById(jobId);
-    if (!job || job.status !== "running") return;
+    if (job?.status !== "running") return;
+    const tenantUuid = this.extractTenantUuidFromTemplateId(job.template_id);
+    if (tenantUuid) {
+      await this.auditLogsService.recordSafe({
+        tenantUuid,
+        eventType: "pdf.job.started",
+        actor: job.requested_by,
+        templateId: job.template_id,
+        payload: { jobId },
+      });
+    }
 
     try {
       const template = await this.templatesService.findOne(job.template_id);
@@ -208,6 +252,7 @@ export class PdfJobsService implements OnModuleDestroy {
           content: template.content,
           fieldValues: job.field_values ?? {},
           strict: false,
+          language: job.language ?? undefined,
         });
 
       await this.pdfJobsRepository.markCompleted(
@@ -217,10 +262,33 @@ export class PdfJobsService implements OnModuleDestroy {
         templateContentHash,
         renderedContentHash,
       );
+      if (tenantUuid) {
+        await this.auditLogsService.recordSafe({
+          tenantUuid,
+          eventType: "pdf.job.completed",
+          actor: job.requested_by,
+          templateId: job.template_id,
+          payload: {
+            jobId,
+            durationMs: Date.now() - startedAtMs,
+            unresolvedFields: unresolvedFields ?? [],
+          },
+        });
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "PDF generation error";
       await this.pdfJobsRepository.markFailed(jobId, message);
+      this.logger.warn(`PDF job ${jobId} failed: ${message}`);
+      if (tenantUuid) {
+        await this.auditLogsService.recordSafe({
+          tenantUuid,
+          eventType: "pdf.job.failed",
+          actor: job.requested_by,
+          templateId: job.template_id,
+          payload: { jobId, durationMs: Date.now() - startedAtMs, message },
+        });
+      }
     }
   }
 
@@ -230,7 +298,7 @@ export class PdfJobsService implements OnModuleDestroy {
     if (!persistedTemplateId) throw makeError("PDF job not found", 404);
 
     const job = await this.pdfJobsRepository.findById(jobId);
-    if (!job || job.template_id !== persistedTemplateId) {
+    if (job?.template_id !== persistedTemplateId) {
       throw makeError("PDF job not found", 404);
     }
     return job;
@@ -259,7 +327,50 @@ export class PdfJobsService implements OnModuleDestroy {
     return job.filename;
   }
 
-  async getLatestCompleted(templateId: string, fieldValues: FieldValueMap) {
+  private async recordPdfDownload(job: {
+    id: string;
+    template_id: string;
+    filename: string | null;
+    requested_by: string;
+    template_content_hash: string | null;
+    field_values_hash: string | null;
+    rendered_content_hash: string | null;
+  }): Promise<void> {
+    const tenantUuid = this.extractTenantUuidFromTemplateId(job.template_id);
+    if (!tenantUuid) return;
+    await this.auditLogsService.recordSafe({
+      tenantUuid,
+      eventType: "pdf.job.downloaded",
+      actor: job.requested_by,
+      templateId: job.template_id,
+      payload: {
+        jobId: job.id,
+        filename: job.filename,
+        templateContentHash: job.template_content_hash,
+        fieldValuesHash: job.field_values_hash,
+        renderedContentHash: job.rendered_content_hash,
+      },
+    });
+  }
+
+  private buildDownloadFilename(baseName: string, extension: "pdf"): string {
+    const withoutControlChars = Array.from(baseName || "document")
+      .map((char) => (char.charCodeAt(0) <= 0x1f ? "-" : char))
+      .join("");
+    const normalized = withoutControlChars
+      .trim()
+      .replace(DOWNLOAD_NAME_SANITIZE_REGEX, "-")
+      .replace(/\s+/g, " ")
+      .replace(/\.+$/, "");
+    const safe = normalized.length > 0 ? normalized : "document";
+    return `${safe}.${extension}`;
+  }
+
+  async getLatestCompleted(
+    templateId: string,
+    fieldValues: FieldValueMap,
+    language?: string,
+  ) {
     const persistedTemplateId =
       await this.templatesService.resolveTemplateIdForPdfJob(templateId);
     if (!persistedTemplateId) {
@@ -273,6 +384,7 @@ export class PdfJobsService implements OnModuleDestroy {
       persistedTemplateId,
       sha256Signature(template.content),
       sha256Signature(fieldValues ?? {}),
+      language === undefined ? undefined : language.trim() || null,
     );
     if (!job) {
       throw makeError(
@@ -290,30 +402,46 @@ export class PdfJobsService implements OnModuleDestroy {
     response: Response,
   ): Promise<void> {
     const job = await this.getCompletedJob(templateId, jobId);
+    const template = await this.templatesService.findOne(job.template_id);
+    const downloadName = this.buildDownloadFilename(
+      template?.name ?? "document",
+      "pdf",
+    );
     const stream = await this.pdfGenerationService.getPdfStream(
       this.requirePdfFilename(job),
     );
     response.setHeader("Content-Type", "application/pdf");
     response.setHeader(
       "Content-Disposition",
-      `attachment; filename="${job.filename}"`,
+      `attachment; filename="${downloadName}"`,
     );
     await pipeToResponse(stream, response);
+    await this.recordPdfDownload(job);
   }
 
   async streamLatest(
     templateId: string,
     response: Response,
     fieldValues: FieldValueMap,
+    language?: string,
   ): Promise<void> {
-    const job = await this.getLatestCompleted(templateId, fieldValues);
+    const job = await this.getLatestCompleted(
+      templateId,
+      fieldValues,
+      language,
+    );
+    const template = await this.templatesService.findOne(job.template_id);
+    const downloadName = this.buildDownloadFilename(
+      template?.name ?? "document",
+      "pdf",
+    );
     const stream = await this.pdfGenerationService.getPdfStream(
       this.requirePdfFilename(job),
     );
     response.setHeader("Content-Type", "application/pdf");
     response.setHeader(
       "Content-Disposition",
-      `attachment; filename="${job.filename}"`,
+      `attachment; filename="${downloadName}"`,
     );
     await pipeToResponse(stream, response);
   }

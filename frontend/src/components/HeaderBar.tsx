@@ -1,5 +1,8 @@
 import DescriptionIcon from "@mui/icons-material/Description";
 import HistoryIcon from "@mui/icons-material/History";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import ManageSearchIcon from "@mui/icons-material/ManageSearch";
+import NoteAddIcon from "@mui/icons-material/NoteAdd";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import SaveIcon from "@mui/icons-material/Save";
 import {
@@ -7,10 +10,15 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Divider,
+  Menu,
+  MenuItem,
+  Paper,
   Stack,
   Tooltip,
   Typography,
 } from "@mui/material";
+import { useState } from "react";
 import type { PdfJobDto, TemplateDto } from "../data/api";
 
 interface HeaderBarProps {
@@ -21,8 +29,14 @@ interface HeaderBarProps {
   readonly onGenerateDocx: () => void;
   readonly pdfJobs: PdfJobDto[];
   readonly canGeneratePdf?: boolean;
-  /** Show the "Save Template" button only when the Template tab is active */
   readonly showSaveTemplate?: boolean;
+  readonly onCreateTemplate?: () => void;
+  readonly onDeleteTemplate?: () => void;
+  readonly onOpenVersions?: () => void;
+  readonly onOpenAudit?: () => void;
+  readonly canSaveTemplate?: boolean;
+  readonly showPdfStatus?: boolean;
+  readonly showGenerateActions?: boolean;
 }
 
 export function HeaderBar({
@@ -34,37 +48,87 @@ export function HeaderBar({
   pdfJobs,
   canGeneratePdf = false,
   showSaveTemplate = true,
+  onCreateTemplate,
+  onDeleteTemplate,
+  onOpenVersions,
+  onOpenAudit,
+  canSaveTemplate = false,
+  showPdfStatus = true,
+  showGenerateActions = true,
 }: HeaderBarProps) {
   const latestJob = pdfJobs[0];
-
-  const pdfTooltip = canGeneratePdf ? "Generate PDF" : "Select a template";
+  const [generateAnchor, setGenerateAnchor] = useState<HTMLElement | null>(
+    null,
+  );
+  const generateOpen = Boolean(generateAnchor);
 
   return (
-    <Box className="header-bar">
+    <Paper className="header-bar header-surface" elevation={0}>
       <Stack
         direction="row"
         justifyContent="space-between"
-        alignItems="flex-start"
+        alignItems="center"
         gap={2}
+        flexWrap="wrap"
       >
         <Stack direction="row" gap={2} alignItems="center">
           <Box className="doc-icon">DOC</Box>
           <Box>
-            <Typography variant="h5">
+            <Typography variant="h5" fontWeight={700}>
               {template?.name ?? "No document"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {template?.updatedAt
-                ? new Date(template.updatedAt).toLocaleDateString("it-IT")
-                : "—"}
+                ? new Date(template.updatedAt).toLocaleDateString("en-US")
+                : "-"}
             </Typography>
           </Box>
         </Stack>
 
-        <Stack direction="row" gap={1} alignItems="center">
-          {latestJob && (
+        <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
+          {onCreateTemplate && (
+            <Button
+              variant="outlined"
+              startIcon={<NoteAddIcon />}
+              onClick={onCreateTemplate}
+              disabled={isSaving}
+            >
+              Create template
+            </Button>
+          )}
+          <Divider orientation="vertical" flexItem className="header-divider" />
+          {onDeleteTemplate && (
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={onDeleteTemplate}
+              disabled={isSaving || !template}
+            >
+              Delete
+            </Button>
+          )}
+          {onOpenVersions && (
+            <Button
+              variant="outlined"
+              startIcon={<HistoryIcon />}
+              onClick={onOpenVersions}
+              disabled={!template}
+            >
+              Versions
+            </Button>
+          )}
+          {onOpenAudit && (
+            <Button
+              variant="outlined"
+              startIcon={<ManageSearchIcon />}
+              onClick={onOpenAudit}
+            >
+              Audit
+            </Button>
+          )}
+          {showPdfStatus && latestJob && (
             <Tooltip
-              title={`Ultimo job: ${latestJob.status} — ${latestJob.createdAt}`}
+              title={`Latest job: ${latestJob.status} - ${latestJob.createdAt}`}
             >
               <Chip
                 icon={<HistoryIcon />}
@@ -75,36 +139,60 @@ export function HeaderBar({
             </Tooltip>
           )}
 
-          <Tooltip title={pdfTooltip}>
-            <span>
-              <Button
-                variant="outlined"
-                startIcon={<PictureAsPdfIcon />}
-                onClick={onGeneratePdf}
-                disabled={!canGeneratePdf || isSaving}
+          {showGenerateActions && (
+            <>
+              <Tooltip
+                title={canGeneratePdf ? "Generate file" : "Select a template"}
               >
-                Generate PDF
-              </Button>
-            </span>
-          </Tooltip>
-          <Tooltip
-            title={canGeneratePdf ? "Generate DOCX" : "Select a template"}
-          >
-            <span>
-              <Button
-                variant="outlined"
-                startIcon={<DescriptionIcon />}
-                onClick={onGenerateDocx}
-                disabled={!canGeneratePdf || isSaving}
+                <span>
+                  <Button
+                    variant="outlined"
+                    startIcon={<PictureAsPdfIcon />}
+                    endIcon={<KeyboardArrowDownIcon />}
+                    onClick={(event) => setGenerateAnchor(event.currentTarget)}
+                    disabled={!canGeneratePdf || isSaving}
+                  >
+                    Generate
+                  </Button>
+                </span>
+              </Tooltip>
+              <Menu
+                anchorEl={generateAnchor}
+                open={generateOpen}
+                onClose={() => setGenerateAnchor(null)}
               >
-                Generate DOCX
-              </Button>
-            </span>
-          </Tooltip>
+                <MenuItem
+                  onClick={() => {
+                    setGenerateAnchor(null);
+                    onGeneratePdf();
+                  }}
+                >
+                  <PictureAsPdfIcon
+                    fontSize="small"
+                    style={{ marginRight: 8 }}
+                  />
+                  PDF
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    setGenerateAnchor(null);
+                    onGenerateDocx();
+                  }}
+                >
+                  <DescriptionIcon
+                    fontSize="small"
+                    style={{ marginRight: 8 }}
+                  />
+                  DOCX
+                </MenuItem>
+              </Menu>
+            </>
+          )}
 
           {showSaveTemplate && (
             <Button
               variant="contained"
+              className="primary-action-btn"
               startIcon={
                 isSaving ? (
                   <CircularProgress size={16} color="inherit" />
@@ -113,13 +201,13 @@ export function HeaderBar({
                 )
               }
               onClick={onSave}
-              disabled={isSaving}
+              disabled={isSaving || !canSaveTemplate}
             >
-              {isSaving ? "Salvataggio\u2026" : "Save Template"}
+              {isSaving ? "Saving..." : "Save Template"}
             </Button>
           )}
         </Stack>
       </Stack>
-    </Box>
+    </Paper>
   );
 }

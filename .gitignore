@@ -3,6 +3,8 @@
 /coverage
 /frontend/dist
 /frontend/node_modules
+/scripts
+/.github
 
 # logs
 logs
@@ -58,3 +60,9 @@ storage/test-runs/*.json
 *.tar
 *.tar.gz
 *.tgz
+
+# thesis local dataset and reports
+thesis-dataset/
+test/fixtures/thesis-dataset/
+reports/thesis/
+reports/ai-evaluation-thesis.json

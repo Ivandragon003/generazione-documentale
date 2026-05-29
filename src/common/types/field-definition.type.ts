@@ -29,8 +29,11 @@ export interface FieldColumnDefinition {
   label?: string;
   type?: FieldType;
   required?: boolean;
+  maxLength?: number;
   defaultValue?: string;
   placeholder?: string;
+  listName?: string;
+  listLabel?: string;
   options?: FieldOption[];
   columns?: FieldColumnDefinition[];
 }
@@ -40,9 +43,12 @@ export interface FieldDefinition {
   label: string;
   type: FieldType;
   required: boolean;
+  maxLength?: number;
   defaultValue: string;
   source?: "template";
   placeholder?: string;
+  listName?: string;
+  listLabel?: string;
   options?: FieldOption[];
   columns?: FieldColumnDefinition[];
 }

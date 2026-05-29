@@ -1,0 +1,5 @@
+{
+  "fields": [
+    { "name": "percentuale_sconto", "type": "integer", "required": true }
+  ]
+}

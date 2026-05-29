@@ -1,10 +1,11 @@
 # ─── Stage 1: Build ───────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:20 AS builder
 
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci --include=optional \
+  && npm install --no-save @rolldown/binding-linux-x64-gnu lightningcss-linux-x64-gnu
 
 COPY . .
 
