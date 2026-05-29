@@ -37,6 +37,12 @@ export interface RepairTemplateDraftInput {
   defaultLength?: number;
 }
 
+interface CharterSectionBlueprint {
+  title: string;
+  aliases?: string[];
+  lines: string[];
+}
+
 interface DidacticSectionAssessment {
   hasPlaceholder: boolean;
   hasDescription: boolean;
@@ -375,10 +381,16 @@ export class TemplateDraftGenerationService {
     return orderedSections.join("\n\n").trim();
   }
 
+  private hasMarkdownTable(content: string): boolean {
+    return /^\|(?:\s*:?-+:?\s*\|)+$/m.test(content);
+  }
+
   private blueprintRequiresMarkdownTable(
     blueprint: CharterSectionBlueprint,
   ): boolean {
-    return blueprint.lines.some((line) => /^\|(?:\s*:?-+:?\s*\|)+$/.test(line));
+    return blueprint.lines.some((line: string) =>
+      /^\|(?:\s*:?-+:?\s*\|)+$/.test(line),
+    );
   }
 
   private removeRepeatedGenericSectionHeadings(markdown: string): string {
@@ -902,6 +914,63 @@ export class TemplateDraftGenerationService {
       },
     );
     return { markdown: normalized, changes };
+  }
+
+  private postProcessGeneratedMarkdown(
+    markdown: string,
+    archetype: SupportedDocumentType,
+    autoRepair: boolean,
+    repairLength: number,
+  ): { markdown: string; changes: string[] } {
+    let processed = markdown;
+    const changes: string[] = [];
+
+    if (archetype === "project_charter") {
+      processed = this.ensureCompleteProjectCharter(processed);
+      if (processed !== markdown) {
+        changes.push("project_charter:sections_enforced");
+      }
+    }
+
+    if (autoRepair) {
+      const repaired = this.autoRepairMarkdown(processed, repairLength);
+      processed = repaired.markdown;
+      changes.push(...repaired.changes);
+
+      const normalizedPlaceholders =
+        this.normalizePlaceholderFieldNames(processed);
+      processed = normalizedPlaceholders.markdown;
+      changes.push(...normalizedPlaceholders.changes);
+
+      const uniqueNames = this.uniquifyDuplicatePlaceholderNames(processed);
+      processed = uniqueNames.markdown;
+      changes.push(...uniqueNames.changes);
+    }
+
+    const canonical = this.enforceExtendedCanonicalPlaceholders(processed);
+    if (canonical !== processed) {
+      changes.push("canonical_placeholders:extended");
+    }
+    processed = canonical;
+
+    return { markdown: processed, changes };
+  }
+
+  private repairUnsupportedStructuralPlaceholderTypes(markdown: string): {
+    markdown: string;
+    changes: string[];
+  } {
+    const changes: string[] = [];
+    const repaired = markdown.replace(
+      /\{\{(table|subtable):([^{}\n]*)\}\}/g,
+      (_token: string, type: string, rest: string) => {
+        const fieldName = rest.split(":")[0]?.trim() || "valore";
+        const normalized = normalizeFieldName(fieldName) || "valore";
+        changes.push(`structural_type:${type}:${fieldName}->string`);
+        return `{{string:${normalized}}}`;
+      },
+    );
+    return { markdown: repaired, changes };
   }
 
   private isRepairApplied(changes: string[]): boolean {
