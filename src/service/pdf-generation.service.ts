@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createReadStream, type ReadStream } from "node:fs";
 import { access, mkdir, unlink, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { determinePdfScriptProfileFromLanguage } from "../common/utils/pdf-script-profile.utils";
 import { sha256Signature } from "../common/utils/signature.utils";
@@ -567,8 +567,20 @@ export class PdfGenerationService {
     return this.generateDocument(document, "docx");
   }
 
+  private resolveStorageFile(filename: string): string {
+    const safe = basename(filename);
+    if (!safe || safe === "." || safe === "..") {
+      throw new Error(`Invalid filename: ${filename}`);
+    }
+    const filepath = resolve(this.getStoragePath(), safe);
+    if (!filepath.startsWith(resolve(this.getStoragePath()))) {
+      throw new Error(`Invalid filename: ${filename}`);
+    }
+    return filepath;
+  }
+
   async getFileStream(filename: string): Promise<ReadStream> {
-    const filepath = join(this.getStoragePath(), filename);
+    const filepath = this.resolveStorageFile(filename);
     try {
       await access(filepath);
     } catch {
@@ -582,7 +594,7 @@ export class PdfGenerationService {
   }
 
   async deletePdf(filename: string): Promise<void> {
-    const filepath = join(this.getStoragePath(), filename);
+    const filepath = this.resolveStorageFile(filename);
     await unlink(filepath).catch(() => undefined);
   }
 }

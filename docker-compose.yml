@@ -61,7 +61,7 @@ services:
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_NAME: ${DB_NAME:-mac_documents}
-      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-true}
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
 
       STORAGE_PATH: ${STORAGE_PATH:-/app/storage/pdf}
       PDF_SERVICE_URL: ${PDF_SERVICE_URL:-http://pdf-service:3100}

@@ -4,6 +4,7 @@ import { writeFileSync } from "node:fs";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import helmet from "helmet";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 
@@ -13,12 +14,21 @@ async function bootstrap(): Promise<void> {
     rawBody: true,
   });
 
+  const isProduction =
+    (process.env.NODE_ENV ?? "").trim().toLowerCase() === "production";
+
+  app.use(helmet());
+
+  const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
+    : [
+        "http://localhost:4173",
+        "http://localhost:5173",
+        "http://localhost:3001",
+      ];
+
   app.enableCors({
-    origin: [
-      "http://localhost:4173",
-      "http://localhost:5173",
-      "http://localhost:3001",
-    ],
+    origin: corsOrigins,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-user"],
     credentials: true,
@@ -46,14 +56,14 @@ async function bootstrap(): Promise<void> {
     .build();
 
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup("api-docs", app, swaggerDocument, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      defaultModelsExpandDepth: 1,
-    },
-  });
 
-  if (process.env.NODE_ENV !== "production") {
+  if (!isProduction) {
+    SwaggerModule.setup("api-docs", app, swaggerDocument, {
+      swaggerOptions: {
+        defaultModelsExpandDepth: 1,
+      },
+    });
+
     writeFileSync(
       "./openapi.json",
       JSON.stringify(swaggerDocument, null, 2),

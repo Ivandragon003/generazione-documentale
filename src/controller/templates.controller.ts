@@ -546,9 +546,16 @@ export class TemplatesController {
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     );
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional sanitization of control chars for Content-Disposition safety
+    const UNSAFE_FILENAME_CHARS = /[\x00-\x1f"\\]/g;
+    const safeName =
+      (template.name || "document")
+        .replace(UNSAFE_FILENAME_CHARS, "-")
+        .replace(/\s+/g, " ")
+        .trim() || "document";
     response.setHeader(
       "Content-Disposition",
-      `attachment; filename="${template.name || "document"}.docx"`,
+      `attachment; filename="${safeName}.docx"`,
     );
     await new Promise<void>((resolve, reject) => {
       stream.on("error", reject);
